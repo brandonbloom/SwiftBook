@@ -18,7 +18,7 @@ This plan implements [vision.md](vision.md). It is a living document: it gets re
   - **Platforms.** macOS, iOS and tvOS.
   - **Tooling.** `mise.toml` sets `SWIFTBOOK_HOME` and the `deps`, `build`, `test` and `ci` tasks. `scripts/ci` builds and tests with warnings treated as errors, plus `swift format lint --strict`. A minimal GitHub Actions workflow calls `scripts/ci`.
   - **Dependencies.** Only swift-syntax, which the macro needs.
-- [ ] **`preview-zoo`**
+- [x] **`preview-zoo`**
   - A fixture package, `Fixtures/PreviewZoo`, with one example of every preview form:
     - named and unnamed `#Preview`
     - each layout trait
