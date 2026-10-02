@@ -11,19 +11,17 @@ public struct StoryID: Hashable, Sendable, CustomStringConvertible {
 
     public var description: String { "\(module)/\(group)/\(name)" }
 
-    /// The name given to previews declared without one.
-    public static let unnamed = "Preview"
-
     /// Assigns identities to stories listed in source order.
     ///
-    /// Unnamed stories are called "Preview". Within a group, the second story with a given name
-    /// gets " 2" appended, the third " 3", and so on.
+    /// Unnamed stories take their group's name, as Xcode's canvas labels them. Within a group, the
+    /// second story with a given name gets " 2" appended, the third " 3", and so on. Xcode
+    /// disambiguates by line number instead, which changes whenever code moves.
     public static func assign(_ stories: [(module: String, group: String, displayName: String?)])
         -> [StoryID]
     {
         var taken: Set<StoryID> = []
         return stories.map { story in
-            let base = story.displayName ?? unnamed
+            let base = story.displayName ?? story.group
             var candidate = StoryID(module: story.module, group: story.group, name: base)
             var ordinal = 1
             while taken.contains(candidate) {

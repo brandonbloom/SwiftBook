@@ -14,7 +14,7 @@ SwiftBook is a story viewer and visual testing tool for SwiftUI.
 
 1. **Convention over configuration.** Adding SwiftBook to a package needs a dependency and a few lines of test code. Defaults cover layout, storage, variants, and naming.
 2. **Previews are the only story format.** Any `#Preview` that works in Xcode's canvas works in SwiftBook. The preview needs no wrappers or registries, and its name isn't repeated anywhere else.
-3. **Variants are first class**, light and dark above all. Platform is a variant too, so iOS and macOS renderings of the same story can sit side by side.
+3. **Variants are first class**, light and dark above all. Device is a variant too, and platform follows from it, so iPhone and Mac renderings of the same story can sit side by side.
 4. **A live, always-open macOS viewer.** It is fast and smooth. It picks up new code as soon as it compiles, and build errors, crashes, and hangs in user code never take it down or block it.
 5. **History-aware review.** Every story can be compared against uncommitted changes, the last commit, the branch's merge-base, or any revision.
 6. **Built-in visual diffing.** Perceptual diffs, a full set of comparison modes, and readable test failures.
@@ -35,8 +35,9 @@ SwiftBook is a story viewer and visual testing tool for SwiftUI.
 
 | Term | Meaning |
 |---|---|
-| **Story** | One `#Preview` (or `PreviewProvider` variant), identified by module, source file, and display name. |
-| **Dimension** | An axis along which a story can be rendered differently: platform, device (size class), color scheme, dynamic type size, layout direction / locale, and revision. |
+| **Story** | One `#Preview` (or one `PreviewProvider` child, or one argument of a `#Preview(arguments:)`), identified by module, source file, and display name. |
+| **Dimension** | An axis along which a story can be rendered differently: device, color scheme, increased contrast, control borders (button shapes), orientation, dynamic type size, layout direction / locale, and revision. |
+| **Device** | The device class a story renders on: iPhone, iPad, Mac, Mac Catalyst, or TV. Each class has one pinned model by convention. The **platform** (iOS, macOS, tvOS) follows from the device, as in Xcode's device picker. Dimensions apply only where the platform supports them; for example, the Mac has no orientation or dynamic type. |
 | **Variant** | One choice of value for every dimension, for example `ios · dark · large · ltr`. |
 | **Snapshot** | One story rendered as one variant, as a PNG. |
 | **Reference** | A snapshot committed to the repo, holding the expected appearance. |
@@ -68,8 +69,10 @@ The primary interface is a macOS app that you leave open while you work.
   - 2-up
   - grid (N-up)
   - later: swipe, onion skin, blink, and diff highlight
-- **(B) Comparison dimension.** Which dimension the comparison spreads across: platform, color scheme, dynamic type, locale/direction, or revision.
+- **(B) Comparison dimension.** Which dimension the comparison spreads across: device, color scheme, contrast, control borders, orientation, dynamic type, locale/direction, or revision. A `#Preview(arguments:)` story can also spread across its arguments.
 - **(C) Dimension values.** One picker per dimension, always available. With comparison off, the color scheme picker toggles light and dark. With comparison on and the dimension set to color scheme, you see light and dark 2-up. The other pickers still apply to every cell.
+
+This is the same split as Xcode's canvas, where Variants plays the role of (A) and (B), and Device Settings plays (C) ([tour](research/xcode-previews-ux.md)). SwiftBook adds 2-up comparison and revision as a dimension.
 
 **Canvas**
 - Shows one story or several selected stories, each laid out per the toolbar.
@@ -80,7 +83,9 @@ The primary interface is a macOS app that you leave open while you work.
 - The viewer watches the source tree.
 - When a build succeeds, new renders replace old ones without a flash and without losing your scroll, zoom, or selection.
 - When a build fails, the last good renders stay on screen under a build-error banner with the diagnostics.
-- When a single story crashes or hangs, only that cell shows the error.
+- When a single story crashes or hangs, only that cell shows the error, with a diagnostics summary, retry, and a link to the crash log. Xcode, by contrast, loses every preview in a file on any build error.
+
+**Reveal in Xcode.** Every story can open its declaration in Xcode at the preview's file and line.
 
 ### iOS and tvOS viewer
 
@@ -128,7 +133,7 @@ The specific options and how they combine are undecided until the basics work. I
 - Each story appears as its own test in Xcode and in `swift test` output.
 - Each variant the platform renders is compared on its own. A failure attaches the reference, the actual image, and the diff, and its message names the file to look at.
 - Recording is controlled by an environment variable or a CLI flag (`missing`, `changed`, `all`, `none`). It never needs a source edit.
-- **Each platform owns its references.** Verifying on macOS checks only `macos.*` references. A missing reference for a platform that wasn't run is not a failure.
+- **Each platform owns its references.** Verifying on macOS checks only `mac.*` references. A missing reference for a platform that wasn't run is not a failure.
 
 ### CLI
 
@@ -191,7 +196,11 @@ There is one mechanism: **scan the binary at runtime** for `PreviewRegistry` con
   - **Hard error, never a skip.** If the adapter finds a preview it can't read, it fails loudly. The message names the Xcode and SDK version and the shape it didn't expect.
   - **`swiftbook doctor`** reports how many previews were discovered and how many parsed.
   - **SwiftBook's own CI** renders a fixture covering every `#Preview` form (named, traits, `@Previewable`, `PreviewModifier`, `arguments:`, UIKit/AppKit, `PreviewProvider` groups) on every supported platform. It also runs on Xcode betas, so breakage is caught before users hit it.
-- Story identity is module + source file + display name. Unnamed previews are numbered by their order within the file, so moving code doesn't rename them. SwiftBook encourages naming previews.
+- Story identity is module + source file + display name.
+  - Unnamed previews take the file's name, as in Xcode (`Card`).
+  - Repeated names are numbered by order within the file (`Card 2`, `Card 3`), not by line as Xcode does, so moving code doesn't rename them.
+  - SwiftBook encourages naming previews.
+- **Each argument of a `#Preview(arguments:)` is its own story**, named after the preview and the argument (for example `Badge arguments / SALE`). The viewer groups them under their preview.
 - **`PreviewModifier` traits are supported in v1.** The adapter runs the shared-context setup and applies the body. If an Xcode release breaks this, the result is the same hard error as any other unreadable preview.
 - **`#if DEBUG` is optional.** SwiftBook builds in Debug by default, where guarded previews are present. A consumer that builds in optimized configurations can use its own compilation condition.
 
@@ -203,6 +212,7 @@ There is one mechanism: **scan the binary at runtime** for `PreviewRegistry` con
   - SwiftBook generates and builds that renderer app itself. The user doesn't need an app target.
   - First choice: a hidden `.swiftpm` package with an `.iOSApplication` product. Fallback: `swift build` plus our own `.app` wrapper.
   - The cycle from an edit to a new render took about 3 s in the spike.
+- **References show content only.** Xcode wraps macOS previews in window chrome, but chrome makes references unstable and harder to diff. The viewer may draw a frame around an image for display.
 - Animations are disabled. Rendering waits until two consecutive captures match, instead of using fixed delays.
 - Rendering-environment metadata goes in PNG text chunks: OS build, device, scale, SwiftBook version, and adapter version. A mismatch on verify produces a readable explanation, not just a pixel diff.
 
@@ -227,8 +237,10 @@ References live in a top-level `Snapshots/` directory next to `Package.swift` or
 
 ```
 Snapshots/
-  <Module>/<FileStem>/<Story Name>/<platform>.<colorScheme>[.<other dims>].png
+  <Module>/<FileStem>/<Story Name>/<device>.<colorScheme>[.<other dims>].png
 ```
+
+`<device>` is the device class (`mac`, `catalyst`, `iphone`, `ipad`, `tv`), so `mac.light.png` or `iphone.dark.xxxLarge.png`.
 
 - They sit outside every target directory. SwiftPM doesn't warn about unhandled files, and Xcode's synchronized folders don't pull them in.
 - One LFS rule, which `swiftbook init` writes: `Snapshots/**/*.png filter=lfs diff=lfs merge=lfs -text`.
@@ -252,6 +264,7 @@ Snapshots/
 | macOS | v1 | v1, live |
 | iOS | v1 (simulator) | v2, static |
 | tvOS | v1 (simulator) | v2, static |
+| Mac Catalyst | later | — |
 | watchOS, visionOS | later | later |
 
 ## Phasing

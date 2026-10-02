@@ -57,6 +57,8 @@ Fulbloom adopts SwiftBook at the end of this phase.
 - [ ] **`preview-adapter`**
   - The one isolated module that reads private `Preview` internals: display name, traits, body, `PreviewModifier` application, `arguments:`, and `PreviewProvider` variants.
   - When it can't read something, it raises a hard error that names the Xcode and SDK versions and the shape it didn't expect.
+  - Each `arguments:` value becomes its own story.
+  - Tests cover legacy `PreviewProvider`s rendered in Debug builds, where the 26+ SDKs wrap views in `DebugReplaceableView`. Xcode's own preview agent crashed on this case ([tour](research/xcode-previews-ux.md)).
 - [ ] **`macos-renderer`**
   - An offscreen `NSHostingView` in a borderless window.
   - Pinned settings: appearance, scale, size from the traits, locale, time zone, and Dynamic Type.
@@ -66,7 +68,7 @@ Fulbloom adopts SwiftBook at the end of this phase.
   - A perceptual ΔE comparison in Core Image, with pixelmatch-style anti-aliasing tolerance and a fast path for identical images.
   - It reports the changed-pixel ratio and the maximum ΔE, and produces a diff image.
 - [ ] **`snapshot-storage`**
-  - The `Snapshots/<Module>/<FileStem>/<Story>/<platform>.<scheme>….png` layout and name sanitization.
+  - The `Snapshots/<Module>/<FileStem>/<Story>/<device>.<scheme>….png` layout and name sanitization.
   - Reading and writing metadata.
   - Record modes: `missing`, `changed`, `all`, `none`.
 - [ ] **`swift-testing-macro`**
