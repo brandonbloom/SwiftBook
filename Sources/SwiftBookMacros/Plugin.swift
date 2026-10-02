@@ -3,5 +3,5 @@ import SwiftSyntaxMacros
 
 @main
 struct SwiftBookMacrosPlugin: CompilerPlugin {
-    let providingMacros: [Macro.Type] = []
+    let providingMacros: [Macro.Type] = [SwiftBookTestsMacro.self]
 }

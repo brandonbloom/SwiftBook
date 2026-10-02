@@ -13,8 +13,8 @@ git ls-files -z '*.swift' | xargs -0 swift format lint --strict --parallel
 swift build --build-tests --force-resolved-versions
 swift test --skip-build --quiet
 # The zoo's tests exercise SwiftBook as a consuming package would. Its manifest treats warnings as
-# errors.
-swift test --package-path Fixtures/PreviewZoo --force-resolved-versions --quiet
+# errors. CI never records references: a missing one fails instead of being written.
+SWIFTBOOK_RECORD=never swift test --package-path Fixtures/PreviewZoo --force-resolved-versions --quiet
 # Everything must also build for the simulator platforms, warning-free. Each entry is
 # "<package dir>:<scheme>"; a package with several products gets a "-Package" scheme.
 for entry in .:SwiftBook-Package Fixtures/PreviewZoo:PreviewZoo; do

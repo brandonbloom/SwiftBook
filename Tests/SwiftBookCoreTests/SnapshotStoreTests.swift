@@ -79,7 +79,7 @@ import Testing
 
     @Test func parsesTheRecordModeFromTheEnvironment() throws {
         #expect(try RecordMode.fromEnvironment([:]) == .missing)
-        #expect(try RecordMode.fromEnvironment(["SWIFTBOOK_RECORD": "none"]) == .none)
+        #expect(try RecordMode.fromEnvironment(["SWIFTBOOK_RECORD": "never"]) == .never)
         #expect(throws: StorageError.self) {
             try RecordMode.fromEnvironment(["SWIFTBOOK_RECORD": "yes"])
         }
@@ -123,14 +123,14 @@ import Testing
             return
         }
         #expect(previous?.changedPixels == 16)
-        guard case .matched = try store.verify(snapshot(gray: 200), mode: .none) else {
+        guard case .matched = try store.verify(snapshot(gray: 200), mode: .never) else {
             Issue.record("expected the new reference to match")
             return
         }
     }
 
-    @Test func neverRecordsInNoneMode() throws {
-        guard case .missing(let url) = try store.verify(snapshot(gray: 100), mode: .none) else {
+    @Test func neverRecordsInNeverMode() throws {
+        guard case .missing(let url) = try store.verify(snapshot(gray: 100), mode: .never) else {
             Issue.record("expected a missing reference")
             return
         }

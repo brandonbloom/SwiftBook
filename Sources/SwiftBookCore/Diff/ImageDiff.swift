@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 
 /// The difference between an expected and an actual image.
 public struct ImageDiff: @unchecked Sendable {
@@ -27,7 +28,7 @@ public struct ImageDiff: @unchecked Sendable {
     /// The smallest rectangle, in pixels, containing every changed pixel.
     public let changedBounds: CGRect?
     /// Expected faded to gray, with changed pixels red and anti-aliased pixels yellow. `nil` when
-    /// the sizes differ.
+    /// the images are identical or their sizes differ.
     public let image: CGImage?
     public let tolerance: Tolerance
 
@@ -43,6 +44,11 @@ public struct ImageDiff: @unchecked Sendable {
 
     /// Whether the actual image matches the expected one within the tolerance.
     public var matches: Bool { sizesMatch && changedPixelRatio <= tolerance.changedPixelRatio }
+
+    /// ``image`` as PNG data.
+    public func pngData() throws -> Data? {
+        try image.map { try PNG.encode($0, text: [:]) }
+    }
 
     /// Compares two images pixel by pixel, perceptually.
     public static func compare(
@@ -61,13 +67,13 @@ public struct ImageDiff: @unchecked Sendable {
         let a = try Bitmap(expected)
         let b = try Bitmap(actual)
         let width = a.width
-        var output = Bitmap(width: width, height: a.height, pixels: faded(a))
         if a.pixels == b.pixels {
             return ImageDiff(
                 expectedSize: expectedSize, actualSize: actualSize, changedPixels: 0,
                 antialiasedPixels: 0,
-                maxDeltaE: 0, changedBounds: nil, image: output.image(), tolerance: tolerance)
+                maxDeltaE: 0, changedBounds: nil, image: nil, tolerance: tolerance)
         }
+        var output = Bitmap(width: width, height: a.height, pixels: faded(a))
 
         var changed = 0
         var antialiased = 0

@@ -20,7 +20,11 @@ let package = Package(
         .target(name: "PreviewZoo", swiftSettings: strict),
         .testTarget(
             name: "PreviewZooTests",
-            dependencies: ["PreviewZoo", .product(name: "SwiftBookCore", package: "SwiftBook")],
+            dependencies: [
+                "PreviewZoo",
+                .product(name: "SwiftBookCore", package: "SwiftBook"),
+                .product(name: "SwiftBookTesting", package: "SwiftBook"),
+            ],
             swiftSettings: strict),
     ]
 )

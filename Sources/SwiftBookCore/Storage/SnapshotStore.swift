@@ -11,7 +11,7 @@ public enum RecordMode: String, Hashable, Sendable, CaseIterable {
     /// Re-record every reference.
     case all
     /// Never record; a missing reference is a failure. For CI.
-    case none
+    case never
 
     /// The variable that sets the record mode.
     public static let environmentVariable = "SWIFTBOOK_RECORD"
@@ -96,7 +96,7 @@ public struct SnapshotStore: Sendable {
             for: snapshot.story, device: snapshot.device, environment: snapshot.environment)
         let png = try snapshot.pngData()
         guard let reference = try? Data(contentsOf: url) else {
-            guard mode != .none else { return .missing(url) }
+            guard mode != .never else { return .missing(url) }
             try write(png, to: url)
             return .recorded(url, previous: nil)
         }
@@ -156,7 +156,7 @@ public struct SnapshotStore: Sendable {
 
     /// The file name for a variant: device and appearance, then each other dimension that isn't
     /// at its default, in a fixed order.
-    static func variantName(device: Device, environment: RenderEnvironment) -> String {
+    public static func variantName(device: Device, environment: RenderEnvironment) -> String {
         let defaults = RenderEnvironment()
         var parts = [device.rawValue, environment.appearance.rawValue]
         if environment.dynamicTypeSize != defaults.dynamicTypeSize {

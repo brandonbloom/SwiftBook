@@ -100,6 +100,7 @@ Swift has no way to enable this with zero code, so a test target opts in with **
 
 ```swift
 import SwiftBookTesting
+import Testing  // the expansion uses Swift Testing's macros, which can't be re-exported
 
 #SwiftBookTests                                       // defaults: light + dark
 #SwiftBookTests(variants: .colorScheme × .dynamicType(.large, .accessibility3))
@@ -132,7 +133,7 @@ The specific options and how they combine are undecided until the basics work. I
 
 - Each story appears as its own test in Xcode and in `swift test` output.
 - Each variant the platform renders is compared on its own. A failure attaches the reference, the actual image, and the diff, and its message names the file to look at.
-- Recording is controlled by an environment variable or a CLI flag (`missing`, `changed`, `all`, `none`). It never needs a source edit.
+- Recording is controlled by an environment variable or a CLI flag (`missing`, `changed`, `all`, `never`). It never needs a source edit.
 - **Each platform owns its references.** Verifying on macOS checks only `mac.*` references. A missing reference for a platform that wasn't run is not a failure.
 
 ### CLI

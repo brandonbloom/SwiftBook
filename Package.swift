@@ -28,6 +28,7 @@ let package = Package(
             name: "SwiftBookMacros",
             dependencies: [
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
             ],
             swiftSettings: strict
@@ -36,5 +37,13 @@ let package = Package(
             name: "swiftbook", dependencies: ["SwiftBookCore"], swiftSettings: strict),
         .testTarget(
             name: "SwiftBookCoreTests", dependencies: ["SwiftBookCore"], swiftSettings: strict),
+        .testTarget(
+            name: "SwiftBookMacrosTests",
+            dependencies: [
+                "SwiftBookMacros",
+                .product(name: "SwiftSyntaxMacroExpansion", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxMacrosGenericTestSupport", package: "swift-syntax"),
+            ],
+            swiftSettings: strict),
     ]
 )

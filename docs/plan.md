@@ -71,8 +71,8 @@ Fulbloom adopts SwiftBook at the end of this phase.
 - [x] **`snapshot-storage`**
   - The `Snapshots/<Module>/<FileStem>/<Story>/<device>.<scheme>….png` layout and name sanitization.
   - Reading and writing metadata.
-  - Record modes: `missing`, `changed`, `all`, `none`.
-- [ ] **`swift-testing-macro`**
+  - Record modes: `missing`, `changed`, `all`, `never`.
+- [x] **`swift-testing-macro`**
   - `#SwiftBookTests(variants:)` expands to a parameterized Swift Testing test.
   - Each variant gets its own failure, with reference, actual and diff images attached.
   - The record mode comes from an environment variable.
