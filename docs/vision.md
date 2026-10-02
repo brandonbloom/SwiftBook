@@ -222,11 +222,12 @@ There is one mechanism: **scan the binary at runtime** for `PreviewRegistry` con
 
 ### Diff engine
 
-Ours, written on Core Image with no dependencies:
+Ours, written in plain Swift over sRGB bitmaps, with no dependencies:
 
-- **Pass/fail:** a per-pixel perceptual difference (CIE Lab ΔE), which also feeds the highlight overlays.
+- **Pass/fail:** a per-pixel perceptual difference (CIEDE2000 ΔE), which also feeds the highlight overlays.
 - **Anti-aliasing tolerance:** ported from pixelmatch (ISC license).
-- **Fast path:** a quick exit for identical images.
+- **Fast path:** a quick exit for identical images. Only differing pixels get the perceptual comparison.
+- **Why not Core Image:** it runs on the GPU, so results can vary by machine, and anti-aliasing detection needs neighbor logic that doesn't fit its filters. The CPU version compares a fully changed 1600×1200 canvas in about 50 ms optimized. Core Image remains an option for the viewer's interactive overlays.
 - **Thresholds:** a changed-pixel ratio and a ΔE tolerance, with defaults set by the opt-in declaration and per-story overrides through story metadata.
 
 The same engine runs in tests, the CLI, and the viewer.

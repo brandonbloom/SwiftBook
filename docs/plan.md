@@ -65,7 +65,7 @@ Fulbloom adopts SwiftBook at the end of this phase.
   - Pinned settings: appearance, scale, size from the traits, locale, time zone, and Dynamic Type.
   - Animations are off, and rendering waits until two captures in a row match.
   - Rendering-environment metadata goes into PNG text chunks.
-- [ ] **`diff-engine`**
+- [x] **`diff-engine`**
   - A perceptual ΔE comparison in Core Image, with pixelmatch-style anti-aliasing tolerance and a fast path for identical images.
   - It reports the changed-pixel ratio and the maximum ΔE, and produces a diff image.
 - [ ] **`snapshot-storage`**
