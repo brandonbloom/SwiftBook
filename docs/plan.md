@@ -54,10 +54,11 @@ Fulbloom adopts SwiftBook at the end of this phase.
 - [x] **`xcode-previews-tour`**
   - Use computer use to explore the zoo in Xcode's preview canvas. Record what it looks like and every affordance of the preview system: variants, device and appearance settings, live and selectable modes, pinning, and how errors are presented.
   - Write findings to `docs/research/xcode-previews-ux.md` and propose any vision changes.
-- [ ] **`preview-adapter`**
+- [x] **`preview-adapter`**
   - The one isolated module that reads private `Preview` internals: display name, traits, body, `PreviewModifier` application, `arguments:`, and `PreviewProvider` variants.
+  - Done, except `arguments:`. Those previews fail loudly as unsupported; see `preview-arguments`.
   - When it can't read something, it raises a hard error that names the Xcode and SDK versions and the shape it didn't expect.
-  - Each `arguments:` value becomes its own story.
+  - Each `arguments:` value becomes its own story (moved to `preview-arguments`).
   - Tests cover legacy `PreviewProvider`s rendered in Debug builds, where the 26+ SDKs wrap views in `DebugReplaceableView`. Xcode's own preview agent crashed on this case ([tour](research/xcode-previews-ux.md)).
 - [ ] **`macos-renderer`**
   - An offscreen `NSHostingView` in a borderless window.
@@ -98,6 +99,14 @@ Fulbloom adopts SwiftBook at the end of this phase.
 _(fill in on completion)_
 
 ## Phase 2: CLI, git, iOS and tvOS
+
+- [ ] **`preview-arguments`**
+  - Support parameterized `#Preview(arguments:)`: one story per argument, named `<preview> / <argument>`, with the group metadata's item descriptions as labels.
+  - Blocked on calling the group closure `makeBody(PreviewGroupIndex?) -> (Body, PreviewGroupIndex)`. Every way of calling it via `Mirror` reached a crash inside DeveloperToolsSupport: concrete types, generic types, and mixes of the two. Under lldb, calls reach an "Index out of range" inside DeveloperToolsSupport even with a `nil` index, and a disassembled callee takes the index by pointer.
+  - Leads:
+    - Read the closure directly from the `Preview` value's memory instead of through `Mirror`'s `Any` box. The layout is `Preview.dataSource@16`, an existential holding `DefaultPreviewSource<Body>`, whose `structure@32` is a 57-byte enum whose group payload is `(metadata, makeBody)`.
+    - Inspect the `PreviewSource` protocol's requirements.
+    - Watch how XCPreviewAgent drives a group.
 
 - [ ] **`cli-skeleton`**
   - The `swiftbook` command with `init` (`.gitattributes` LFS rule and difftool configuration) and `doctor` (toolchain, simulators, LFS, and discovery and adapter health).

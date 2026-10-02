@@ -44,3 +44,20 @@ public struct BookList: View {
 #Preview("Shared context (second user)", traits: .sampleLibrary, .sizeThatFitsLayout) {
     BookList()
 }
+
+/// A modifier with stored properties, so applying it depends on their layout being read correctly.
+struct FixedWidth: PreviewModifier {
+    let width: CGFloat
+    let label: String
+
+    func body(content: Content, context: Void) -> some View {
+        content.frame(width: width).accessibilityLabel(label)
+    }
+}
+
+#Preview(
+    "Modifier with stored properties", traits: .modifier(FixedWidth(width: 300, label: "wide")),
+    .sizeThatFitsLayout
+) {
+    Badge("WIDE")
+}

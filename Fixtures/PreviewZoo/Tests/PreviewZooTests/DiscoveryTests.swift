@@ -18,7 +18,7 @@ import Testing
             "PreviewZoo/Hazards.swift": 5,
             "PreviewZoo/Layouts.swift": 5,
             "PreviewZoo/Previewable.swift": 1,
-            "PreviewZoo/SharedContext.swift": 2,
+            "PreviewZoo/SharedContext.swift": 3,
         ]
         #if os(macOS)
             expected["PreviewZoo/PlatformViews.swift"] = 3  // NSView, NSViewController, macOS only
