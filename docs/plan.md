@@ -15,7 +15,7 @@ This plan implements [vision.md](vision.md). It is a living document: it gets re
 
 - [x] **`repo-skeleton`**
   - **Package and modules.** Create `Package.swift` with the empty modules (`SwiftBookCore`, `SwiftBookTesting`, `SwiftBookMacros`, and the `swiftbook` executable).
-  - **Platforms.** macOS, iOS and tvOS.
+  - **Platforms.** macOS, iOS and tvOS, all with a minimum of 27.
   - **Tooling.** `mise.toml` sets `SWIFTBOOK_HOME` and the `deps`, `build`, `test` and `ci` tasks. `scripts/ci` builds and tests with warnings treated as errors, plus `swift format lint --strict`. A minimal GitHub Actions workflow calls `scripts/ci`.
   - **Dependencies.** Only swift-syntax, which the macro needs.
 - [x] **`preview-zoo`**
@@ -36,7 +36,13 @@ This plan implements [vision.md](vision.md). It is a living document: it gets re
 
 ### Phase 0 retro
 
-_(fill in on completion)_
+- **CI exit status.** Piping CI output through `tail` hid a failing run and let the commit through. Always check CI's real exit status.
+- **Linting gap.** `swift format lint` only sees files git tracks, so new files go unlinted until they're staged.
+- **Global gitignore.** Brandon's global `~/.gitignore` ignores any path named `notes`, so `docs/notes` became `docs/ideas`.
+- **Prebuilt binaries.** Apple's prebuilt binaries are acceptable, including SwiftPM's swift-syntax prebuilts, which saves about 45 s per clean build. Only third-party binaries are ruled out.
+- **Silencing warnings.** It's allowed when a comment justifies it. The legacy `PreviewProvider` fixtures are marked deprecated to silence the 27 SDKs' deprecation warnings.
+- **Platform floor.** Raised to 27 on every platform, for SwiftBook and the zoo alike. It removes availability guards for `PreviewModifier` and `arguments:` previews.
+- **Replan.** Added `zoo-more-forms` to Phase 4.
 
 ## Phase 1: Core, macOS, `swift test`
 
@@ -171,6 +177,8 @@ _(fill in on completion)_
   - Swipe, onion skin, blink, and a diff highlight with an adjustable ΔE threshold.
 - [ ] **`ios-in-viewer`**
   - The iOS and tvOS renderers stream into the macOS viewer with live rebuilds.
+- [ ] **`zoo-more-forms`**
+  - Extend the zoo to the preview forms it leaves out: widgets, Live Activities, and visionOS and watchOS previews if those platforms come into scope.
 - [ ] **`git-difftool`**
   - `git difftool` opens the viewer's comparison mode for PNGs.
 

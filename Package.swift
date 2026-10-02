@@ -9,8 +9,7 @@ let strict: [SwiftSetting] =
 
 let package = Package(
     name: "SwiftBook",
-    // PreviewRegistry, which `#Preview` expands to, needs these minimums.
-    platforms: [.macOS(.v14), .iOS(.v17), .tvOS(.v17)],
+    platforms: [.macOS("27.0"), .iOS("27.0"), .tvOS("27.0")],
     products: [
         .library(name: "SwiftBookCore", targets: ["SwiftBookCore"]),
         .library(name: "SwiftBookTesting", targets: ["SwiftBookTesting"]),

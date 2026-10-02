@@ -6,8 +6,7 @@ import PackageDescription
 // discovery, adapter, and renderers test against it, and it's the canary for Xcode changes.
 let package = Package(
     name: "PreviewZoo",
-    // High enough for every form, including parameterized `#Preview(arguments:)`.
-    platforms: [.macOS("27.0"), .iOS("26.0"), .tvOS("26.0")],
+    platforms: [.macOS("27.0"), .iOS("27.0"), .tvOS("27.0")],
     products: [
         .library(name: "PreviewZoo", targets: ["PreviewZoo"])
     ],
