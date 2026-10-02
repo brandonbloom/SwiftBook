@@ -20,7 +20,7 @@ SwiftBook is a story viewer and visual testing tool for SwiftUI.
 6. **Built-in visual diffing.** Perceptual diffs, a full set of comparison modes, and readable test failures.
 7. **Git-native storage.** Reference images live in the repo and work with Git LFS (including GitHub's LFS). Git is the integration point; GitHub-specific features aren't a priority.
 8. **A CI-friendly CLI and build integration.** Deterministic rendering, clear exit codes, and output that machines can read.
-9. **Buildable from source.** No prebuilt binaries anywhere in the dependency graph, and only a few pinnable dependencies.
+9. **Buildable from source.** No third-party prebuilt binaries anywhere in the dependency graph, and only a few pinnable dependencies. Prebuilts from Apple and the Swift project are fine, such as the swift-syntax binaries SwiftPM downloads for macros.
 
 ## Non-goals for the first version
 
@@ -267,7 +267,7 @@ Snapshots/
 Fulbloom Finance is a macOS SwiftUI app built as a SwiftPM package. It has 29 `#Preview`s using `.fixedLayout`, fixtures, and `#if DEBUG`. Its constraints are:
 
 - Plain `swift test`.
-- No prebuilt binaries.
+- No third-party prebuilt binaries.
 - Minimal pinned dependencies, with swift-syntax acceptable.
 - References in LFS.
 - Deterministic macOS rendering.
