@@ -33,7 +33,8 @@ let package = Package(
             ],
             swiftSettings: strict
         ),
-        .executableTarget(name: "swiftbook", dependencies: ["SwiftBookCore"], swiftSettings: strict),
+        .executableTarget(
+            name: "swiftbook", dependencies: ["SwiftBookCore"], swiftSettings: strict),
         .testTarget(
             name: "SwiftBookCoreTests", dependencies: ["SwiftBookCore"], swiftSettings: strict),
     ]
