@@ -68,7 +68,7 @@ Fulbloom adopts SwiftBook at the end of this phase.
 - [x] **`diff-engine`**
   - A perceptual ΔE comparison in Core Image, with pixelmatch-style anti-aliasing tolerance and a fast path for identical images.
   - It reports the changed-pixel ratio and the maximum ΔE, and produces a diff image.
-- [ ] **`snapshot-storage`**
+- [x] **`snapshot-storage`**
   - The `Snapshots/<Module>/<FileStem>/<Story>/<device>.<scheme>….png` layout and name sanitization.
   - Reading and writing metadata.
   - Record modes: `missing`, `changed`, `all`, `none`.

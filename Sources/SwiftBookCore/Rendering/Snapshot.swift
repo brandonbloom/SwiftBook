@@ -7,6 +7,9 @@ import UniformTypeIdentifiers
 public struct Snapshot: @unchecked Sendable {
     // Unchecked: CGImage is immutable.
 
+    public let story: StoryID
+    public let device: Device
+    public let environment: RenderEnvironment
     public let image: CGImage
     public let metadata: SnapshotMetadata
 
@@ -20,6 +23,7 @@ public struct Snapshot: @unchecked Sendable {
 public struct SnapshotMetadata: Codable, Hashable, Sendable {
     /// The story, as `Module/Group/Name`.
     public var story: String
+    public var device: String
     public var platform: String
     public var osVersion: String
     public var scale: Double

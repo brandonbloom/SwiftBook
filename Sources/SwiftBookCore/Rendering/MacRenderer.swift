@@ -97,7 +97,9 @@
             ) {
                 RenderError(story: story.id, problem: $0)
             }
-            return Snapshot(image: image, metadata: metadata(for: story, environment: environment))
+            return Snapshot(
+                story: story.id, device: .mac, environment: environment, image: image,
+                metadata: metadata(for: story, environment: environment))
         }
 
         private static func canvasSize(
@@ -190,7 +192,7 @@
         {
             let os = ProcessInfo.processInfo.operatingSystemVersion
             return SnapshotMetadata(
-                story: story.id.description, platform: "macOS",
+                story: story.id.description, device: Device.mac.rawValue, platform: "macOS",
                 osVersion: "\(os.majorVersion).\(os.minorVersion).\(os.patchVersion)",
                 scale: environment.scale, appearance: environment.appearance.rawValue,
                 locale: environment.localeIdentifier, timeZone: environment.timeZoneIdentifier,
