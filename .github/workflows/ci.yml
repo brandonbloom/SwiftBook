@@ -1,0 +1,11 @@
+name: ci
+on:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  ci:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - run: mise run ci

@@ -13,7 +13,7 @@ This plan implements [vision.md](vision.md). It is a living document: it gets re
 
 ## Phase 0: Foundation
 
-- [ ] **`repo-skeleton`**
+- [x] **`repo-skeleton`**
   - **Package and modules.** Create `Package.swift` with the empty modules (`SwiftBookCore`, `SwiftBookTesting`, `SwiftBookMacros`, and the `swiftbook` executable).
   - **Platforms.** macOS, iOS and tvOS.
   - **Tooling.** `mise.toml` sets `SWIFTBOOK_HOME` and the `deps`, `build`, `test` and `ci` tasks. `scripts/ci` builds and tests with warnings treated as errors, plus `swift format lint --strict`. A minimal GitHub Actions workflow calls `scripts/ci`.
