@@ -55,3 +55,9 @@ import SwiftUI
     }
     .padding()
 }
+
+// Foundation formatting reads the process's time zone and locale, not SwiftUI's environment.
+#Preview("Foundation-formatted date") {
+    Text(Date(timeIntervalSince1970: 1_790_000_000).formatted(.dateTime.hour().minute()))
+        .padding()
+}

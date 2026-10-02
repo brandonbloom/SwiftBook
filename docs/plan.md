@@ -60,7 +60,7 @@ Fulbloom adopts SwiftBook at the end of this phase.
   - When it can't read something, it raises a hard error that names the Xcode and SDK versions and the shape it didn't expect.
   - Each `arguments:` value becomes its own story (moved to `preview-arguments`).
   - Tests cover legacy `PreviewProvider`s rendered in Debug builds, where the 26+ SDKs wrap views in `DebugReplaceableView`. Xcode's own preview agent crashed on this case ([tour](research/xcode-previews-ux.md)).
-- [ ] **`macos-renderer`**
+- [x] **`macos-renderer`**
   - An offscreen `NSHostingView` in a borderless window.
   - Pinned settings: appearance, scale, size from the traits, locale, time zone, and Dynamic Type.
   - Animations are off, and rendering waits until two captures in a row match.

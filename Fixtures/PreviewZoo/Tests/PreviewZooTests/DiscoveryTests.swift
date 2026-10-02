@@ -15,7 +15,7 @@ import Testing
             "PreviewZoo/Arguments.swift": 1,
             "PreviewZoo/Card.swift": 4,
             "PreviewZoo/EdgeCases.swift": 4,
-            "PreviewZoo/Hazards.swift": 5,
+            "PreviewZoo/Hazards.swift": 6,
             "PreviewZoo/Layouts.swift": 5,
             "PreviewZoo/Previewable.swift": 1,
             "PreviewZoo/SharedContext.swift": 3,

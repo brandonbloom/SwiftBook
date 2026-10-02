@@ -20,6 +20,14 @@ import SwiftUI
         let view: NSView
         func makeNSView(context: Context) -> NSView { view }
         func updateNSView(_ view: NSView, context: Context) {}
+
+        /// The view's intrinsic size where it has one, as in Xcode's canvas.
+        func sizeThatFits(_ proposal: ProposedViewSize, nsView view: NSView, context: Context)
+            -> CGSize?
+        {
+            intrinsicSize(
+                view.intrinsicContentSize, noMetric: NSView.noIntrinsicMetric, proposal: proposal)
+        }
     }
 
     private struct HostedController: NSViewControllerRepresentable {
@@ -32,6 +40,14 @@ import SwiftUI
         let view: UIView
         func makeUIView(context: Context) -> UIView { view }
         func updateUIView(_ view: UIView, context: Context) {}
+
+        /// The view's intrinsic size where it has one, as in Xcode's canvas.
+        func sizeThatFits(_ proposal: ProposedViewSize, uiView view: UIView, context: Context)
+            -> CGSize?
+        {
+            intrinsicSize(
+                view.intrinsicContentSize, noMetric: UIView.noIntrinsicMetric, proposal: proposal)
+        }
     }
 
     private struct HostedController: UIViewControllerRepresentable {
@@ -40,3 +56,14 @@ import SwiftUI
         func updateUIViewController(_ controller: UIViewController, context: Context) {}
     }
 #endif
+
+/// An intrinsic size, filling the proposal on any axis without an intrinsic metric.
+private func intrinsicSize(_ intrinsic: CGSize, noMetric: CGFloat, proposal: ProposedViewSize)
+    -> CGSize?
+{
+    guard intrinsic.width != noMetric || intrinsic.height != noMetric else { return nil }
+    return CGSize(
+        width: intrinsic.width != noMetric ? intrinsic.width : proposal.width ?? intrinsic.width,
+        height: intrinsic.height != noMetric
+            ? intrinsic.height : proposal.height ?? intrinsic.height)
+}

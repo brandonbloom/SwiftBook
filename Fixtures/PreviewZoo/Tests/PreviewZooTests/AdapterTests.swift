@@ -19,7 +19,7 @@ import Testing
             "EdgeCases/Duplicate 2",
             "Hazards/List", "Hazards/Text fields", "Hazards/Material and blur",
             "Hazards/Scroll view",
-            "Hazards/Dates",
+            "Hazards/Dates", "Hazards/Foundation-formatted date",
             "Layouts/Default layout", "Layouts/Size that fits", "Layouts/Fixed layout",
             "Layouts/Landscape",
             "Layouts/Combined traits",
