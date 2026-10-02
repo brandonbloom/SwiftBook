@@ -14,6 +14,7 @@ import Testing
         var expected = [
             "PreviewZoo/Arguments.swift": 1,
             "PreviewZoo/Card.swift": 4,
+            "PreviewZoo/Chrome.swift": 2,
             "PreviewZoo/EdgeCases.swift": 4,
             "PreviewZoo/Hazards.swift": 6,
             "PreviewZoo/Layouts.swift": 5,

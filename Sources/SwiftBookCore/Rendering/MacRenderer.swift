@@ -146,6 +146,7 @@
             var captures = 0
             while true {
                 host.layoutSubtreeIfNeeded()
+                prepareForCapture(host)
                 host.displayIfNeeded()
                 let image = try capture(host, size: size, scale: scale, error: error)
                 captures += 1
@@ -162,11 +163,73 @@
             }
         }
 
+        /// Makes chrome that the window server composites capturable by `cacheDisplay`.
+        ///
+        /// Sidebars draw selection and backgrounds with vibrancy: compositing filters that blend
+        /// with what's behind the window, which only the window server applies. Captured as is, a
+        /// selected row is a black rectangle. So selected rows are drawn emphasized, as in a
+        /// focused sidebar (a solid accent color, no filter), and vibrant backgrounds draw in their
+        /// own colors. Vibrant content, such as sidebar text, is composited by ``Vibrancy``.
+        static func prepareForCapture(_ view: NSView) {
+            if let row = view as? NSTableRowView, row.isSelected, !row.isEmphasized {
+                row.isEmphasized = true
+            }
+            if let layer = view.layer { removeVibrantBackgrounds(from: layer) }
+            view.subviews.forEach(prepareForCapture)
+        }
+
+        private static func removeVibrantBackgrounds(from layer: CALayer) {
+            if let filter = layer.compositingFilter,
+                String(describing: filter).hasPrefix("vibrant"),
+                !Vibrancy.colorsFromBackdrop(layer)
+            {
+                layer.compositingFilter = nil
+            }
+            layer.sublayers?.forEach(removeVibrantBackgrounds)
+        }
+
+        /// Captures `view`, compositing any vibrant content over the rest.
         private static func capture(
             _ view: NSView, size: CGSize, scale: Double, error: (String) -> RenderError
-        )
-            throws -> CGImage
-        {
+        ) throws -> CGImage {
+            guard let root = view.layer else {
+                return try cacheDisplay(view, size: size, scale: scale, error: error)
+            }
+            let vibrant = Vibrancy.layers(in: root)
+            guard !vibrant.isEmpty else {
+                return try cacheDisplay(view, size: size, scale: scale, error: error)
+            }
+            // Capture the backdrop with the vibrant layers hidden, then restore them so each can
+            // be rendered alone for its coverage.
+            let opacities = vibrant.map(\.layer.opacity)
+            func setOpacities(_ values: [Float]) {
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
+                for (vibrant, opacity) in zip(vibrant, values) { vibrant.layer.opacity = opacity }
+                CATransaction.commit()
+            }
+            setOpacities(opacities.map { _ in 0 })
+            let backdrop: Bitmap
+            do {
+                backdrop = try Bitmap(
+                    try cacheDisplay(view, size: size, scale: scale, error: error))
+            } catch {
+                setOpacities(opacities)
+                throw error
+            }
+            setOpacities(opacities)
+            guard
+                let image = Vibrancy.composite(vibrant, over: backdrop, root: root, scale: scale)
+                    .image()
+            else {
+                throw error("can't composite vibrancy")
+            }
+            return image
+        }
+
+        private static func cacheDisplay(
+            _ view: NSView, size: CGSize, scale: Double, error: (String) -> RenderError
+        ) throws -> CGImage {
             guard
                 let bitmap = NSBitmapImageRep(
                     bitmapDataPlanes: nil, pixelsWide: Int((size.width * scale).rounded()),

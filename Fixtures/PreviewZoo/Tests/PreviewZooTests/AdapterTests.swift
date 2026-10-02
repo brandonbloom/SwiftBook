@@ -15,6 +15,7 @@ import Testing
         var expected = [
             "Arguments/Badge arguments",
             "Card/Card", "Card/Card 2", "Card/Card 3", "Card/Card (statements)",
+            "Chrome/Sidebar selection", "Chrome/Accent avatar",
             "EdgeCases/Debug only", "EdgeCases/Slash / colon: and émoji 🌙", "EdgeCases/Duplicate",
             "EdgeCases/Duplicate 2",
             "Hazards/List", "Hazards/Text fields", "Hazards/Material and blur",

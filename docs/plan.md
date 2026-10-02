@@ -107,6 +107,20 @@ _(fill in on completion)_
     - Read the closure directly from the `Preview` value's memory instead of through `Mirror`'s `Any` box. The layout is `Preview.dataSource@16`, an existential holding `DefaultPreviewSource<Body>`, whose `structure@32` is a 57-byte enum whose group payload is `(metadata, makeBody)`.
     - Inspect the `PreviewSource` protocol's requirements.
     - Watch how XCPreviewAgent drives a group.
+- [ ] **`vibrant-text`**
+  - Text in Liquid Glass sidebars renders black in dark mode. SwiftUI draws vibrant text in a placeholder color, and the window server colors it from what's behind the window. Neither a vibrant nor a plain AppKit appearance changes that.
+  - Already handled: selected rows (drawn emphasized), and vibrant icons and fills (composited from their `vibrantColorMatrix` filters by `Vibrancy`).
+  - Lead: capture through the window server with ScreenCaptureKit. That needs the Screen Recording permission: acceptable for the viewer, not for CI. Otherwise, find which layer the text's coloring hangs on.
+- [ ] **`readme`**
+  - Usage docs. Include:
+    - `swift test --filter SwiftBookSnapshots` to run only the snapshots.
+    - Injecting fixed times in previews instead of reading `Date.now`.
+    - What each `SWIFTBOOK_RECORD` mode does.
+  - From Fulbloom's adoption feedback.
+- [ ] **`record-summary`**
+  - In `changed` and `all` modes, report which references were re-recorded, even when the run passes, so a reviewer knows what to look at. From Fulbloom's adoption feedback.
+- [ ] **`review-page`**
+  - `swiftbook review` writes an HTML page of new and changed references: grouped by file, light and dark side by side, diffs beside failures. Reviewing Fulbloom's 92 new references one at a time was the slowest step of adoption.
 
 - [ ] **`cli-skeleton`**
   - The `swiftbook` command with `init` (`.gitattributes` LFS rule and difftool configuration) and `doctor` (toolchain, simulators, LFS, and discovery and adapter health).
