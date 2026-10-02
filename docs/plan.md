@@ -48,9 +48,12 @@ This plan implements [vision.md](vision.md). It is a living document: it gets re
 
 Fulbloom adopts SwiftBook at the end of this phase.
 
-- [ ] **`discovery-scan`**
+- [x] **`discovery-scan`**
   - Scan `__swift5_proto` for `PreviewRegistry` and `PreviewProvider` conformances.
   - Story identity is module, file, and display name. Unnamed previews get an ordinal.
+- [ ] **`xcode-previews-tour`**
+  - Use computer use to explore the zoo in Xcode's preview canvas. Record what it looks like and every affordance of the preview system: variants, device and appearance settings, live and selectable modes, pinning, and how errors are presented.
+  - Write findings to `docs/research/xcode-previews-ux.md` and propose any vision changes.
 - [ ] **`preview-adapter`**
   - The one isolated module that reads private `Preview` internals: display name, traits, body, `PreviewModifier` application, `arguments:`, and `PreviewProvider` variants.
   - When it can't read something, it raises a hard error that names the Xcode and SDK versions and the shape it didn't expect.
