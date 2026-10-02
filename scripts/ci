@@ -12,16 +12,24 @@ git ls-files -z '*.swift' | xargs -0 swift format lint --strict --parallel
 # Resolve only from Package.resolved, so a moved tag upstream can't change what builds.
 swift build --build-tests --force-resolved-versions
 swift test --skip-build --quiet
-# The libraries must also build for the simulator platforms, warning-free.
-for platform in iOS tvOS; do
-  log="$(xcodebuild -quiet -scheme SwiftBook-Package -destination "generic/platform=$platform Simulator" \
-    -derivedDataPath .build/xcode SWIFT_TREAT_WARNINGS_AS_ERRORS=YES build 2>&1)" || {
-    echo "$log" >&2
-    exit 1
-  }
-  if grep 'warning:' <<<"$log"; then
-    echo "ci: $platform build warnings" >&2
-    exit 1
-  fi
+# The zoo's tests exercise SwiftBook as a consuming package would. Its manifest treats warnings as
+# errors.
+swift test --package-path Fixtures/PreviewZoo --force-resolved-versions --quiet
+# Everything must also build for the simulator platforms, warning-free. Each entry is
+# "<package dir>:<scheme>"; a package with several products gets a "-Package" scheme.
+for entry in .:SwiftBook-Package Fixtures/PreviewZoo:PreviewZoo; do
+  package="${entry%%:*}" scheme="${entry##*:}"
+  for platform in iOS tvOS; do
+    log="$(cd "$package" && xcodebuild -quiet -scheme "$scheme" \
+      -destination "generic/platform=$platform Simulator" -derivedDataPath .build/xcode \
+      SWIFT_TREAT_WARNINGS_AS_ERRORS=YES build 2>&1)" || {
+      echo "$log" >&2
+      exit 1
+    }
+    if grep 'warning:' <<<"$log"; then
+      echo "ci: $package: $platform build warnings" >&2
+      exit 1
+    fi
+  done
 done
 echo "ci: ok"
