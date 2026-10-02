@@ -51,7 +51,7 @@ Fulbloom adopts SwiftBook at the end of this phase.
 - [x] **`discovery-scan`**
   - Scan `__swift5_proto` for `PreviewRegistry` and `PreviewProvider` conformances.
   - Story identity is module, file, and display name. Unnamed previews get an ordinal.
-- [ ] **`xcode-previews-tour`**
+- [x] **`xcode-previews-tour`**
   - Use computer use to explore the zoo in Xcode's preview canvas. Record what it looks like and every affordance of the preview system: variants, device and appearance settings, live and selectable modes, pinning, and how errors are presented.
   - Write findings to `docs/research/xcode-previews-ux.md` and propose any vision changes.
 - [ ] **`preview-adapter`**
