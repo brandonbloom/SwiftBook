@@ -112,6 +112,36 @@ import Testing
         #expect(Array(pixels[0..<4]) == [255, 255, 255, 255])
     }
 
+    /// Writes each golden case's expected, actual, and diff images into `$SWIFTBOOK_ARTIFACTS`
+    /// for people to look at.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["SWIFTBOOK_ARTIFACTS"] != nil))
+    func writesArtifacts() throws {
+        let directory = URL(filePath: ProcessInfo.processInfo.environment["SWIFTBOOK_ARTIFACTS"]!)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let cases: [(name: String, expected: CGImage, actual: CGImage)] = [
+            ("identical", image(), image()),
+            ("one pixel", image(), image(paint: [(5, 7, [255, 0, 0])])),
+            ("imperceptible shift", image(gray: 128), image(gray: 129)),
+            ("perceptible shift", image(gray: 128), image(gray: 160)),
+            ("antialiasing shift", disc(centerX: 20), disc(centerX: 20.3)),
+            ("size change", image(width: 20), image(width: 21)),
+        ]
+        for golden in cases {
+            let diff = try ImageDiff.compare(expected: golden.expected, actual: golden.actual)
+            let images = ["expected": golden.expected, "actual": golden.actual, "diff": diff.image]
+            for (role, image) in images {
+                guard let image else { continue }
+                try PNG.encode(image, text: [:]).write(
+                    to: directory.appending(path: "\(golden.name)--\(role).png"))
+            }
+            let summary = """
+                changed \(diff.changedPixels), antialiased \(diff.antialiasedPixels), \
+                max ΔE \(diff.maxDeltaE), matches \(diff.matches)
+                """
+            try Data(summary.utf8).write(to: directory.appending(path: "\(golden.name).txt"))
+        }
+    }
+
     @Test func comparesAFullCanvasChangeQuickly() throws {
         let expected = image(width: 1600, height: 1200, gray: 100)
         let actual = image(width: 1600, height: 1200, gray: 200)
