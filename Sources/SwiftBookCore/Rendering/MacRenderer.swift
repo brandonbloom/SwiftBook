@@ -234,8 +234,11 @@
             guard !vibrant.isEmpty else {
                 return try cacheDisplay(view, size: size, scale: scale, error: error)
             }
-            // Capture the backdrop with the vibrant layers hidden, then restore them so each can
-            // be rendered alone for its coverage.
+            // Render each vibrant layer alone for its coverage, then capture the backdrop with
+            // them hidden.
+            let rendered = Vibrancy.render(
+                plan, root: root, width: Int((size.width * scale).rounded()),
+                height: Int((size.height * scale).rounded()), scale: scale)
             let opacities = vibrant.map(\.layer.opacity)
             func setOpacities(_ values: [Float]) {
                 CATransaction.begin()
@@ -254,8 +257,7 @@
             }
             setOpacities(opacities)
             guard
-                let image = Vibrancy.composite(plan, over: backdrop, root: root, scale: scale)
-                    .image()
+                let image = Vibrancy.composite(rendered, over: backdrop).image()
             else {
                 throw error("can't composite vibrancy")
             }

@@ -12,9 +12,9 @@
     /// Renders match the window server's rendering of an inactive window: the test process is
     /// never the active app, and AppKit draws sidebars in their inactive style there.
     ///
-    /// This captures the backdrop with vibrant layers hidden, composites each vibrant layer in
-    /// painter's order (rendered alone for its coverage, colored from the result so far), then
-    /// redraws content that was painted above vibrant layers, where they overlap.
+    /// This renders each vibrant layer alone for its coverage, captures the backdrop with them
+    /// hidden, composites them in painter's order (colored from the result so far), then redraws
+    /// content that was painted above vibrant layers, where they overlap.
     @MainActor enum Vibrancy {
         struct VibrantLayer {
             let layer: CALayer
@@ -90,16 +90,41 @@
             return matrix.map(Double.init)
         }
 
-        /// Composites `plan` over `backdrop`, a capture of `root` with its vibrant layers hidden.
-        static func composite(_ plan: Plan, over backdrop: Bitmap, root: CALayer, scale: Double)
-            -> Bitmap
-        {
+        /// A plan's layers rendered alone, ready to composite over a backdrop.
+        struct Rendered {
+            var vibrant: [(region: Region, matrix: [Double])] = []
+            var above: [Region] = []
+        }
+
+        /// Renders each layer of `plan` alone, as it is now, into regions of a capture of `root`
+        /// that's `width`×`height` pixels.
+        ///
+        /// Render before capturing the backdrop: drawing a view into a bitmap can replace its
+        /// layers, such as a search field's glass, until the window next displays.
+        static func render(
+            _ plan: Plan, root: CALayer, width: Int, height: Int, scale: Double
+        ) -> Rendered {
+            let size = (width: width, height: height)
+            var rendered = Rendered()
+            for vibrant in plan.vibrant {
+                rendered.vibrant.append(
+                    (render(vibrant.layer, alone: root, in: size, scale: scale), vibrant.matrix))
+            }
+            for layer in plan.above {
+                rendered.above.append(
+                    withSublayersHidden(layer) {
+                        render(layer, alone: root, in: size, scale: scale)
+                    })
+            }
+            return rendered
+        }
+
+        /// Composites `rendered` over `backdrop`, a capture with the vibrant layers hidden.
+        static func composite(_ rendered: Rendered, over backdrop: Bitmap) -> Bitmap {
             var result = backdrop
             let width = backdrop.width
             var covered = [Bool](repeating: false, count: width * backdrop.height)
-            for vibrant in plan.vibrant {
-                let source = render(vibrant.layer, alone: root, in: backdrop, scale: scale)
-                let m = vibrant.matrix
+            for (source, m) in rendered.vibrant {
                 source.forEachPixel(width: width) { index, sourceOffset in
                     let coverage = Double(source.pixels[sourceOffset + 3]) / 255
                     guard coverage > 0 else { return }
@@ -121,10 +146,7 @@
                 }
             }
             // Content painted above vibrant layers was painted over by them; draw it again there.
-            for layer in plan.above {
-                let source = withSublayersHidden(layer) {
-                    render(layer, alone: root, in: backdrop, scale: scale)
-                }
+            for source in rendered.above {
                 source.forEachPixel(width: width) { index, sourceOffset in
                     guard covered[index] else { return }
                     let alpha = Double(source.pixels[sourceOffset + 3]) / 255
@@ -173,7 +195,8 @@
         /// Renders `layer` alone, positioned as within `root`, clipped by its ancestors, into the
         /// region of a `capture`-sized bitmap that it covers.
         private static func render(
-            _ layer: CALayer, alone root: CALayer, in capture: Bitmap, scale: Double
+            _ layer: CALayer, alone root: CALayer, in capture: (width: Int, height: Int),
+            scale: Double
         )
             -> Region
         {
