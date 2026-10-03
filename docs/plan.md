@@ -114,6 +114,10 @@ _(fill in on completion)_
     - **Emulation** is the fallback: each vibrant layer's color matrix applied to its backdrop, measured against the window server at ≤0.7% of pixels changed in light mode. Dark glass backgrounds differ by ΔE ≈ 15.
   - Both match the window server's inactive-window style, because the test process is never the active app.
   - Cost: window-server capture waits for the window server to settle, about 0.65 s per image versus about 0.1 s emulated.
+- [ ] **`glass-emulation`**
+  - Emulated captures don't draw Liquid Glass controls as the window server does. During `cacheDisplay`, SwiftUI swaps a control's glass layers (`CABackdropLayer`, SDF layers) for a fallback: a translucent white fill with a 1-point border. It restores the glass on the next display. A sidebar search field captures with a white field and dark placeholder. The window server draws a gray glass fill with a gray placeholder.
+  - The fallback also drifted between days with the same OS and the same SwiftBook commit: Fulbloom's LedgerBrowser references, recorded Oct 2, no longer reproduce. Screen lock, display sleep, and the Keyboard navigation and glass-tint preferences are ruled out. Unexplained drift is a CI determinism risk.
+  - Options: detect the swap and fail loudly; keep the glass from being swapped; or emulate glass from its layers.
 - [ ] **`capture-speed`**
   - Bring window-server capture closer to emulated speed. Options: settle on a damage signal instead of a fixed delay, or capture several windows concurrently.
 - [ ] **`readme`**
