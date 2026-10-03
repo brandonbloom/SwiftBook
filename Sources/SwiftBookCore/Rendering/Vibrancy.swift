@@ -1,7 +1,7 @@
 #if os(macOS)
     import AppKit
 
-    /// Composites vibrancy, which the window server applies and `cacheDisplay` ignores.
+    /// Composites vibrancy, which the window server applies and offscreen drawing ignores.
     ///
     /// Vibrant content, such as sidebar text, symbols, fills, and selection, is drawn in a
     /// placeholder color and carries a color-matrix filter, either a `vibrantColorMatrixSourceOver`

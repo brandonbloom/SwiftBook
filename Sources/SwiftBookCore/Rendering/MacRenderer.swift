@@ -227,12 +227,12 @@
             _ view: NSView, size: CGSize, scale: Double, error: (String) -> RenderError
         ) throws -> CGImage {
             guard let root = view.layer else {
-                return try cacheDisplay(view, size: size, scale: scale, error: error)
+                return try draw(view, size: size, scale: scale, error: error)
             }
             let plan = Vibrancy.plan(for: root)
             let vibrant = plan.vibrant
             guard !vibrant.isEmpty else {
-                return try cacheDisplay(view, size: size, scale: scale, error: error)
+                return try draw(view, size: size, scale: scale, error: error)
             }
             // Render each vibrant layer alone for its coverage, then capture the backdrop with
             // them hidden.
@@ -250,7 +250,7 @@
             let backdrop: Bitmap
             do {
                 backdrop = try Bitmap(
-                    try cacheDisplay(view, size: size, scale: scale, error: error))
+                    try draw(view, size: size, scale: scale, error: error))
             } catch {
                 setOpacities(opacities)
                 throw error
@@ -264,7 +264,8 @@
             return image
         }
 
-        private static func cacheDisplay(
+        /// Draws `view` into a bitmap at `scale`.
+        private static func draw(
             _ view: NSView, size: CGSize, scale: Double, error: (String) -> RenderError
         ) throws -> CGImage {
             guard
@@ -278,7 +279,12 @@
             // A bitmap whose point size differs from its pixel size draws at that scale,
             // whatever the backing scale of the machine's screens.
             bitmap.size = size
-            view.cacheDisplay(in: view.bounds, to: bitmap)
+            guard let context = NSGraphicsContext(bitmapImageRep: bitmap) else {
+                throw error("can't draw into a \(size) bitmap")
+            }
+            // Not `cacheDisplay`: it marks the view as caching its display, and SwiftUI then swaps
+            // Liquid Glass controls for a flat fallback until the window next displays.
+            view.displayIgnoringOpacity(view.bounds, in: context)
             guard let srgb = bitmap.converting(to: .sRGB, renderingIntent: .default),
                 let image = srgb.cgImage
             else {

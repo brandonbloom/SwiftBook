@@ -7,7 +7,7 @@
         /// Captured from the window server with ScreenCaptureKit: exactly what's on screen,
         /// including vibrancy and Liquid Glass. Needs Screen Recording permission.
         case windowServer
-        /// Drawn offscreen with `cacheDisplay`, with vibrancy composited by ``Vibrancy``: close to
+        /// Drawn offscreen by the view itself, with vibrancy composited by ``Vibrancy``: close to
         /// the window server, but not exact.
         case emulated
 

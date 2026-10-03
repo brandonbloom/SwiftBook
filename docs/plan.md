@@ -121,10 +121,11 @@ Fulbloom adopts SwiftBook at the end of this phase.
 
 ## Phase 2: CLI, git, iOS and tvOS
 
-- [ ] **`glass-emulation`**
-  - Emulated captures don't draw Liquid Glass controls as the window server does. During `cacheDisplay`, SwiftUI swaps a control's glass layers (`CABackdropLayer`, SDF layers) for a fallback: a translucent white fill with a 1-point border. It restores the glass on the next display. A sidebar search field captures with a white field and dark placeholder. The window server draws a gray glass fill with a gray placeholder.
-  - The fallback also drifted between days with the same OS and the same SwiftBook commit: Fulbloom's LedgerBrowser references, recorded Oct 2, no longer reproduce. Screen lock, display sleep, and the Keyboard navigation and glass-tint preferences are ruled out. Unexplained drift is a CI determinism risk.
-  - Options: detect the swap and fail loudly; keep the glass from being swapped; or emulate glass from its layers.
+- [x] **`glass-emulation`**
+  - Emulated captures drew Liquid Glass controls as a flat fallback. `cacheDisplay` calls `_setDoingCacheDisplayInRect:`, which SwiftUI observes: it re-renders, swapping a control's glass layers (`CABackdropLayer`, SDF layers) for a translucent white fill with a 1-point border, until the window next displays.
+  - Fixed by drawing with `displayIgnoringOpacity(_:in:)`, which `cacheDisplay` wraps, so the glass stays. Against the window server, Fulbloom's sidebar search field went from mean ΔE 6.4 to 3.9 in light mode and from 10.9 to 5.6 in dark. The zoo's references were unchanged.
+  - Still differs from the window server: the glass edge highlight, and the dimmed placeholder text inside glass. Window-server capture is exact.
+  - The Oct 2 drift of Fulbloom's references stays unexplained. It happened inside the swap this avoids.
 - [ ] **`record-summary`**
   - In `changed` and `all` modes, report which references were re-recorded, even when the run passes, so a reviewer knows what to look at. From Fulbloom's adoption feedback.
 - [ ] **`readme`**
