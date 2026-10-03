@@ -69,12 +69,7 @@
             defer { ProcessTimeZone.restore(processTimeZone) }
 
             let view = AnyView(try await story.makeView().pinned(to: environment))
-            let window = NSWindow(
-                contentRect: CGRect(x: 0, y: 0, width: 1, height: 1), styleMask: [.borderless],
-                backing: .buffered, defer: false)
-            window.isReleasedWhenClosed = false
-            window.appearance = NSAppearance(
-                named: environment.appearance == .dark ? .darkAqua : .aqua)
+            let window = makeWindow(appearance: environment.appearance)
             defer {
                 window.contentView = nil
                 window.close()
@@ -90,6 +85,7 @@
             host.sizingOptions = []
             window.contentView = host
             window.setContentSize(size)
+            window.setFrameOrigin(offscreenOrigin)
             host.frame = CGRect(origin: .zero, size: size)
 
             func error(_ problem: String) -> RenderError {
@@ -121,6 +117,26 @@
             return Snapshot(
                 story: story.id, device: .mac, environment: environment, image: image,
                 metadata: metadata)
+        }
+
+        /// Where render windows sit while drawing offscreen: far from every screen, so the real
+        /// pointer is never inside one. AppKit's tracking areas check the pointer against a
+        /// window's frame even when the window isn't shown, and a window over the pointer draws
+        /// hover states.
+        static let offscreenOrigin = CGPoint(x: -100_000, y: -100_000)
+
+        /// A borderless window that never sees the pointer, in `appearance`.
+        static func makeWindow(appearance: RenderEnvironment.Appearance) -> NSWindow {
+            let window = NSWindow(
+                contentRect: CGRect(origin: offscreenOrigin, size: CGSize(width: 1, height: 1)),
+                styleMask: [.borderless], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            // Window-server captures need the window on screen, where the pointer may pass over
+            // it; ignoring mouse events keeps hover and cursor tracking off there too.
+            window.ignoresMouseEvents = true
+            window.acceptsMouseMovedEvents = false
+            window.appearance = NSAppearance(named: appearance == .dark ? .darkAqua : .aqua)
+            return window
         }
 
         private static func canvasSize(
