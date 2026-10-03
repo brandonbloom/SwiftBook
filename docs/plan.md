@@ -76,9 +76,11 @@ Fulbloom adopts SwiftBook at the end of this phase.
   - `#SwiftBookTests(variants:)` expands to a parameterized Swift Testing test.
   - Each variant gets its own failure, with reference, actual and diff images attached.
   - The record mode comes from an environment variable.
-- [ ] **`fulbloom-adoption`**
+- [x] **`fulbloom-adoption`**
   - Send Fulbloom a pinned revision plus the `Package.swift` changes.
   - Fulbloom records light and dark references for all 29 previews and runs its CI.
+  - Landed in Fulbloom at `3ff0ffe`, pinned to SwiftBook `41b40ec`.
+  - Adoption surfaced two vibrancy bugs, both fixed: hover states from the real pointer, and stale layers composited at the origin. It also surfaced `glass-emulation`.
 
 **Automated verification:**
 - Every zoo form is discovered and parsed on macOS, and a deliberately unreadable shape produces the expected error message.
