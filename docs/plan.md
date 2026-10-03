@@ -66,7 +66,7 @@ Fulbloom adopts SwiftBook at the end of this phase.
   - Animations are off, and rendering waits until two captures in a row match.
   - Rendering-environment metadata goes into PNG text chunks.
 - [x] **`diff-engine`**
-  - A perceptual ΔE comparison in Core Image, with pixelmatch-style anti-aliasing tolerance and a fast path for identical images.
+  - A perceptual CIEDE2000 comparison on the CPU, with pixelmatch-style anti-aliasing tolerance and a fast path for identical images.
   - It reports the changed-pixel ratio and the maximum ΔE, and produces a diff image.
 - [x] **`snapshot-storage`**
   - The `Snapshots/<Module>/<FileStem>/<Story>/<device>.<scheme>….png` layout and name sanitization.
@@ -76,6 +76,13 @@ Fulbloom adopts SwiftBook at the end of this phase.
   - `#SwiftBookTests(variants:)` expands to a parameterized Swift Testing test.
   - Each variant gets its own failure, with reference, actual and diff images attached.
   - The record mode comes from an environment variable.
+- [x] **`vibrant-text`**
+  - Sidebar vibrancy (text, icons, fills, selection) rendered wrong with `cacheDisplay`.
+  - Fixed two ways:
+    - **Window-server capture** with ScreenCaptureKit is the default when Screen Recording is granted, and is exact.
+    - **Emulation** is the fallback: each vibrant layer's color matrix applied to its backdrop, measured against the window server at ≤0.7% of pixels changed in light mode. Dark glass backgrounds differ by ΔE ≈ 15.
+  - Both match the window server's inactive-window style, because the test process is never the active app.
+  - Cost: window-server capture waits for the window server to settle, about 0.65 s per image versus about 0.1 s emulated.
 - [x] **`fulbloom-adoption`**
   - Send Fulbloom a pinned revision plus the `Package.swift` changes.
   - Fulbloom records light and dark references for all 29 previews and runs its CI.
@@ -98,10 +105,37 @@ Fulbloom adopts SwiftBook at the end of this phase.
 
 ### Phase 1 retro
 
-_(fill in on completion)_
+- **What worked.** The single discovery mechanism (a conformance scan plus the `Mirror`-based adapter) read every zoo form except `arguments:`, and all 49 of Fulbloom's previews. One macro line was all the configuration Fulbloom needed. The diff engine needed no changes after its golden tests.
+- **What surprised us: rendering fidelity, not discovery, was the hard part.** Most of the phase went to sidebars and glass:
+  - Vibrancy is applied by the window server, so `cacheDisplay` misses it.
+  - The test process is never the active app, so windows draw in their inactive style.
+  - The real pointer leaked hover states into offscreen windows.
+  - `cacheDisplay` changes SwiftUI's layer tree while it draws.
+  - Window-server capture is exact, but it needs Screen Recording permission and an unlocked screen, and it's about 6× slower.
+- **What surprised us: emulated output drifted between days.** The same commit on the same OS stopped reproducing references (`glass-emulation`).
+- **Debugging lesson.** Bisect the capture pipeline before theorizing about the environment. Compare the raw capture, the composite, and each layer's contribution. Preference and lock-state hypotheses cost hours; a per-layer bisect found the bug in minutes.
+- **Adoption friction.** Reviewing Fulbloom's 92 new references one at a time was slow, and no summary showed what a `changed` run had re-recorded. The validation packet's generated HTML page proved the review-page idea.
+- **Replan.**
+  - Phase 2 starts with `glass-emulation`, since it's a CI determinism risk, then the cheap adoption fixes: `record-summary`, `readme` and `review-page`.
+  - `vibrant-text` moved into Phase 1's record, where the work happened.
 
 ## Phase 2: CLI, git, iOS and tvOS
 
+- [ ] **`glass-emulation`**
+  - Emulated captures don't draw Liquid Glass controls as the window server does. During `cacheDisplay`, SwiftUI swaps a control's glass layers (`CABackdropLayer`, SDF layers) for a fallback: a translucent white fill with a 1-point border. It restores the glass on the next display. A sidebar search field captures with a white field and dark placeholder. The window server draws a gray glass fill with a gray placeholder.
+  - The fallback also drifted between days with the same OS and the same SwiftBook commit: Fulbloom's LedgerBrowser references, recorded Oct 2, no longer reproduce. Screen lock, display sleep, and the Keyboard navigation and glass-tint preferences are ruled out. Unexplained drift is a CI determinism risk.
+  - Options: detect the swap and fail loudly; keep the glass from being swapped; or emulate glass from its layers.
+- [ ] **`record-summary`**
+  - In `changed` and `all` modes, report which references were re-recorded, even when the run passes, so a reviewer knows what to look at. From Fulbloom's adoption feedback.
+- [ ] **`readme`**
+  - Usage docs. Include:
+    - `swift test --filter SwiftBookSnapshots` to run only the snapshots.
+    - Injecting fixed times in previews instead of reading `Date.now`.
+    - What each `SWIFTBOOK_RECORD` mode does.
+  - From Fulbloom's adoption feedback.
+- [ ] **`review-page`**
+  - `swiftbook review` writes an HTML page of new and changed references: grouped by file, light and dark side by side, diffs beside failures. Reviewing Fulbloom's 92 new references one at a time was the slowest step of adoption.
+  - Until `cli-skeleton` lands, `swift test` writes the page to `.build/swiftbook/review/index.html` whenever it records or fails. Reuse the Phase 1 validation packet's layout: a "What to check" box per section and light/dark cards.
 - [ ] **`preview-arguments`**
   - Support parameterized `#Preview(arguments:)`: one story per argument, named `<preview> / <argument>`, with the group metadata's item descriptions as labels.
   - Blocked on calling the group closure `makeBody(PreviewGroupIndex?) -> (Body, PreviewGroupIndex)`. Every way of calling it via `Mirror` reached a crash inside DeveloperToolsSupport: concrete types, generic types, and mixes of the two. Under lldb, calls reach an "Index out of range" inside DeveloperToolsSupport even with a `nil` index, and a disassembled callee takes the index by pointer.
@@ -109,29 +143,8 @@ _(fill in on completion)_
     - Read the closure directly from the `Preview` value's memory instead of through `Mirror`'s `Any` box. The layout is `Preview.dataSource@16`, an existential holding `DefaultPreviewSource<Body>`, whose `structure@32` is a 57-byte enum whose group payload is `(metadata, makeBody)`.
     - Inspect the `PreviewSource` protocol's requirements.
     - Watch how XCPreviewAgent drives a group.
-- [x] **`vibrant-text`**
-  - Sidebar vibrancy (text, icons, fills, selection) rendered wrong with `cacheDisplay`.
-  - Fixed two ways:
-    - **Window-server capture** with ScreenCaptureKit is the default when Screen Recording is granted, and is exact.
-    - **Emulation** is the fallback: each vibrant layer's color matrix applied to its backdrop, measured against the window server at ≤0.7% of pixels changed in light mode. Dark glass backgrounds differ by ΔE ≈ 15.
-  - Both match the window server's inactive-window style, because the test process is never the active app.
-  - Cost: window-server capture waits for the window server to settle, about 0.65 s per image versus about 0.1 s emulated.
-- [ ] **`glass-emulation`**
-  - Emulated captures don't draw Liquid Glass controls as the window server does. During `cacheDisplay`, SwiftUI swaps a control's glass layers (`CABackdropLayer`, SDF layers) for a fallback: a translucent white fill with a 1-point border. It restores the glass on the next display. A sidebar search field captures with a white field and dark placeholder. The window server draws a gray glass fill with a gray placeholder.
-  - The fallback also drifted between days with the same OS and the same SwiftBook commit: Fulbloom's LedgerBrowser references, recorded Oct 2, no longer reproduce. Screen lock, display sleep, and the Keyboard navigation and glass-tint preferences are ruled out. Unexplained drift is a CI determinism risk.
-  - Options: detect the swap and fail loudly; keep the glass from being swapped; or emulate glass from its layers.
 - [ ] **`capture-speed`**
   - Bring window-server capture closer to emulated speed. Options: settle on a damage signal instead of a fixed delay, or capture several windows concurrently.
-- [ ] **`readme`**
-  - Usage docs. Include:
-    - `swift test --filter SwiftBookSnapshots` to run only the snapshots.
-    - Injecting fixed times in previews instead of reading `Date.now`.
-    - What each `SWIFTBOOK_RECORD` mode does.
-  - From Fulbloom's adoption feedback.
-- [ ] **`record-summary`**
-  - In `changed` and `all` modes, report which references were re-recorded, even when the run passes, so a reviewer knows what to look at. From Fulbloom's adoption feedback.
-- [ ] **`review-page`**
-  - `swiftbook review` writes an HTML page of new and changed references: grouped by file, light and dark side by side, diffs beside failures. Reviewing Fulbloom's 92 new references one at a time was the slowest step of adoption.
 
 - [ ] **`cli-skeleton`**
   - The `swiftbook` command with `init` (`.gitattributes` LFS rule and difftool configuration) and `doctor` (toolchain, simulators, LFS, and discovery and adapter health).
