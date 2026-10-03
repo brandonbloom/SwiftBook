@@ -92,14 +92,35 @@
             window.setContentSize(size)
             host.frame = CGRect(origin: .zero, size: size)
 
-            let image = try await stableCapture(
-                of: host, size: size, scale: environment.scale, timeout: timeout
-            ) {
-                RenderError(story: story.id, problem: $0)
+            func error(_ problem: String) -> RenderError {
+                RenderError(story: story.id, problem: problem)
             }
+            var method = try CaptureMethod.current()
+            if method == .windowServer, !WindowServerCapture.canCapture(size: size) {
+                method = .emulated
+            }
+            let image: CGImage
+            switch method {
+            case .windowServer:
+                let capture = try await WindowServerCapture.prepare(
+                    window, size: size, scale: environment.scale)
+                image = try await stableCapture(
+                    of: host, settling: .windowServer, timeout: timeout, error: error
+                ) {
+                    try await capture.capture()
+                }
+            case .emulated:
+                image = try await stableCapture(
+                    of: host, settling: .emulated, timeout: timeout, error: error
+                ) {
+                    try capture(host, size: size, scale: environment.scale, error: error)
+                }
+            }
+            var metadata = metadata(for: story, environment: environment)
+            metadata.capture = method.rawValue
             return Snapshot(
                 story: story.id, device: .mac, environment: environment, image: image,
-                metadata: metadata(for: story, environment: environment))
+                metadata: metadata)
         }
 
         private static func canvasSize(
@@ -136,56 +157,53 @@
                 height: (size.height * scale).rounded(.up) / scale)
         }
 
+        /// How long to wait for a render to settle.
+        struct Settling {
+            /// Before the first capture.
+            var initialDelay: Duration
+            /// Between captures.
+            var interval: Duration
+            /// Identical captures in a row that count as settled.
+            var matches: Int
+
+            /// Offscreen drawing reflects the view as soon as it's displayed.
+            static let emulated = Settling(
+                initialDelay: .zero, interval: .milliseconds(16), matches: 2)
+            /// The window server shows a window's content a few frames after it's drawn, and two
+            /// quick captures can both be stale.
+            static let windowServer = Settling(
+                initialDelay: .milliseconds(300), interval: .milliseconds(50), matches: 3)
+        }
+
         private static func stableCapture(
-            of host: NSView, size: CGSize, scale: Double, timeout: Duration,
-            error: (String) -> RenderError
+            of host: NSView, settling: Settling, timeout: Duration, error: (String) -> RenderError,
+            capture: () async throws -> CGImage
         ) async throws -> CGImage {
             let clock = ContinuousClock()
-            let deadline = clock.now + timeout
-            var previous: (image: CGImage, pixels: Data)?
+            let deadline = clock.now + settling.initialDelay + timeout
+            host.layoutSubtreeIfNeeded()
+            host.displayIfNeeded()
+            try await Task.sleep(for: settling.initialDelay)
+            var previous: Data?
+            var matches = 1
             var captures = 0
             while true {
                 host.layoutSubtreeIfNeeded()
-                prepareForCapture(host)
                 host.displayIfNeeded()
-                let image = try capture(host, size: size, scale: scale, error: error)
+                let image = try await capture()
                 captures += 1
                 guard let pixels = image.dataProvider?.data as Data? else {
                     throw error("capture has no pixels")
                 }
-                if let previous, previous.pixels == pixels { return image }
-                previous = (image, pixels)
+                matches = pixels == previous ? matches + 1 : 1
+                if matches >= settling.matches { return image }
+                previous = pixels
                 guard clock.now < deadline else {
                     throw error("still changing after \(captures) captures over \(timeout)")
                 }
                 // Let the run loop process SwiftUI's pending updates.
-                try await Task.sleep(for: .milliseconds(16))
+                try await Task.sleep(for: settling.interval)
             }
-        }
-
-        /// Makes chrome that the window server composites capturable by `cacheDisplay`.
-        ///
-        /// Sidebars draw selection and backgrounds with vibrancy: compositing filters that blend
-        /// with what's behind the window, which only the window server applies. Captured as is, a
-        /// selected row is a black rectangle. So selected rows are drawn emphasized, as in a
-        /// focused sidebar (a solid accent color, no filter), and vibrant backgrounds draw in their
-        /// own colors. Vibrant content, such as sidebar text, is composited by ``Vibrancy``.
-        static func prepareForCapture(_ view: NSView) {
-            if let row = view as? NSTableRowView, row.isSelected, !row.isEmphasized {
-                row.isEmphasized = true
-            }
-            if let layer = view.layer { removeVibrantBackgrounds(from: layer) }
-            view.subviews.forEach(prepareForCapture)
-        }
-
-        private static func removeVibrantBackgrounds(from layer: CALayer) {
-            if let filter = layer.compositingFilter,
-                String(describing: filter).hasPrefix("vibrant"),
-                !Vibrancy.colorsFromBackdrop(layer)
-            {
-                layer.compositingFilter = nil
-            }
-            layer.sublayers?.forEach(removeVibrantBackgrounds)
         }
 
         /// Captures `view`, compositing any vibrant content over the rest.
@@ -195,7 +213,8 @@
             guard let root = view.layer else {
                 return try cacheDisplay(view, size: size, scale: scale, error: error)
             }
-            let vibrant = Vibrancy.layers(in: root)
+            let plan = Vibrancy.plan(for: root)
+            let vibrant = plan.vibrant
             guard !vibrant.isEmpty else {
                 return try cacheDisplay(view, size: size, scale: scale, error: error)
             }
@@ -219,7 +238,7 @@
             }
             setOpacities(opacities)
             guard
-                let image = Vibrancy.composite(vibrant, over: backdrop, root: root, scale: scale)
+                let image = Vibrancy.composite(plan, over: backdrop, root: root, scale: scale)
                     .image()
             else {
                 throw error("can't composite vibrancy")

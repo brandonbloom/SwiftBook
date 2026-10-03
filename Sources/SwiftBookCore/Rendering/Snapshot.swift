@@ -33,6 +33,8 @@ public struct SnapshotMetadata: Codable, Hashable, Sendable {
     public var dynamicTypeSize: String
     public var layoutDirection: String
     public var swiftBookVersion: String
+    /// The ``CaptureMethod``, `nil` in references recorded before capture methods existed.
+    public var capture: String?
 
     func json() throws -> String {
         let encoder = JSONEncoder()

@@ -51,6 +51,17 @@ struct Bitmap {
             && pixels[a + 3] == pixels[b + 3]
     }
 
+    /// Lays a color (0–1 per channel) over the opaque pixel at `offset` with `alpha`.
+    @inline(__always) mutating func blend(
+        _ r: Double, _ g: Double, _ b: Double, alpha: Double, at offset: Int
+    ) {
+        pixels[offset] = UInt8((r * alpha + Double(pixels[offset]) / 255 * (1 - alpha)) * 255 + 0.5)
+        pixels[offset + 1] = UInt8(
+            (g * alpha + Double(pixels[offset + 1]) / 255 * (1 - alpha)) * 255 + 0.5)
+        pixels[offset + 2] = UInt8(
+            (b * alpha + Double(pixels[offset + 2]) / 255 * (1 - alpha)) * 255 + 0.5)
+    }
+
     func image() -> CGImage? {
         let data = CFDataCreate(nil, pixels, pixels.count)!
         return CGImage(

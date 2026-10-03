@@ -9,18 +9,33 @@ struct SidebarWindow: View {
 
     var body: some View {
         NavigationSplitView {
-            List(["Apple", "Banana", "Cherry"], id: \.self, selection: $selection) { fruit in
-                Label(fruit, systemImage: "leaf")
+            List(selection: $selection) {
+                Section("Fruits") {
+                    ForEach(["Apple", "Banana", "Cherry"], id: \.self) { fruit in
+                        Label(fruit, systemImage: "leaf")
+                    }
+                }
             }
-            .safeAreaInset(edge: .bottom) { AvatarMenu() }
+            .safeAreaInset(edge: .bottom) {
+                HStack {
+                    AvatarMenu()
+                    AvatarMenu(fill: .purple)
+                    VStack(alignment: .leading) {
+                        Text("Brandon")
+                        Text("Signed in").foregroundStyle(.secondary)
+                    }
+                }
+            }
         } detail: {
             Text(selection ?? "Nothing selected")
         }
     }
 }
 
-/// A circular avatar filled with the accent color, as a menu label.
+/// A circular avatar, filled with the accent color by default, as a menu label.
 struct AvatarMenu: View {
+    var fill = Color.accentColor
+
     var body: some View {
         Menu {
             Button("Sign Out") {}
@@ -29,7 +44,7 @@ struct AvatarMenu: View {
                 .font(.headline)
                 .foregroundStyle(.white)
                 .frame(width: 28, height: 28)
-                .background(Circle().fill(Color.accentColor))
+                .background(Circle().fill(fill))
         }
         .menuStyle(.button)
         .buttonStyle(.plain)

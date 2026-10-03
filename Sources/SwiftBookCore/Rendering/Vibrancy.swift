@@ -3,122 +3,218 @@
 
     /// Composites vibrancy, which the window server applies and `cacheDisplay` ignores.
     ///
-    /// Vibrant content (sidebar text and symbols, for example) is a layer whose
-    /// `vibrantColorMatrixSourceOver` compositing filter colors it from what's behind it: the
-    /// result is the filter's color matrix applied to the backdrop, masked by the layer's own
-    /// coverage. Captured directly, that content draws in its placeholder color, black. This
-    /// captures the backdrop with vibrant layers hidden, renders each vibrant layer alone for its
-    /// coverage, and composites the matrix-colored backdrop through it.
+    /// Vibrant content, such as sidebar text, symbols, fills, and selection, is drawn in a
+    /// placeholder color and carries a color-matrix filter, either a `vibrantColorMatrixSourceOver`
+    /// compositing filter or a `vibrantColorMatrix` layer filter. Either way, its real color is the
+    /// matrix applied to what's behind it, laid down through the layer's coverage (clipped by its
+    /// ancestors) at the matrix's alpha. Captured directly, it draws in the placeholder color.
+    ///
+    /// Renders match the window server's rendering of an inactive window: the test process is
+    /// never the active app, and AppKit draws sidebars in their inactive style there.
+    ///
+    /// This captures the backdrop with vibrant layers hidden, composites each vibrant layer in
+    /// painter's order (rendered alone for its coverage, colored from the result so far), then
+    /// redraws content that was painted above vibrant layers, where they overlap.
     @MainActor enum Vibrancy {
         struct VibrantLayer {
             let layer: CALayer
-            /// A 4×5 row-major color matrix: each output channel is a weighted sum of the
-            /// backdrop's red, green, blue, and alpha, plus a bias.
-            let matrix: [Float]
+            /// A 4×5 row-major color matrix: each output channel (red, green, blue, alpha) is a
+            /// weighted sum of the backdrop's red, green, blue, and alpha, plus a bias.
+            let matrix: [Double]
         }
 
-        /// Vibrant layers whose color comes from the backdrop, outermost first.
-        static func layers(in root: CALayer) -> [VibrantLayer] {
-            var found: [VibrantLayer] = []
+        /// What a capture must composite itself.
+        struct Plan {
+            /// Vibrant layers in painter's order, outermost only.
+            var vibrant: [VibrantLayer] = []
+            /// Layers with content of their own painted after the first vibrant layer.
+            var above: [CALayer] = []
+        }
+
+        static func plan(for root: CALayer) -> Plan {
+            var plan = Plan()
             func visit(_ layer: CALayer) {
-                if layer.opacity > 0, !layer.isHidden, let matrix = backdropColorMatrix(of: layer) {
-                    found.append(VibrantLayer(layer: layer, matrix: matrix))
+                guard layer.opacity > 0, !layer.isHidden else { return }
+                if let matrix = colorMatrix(ofVibrant: layer) {
+                    plan.vibrant.append(VibrantLayer(layer: layer, matrix: matrix))
                     return
                 }
+                if !plan.vibrant.isEmpty, hasOwnContent(layer) { plan.above.append(layer) }
                 layer.sublayers?.forEach(visit)
             }
             visit(root)
-            return found
+            return plan
         }
 
-        /// Whether `layer` is vibrant content this composites, rather than a vibrant background.
-        static func colorsFromBackdrop(_ layer: CALayer) -> Bool {
-            backdropColorMatrix(of: layer) != nil
+        private static func hasOwnContent(_ layer: CALayer) -> Bool {
+            layer.contents != nil || (layer.backgroundColor?.alpha ?? 0) > 0
+                || layer.borderWidth > 0
         }
 
-        /// The color matrix of a vibrancy filter that colors content from the backdrop. Filters
-        /// marked backdrop-aware tint the layer's own background instead; those draw acceptably
-        /// without the filter, so they're left alone.
-        private static func backdropColorMatrix(of layer: CALayer) -> [Float]? {
-            guard let filter = layer.compositingFilter as? NSObject,
-                String(describing: filter).hasPrefix("vibrantColorMatrix"),
-                filter.responds(to: NSSelectorFromString("inputKeys")),
+        /// The color matrix that colors `layer` from its backdrop, if it's vibrant.
+        private static func colorMatrix(ofVibrant layer: CALayer) -> [Double]? {
+            if let filter = layer.compositingFilter as? NSObject,
+                String(describing: filter).hasPrefix("vibrantColorMatrix")
+            {
+                return colorMatrix(of: filter)
+            }
+            if let filters = layer.filters, filters.count == 1,
+                let filter = filters[0] as? NSObject,
+                String(describing: filter) == "vibrantColorMatrix"
+            {
+                return colorMatrix(of: filter)
+            }
+            return nil
+        }
+
+        /// A `CAFilter` input, or `nil` if the filter doesn't have it.
+        private static func inputValue(_ key: String, of filter: NSObject) -> Any? {
+            guard filter.responds(to: NSSelectorFromString("inputKeys")),
                 let keys = filter.perform(NSSelectorFromString("inputKeys"))?.takeUnretainedValue()
                     as? [String],
-                keys.contains("inputColorMatrix"),
-                let value = filter.value(forKey: "inputColorMatrix") as? NSValue
+                keys.contains(key)
             else { return nil }
-            if keys.contains("inputBackdropAware"),
-                (filter.value(forKey: "inputBackdropAware") as? Bool) == true
-            {
+            return filter.value(forKey: key)
+        }
+
+        /// A filter's `inputColorMatrix`, a `CAColorMatrix` of 20 floats in an `NSValue`.
+        private static func colorMatrix(of filter: NSObject) -> [Double]? {
+            guard let value = inputValue("inputColorMatrix", of: filter) as? NSValue else {
                 return nil
             }
-            // A CAColorMatrix: 20 floats.
             var size = 0
             NSGetSizeAndAlignment(value.objCType, &size, nil)
             guard size == 20 * MemoryLayout<Float>.size else { return nil }
             var matrix = [Float](repeating: 0, count: 20)
             matrix.withUnsafeMutableBytes { value.getValue($0.baseAddress!, size: size) }
-            return matrix
+            return matrix.map(Double.init)
         }
 
-        /// Composites `layers` over `backdrop`, a capture of `root` with those layers hidden.
-        static func composite(
-            _ layers: [VibrantLayer], over backdrop: Bitmap, root: CALayer, scale: Double
-        ) -> Bitmap {
+        /// Composites `plan` over `backdrop`, a capture of `root` with its vibrant layers hidden.
+        static func composite(_ plan: Plan, over backdrop: Bitmap, root: CALayer, scale: Double)
+            -> Bitmap
+        {
             var result = backdrop
-            for vibrant in layers {
-                let coverage = render(
-                    vibrant.layer, alone: root, width: backdrop.width, height: backdrop.height,
-                    scale: scale)
-                let m = vibrant.matrix.map(Double.init)
-                for index in 0..<(backdrop.width * backdrop.height) {
-                    let alpha = Double(coverage[index * 4 + 3]) / 255
-                    guard alpha > 0 else { continue }
+            let width = backdrop.width
+            var covered = [Bool](repeating: false, count: width * backdrop.height)
+            for vibrant in plan.vibrant {
+                let source = render(vibrant.layer, alone: root, in: backdrop, scale: scale)
+                let m = vibrant.matrix
+                source.forEachPixel(width: width) { index, sourceOffset in
+                    let coverage = Double(source.pixels[sourceOffset + 3]) / 255
+                    guard coverage > 0 else { return }
+                    covered[index] = true
                     let offset = index * 4
-                    let r = Double(backdrop.pixels[offset]) / 255
-                    let g = Double(backdrop.pixels[offset + 1]) / 255
-                    let b = Double(backdrop.pixels[offset + 2]) / 255
-                    for channel in 0..<3 {
-                        let row = channel * 5
-                        // The backdrop is opaque, so its alpha term is the weight itself.
-                        var sum = m[row] * r
-                        sum += m[row + 1] * g
-                        sum += m[row + 2] * b
-                        sum += m[row + 3] + m[row + 4]
-                        let tinted = min(max(sum, 0), 1)
-                        let under = Double(result.pixels[offset + channel]) / 255
-                        result.pixels[offset + channel] = UInt8(
-                            (tinted * alpha + under * (1 - alpha)) * 255 + 0.5)
+                    let r = Double(result.pixels[offset]) / 255
+                    let g = Double(result.pixels[offset + 1]) / 255
+                    let b = Double(result.pixels[offset + 2]) / 255
+                    // The backdrop is opaque, so its alpha is 1.
+                    func channel(_ row: Int) -> Double {
+                        var sum = m[row * 5 + 4] + m[row * 5 + 3]
+                        sum += m[row * 5] * r
+                        sum += m[row * 5 + 1] * g
+                        sum += m[row * 5 + 2] * b
+                        return min(max(sum, 0), 1)
                     }
+                    let alpha = coverage * channel(3)
+                    result.blend(channel(0), channel(1), channel(2), alpha: alpha, at: offset)
+                }
+            }
+            // Content painted above vibrant layers was painted over by them; draw it again there.
+            for layer in plan.above {
+                let source = withSublayersHidden(layer) {
+                    render(layer, alone: root, in: backdrop, scale: scale)
+                }
+                source.forEachPixel(width: width) { index, sourceOffset in
+                    guard covered[index] else { return }
+                    let alpha = Double(source.pixels[sourceOffset + 3]) / 255
+                    guard alpha > 0 else { return }
+                    let r = Double(source.pixels[sourceOffset]) / 255 / alpha
+                    let g = Double(source.pixels[sourceOffset + 1]) / 255 / alpha
+                    let b = Double(source.pixels[sourceOffset + 2]) / 255 / alpha
+                    result.blend(r, g, b, alpha: alpha, at: index * 4)
                 }
             }
             return result
         }
 
-        /// Renders `layer` alone, positioned as within `root`, into an RGBA bitmap the size of the
-        /// capture. Only its alpha is used.
+        private static func withSublayersHidden<T>(_ layer: CALayer, _ body: () -> T) -> T {
+            let sublayers = (layer.sublayers ?? []).filter { !$0.isHidden }
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            for sublayer in sublayers { sublayer.isHidden = true }
+            defer {
+                for sublayer in sublayers { sublayer.isHidden = false }
+                CATransaction.commit()
+            }
+            return body()
+        }
+
+        /// A layer rendered alone: the pixels of a region of the capture.
+        struct Region {
+            /// The region's origin and size in capture pixels, rows top to bottom.
+            let x: Int
+            let y: Int
+            let width: Int
+            let height: Int
+            /// Premultiplied RGBA.
+            var pixels: [UInt8]
+
+            /// Calls `body` with each pixel's index in the capture and offset in ``pixels``.
+            func forEachPixel(width captureWidth: Int, _ body: (Int, Int) -> Void) {
+                for row in 0..<height {
+                    for column in 0..<width {
+                        body((y + row) * captureWidth + x + column, (row * width + column) * 4)
+                    }
+                }
+            }
+        }
+
+        /// Renders `layer` alone, positioned as within `root`, clipped by its ancestors, into the
+        /// region of a `capture`-sized bitmap that it covers.
         private static func render(
-            _ layer: CALayer, alone root: CALayer, width: Int, height: Int, scale: Double
+            _ layer: CALayer, alone root: CALayer, in capture: Bitmap, scale: Double
         )
-            -> [UInt8]
+            -> Region
         {
-            var pixels = [UInt8](repeating: 0, count: width * height * 4)
             let frame = root.convert(layer.bounds, from: layer)
-            pixels.withUnsafeMutableBytes { buffer in
+            let x = max(Int((frame.minX * scale).rounded(.down)), 0)
+            let y = max(Int((frame.minY * scale).rounded(.down)), 0)
+            let maxX = min(Int((frame.maxX * scale).rounded(.up)), capture.width)
+            let maxY = min(Int((frame.maxY * scale).rounded(.up)), capture.height)
+            var region = Region(
+                x: x, y: y, width: max(maxX - x, 0), height: max(maxY - y, 0), pixels: [])
+            guard region.width > 0, region.height > 0 else { return region }
+            region.pixels = [UInt8](repeating: 0, count: region.width * region.height * 4)
+            region.pixels.withUnsafeMutableBytes { buffer in
                 guard
                     let context = CGContext(
-                        data: buffer.baseAddress, width: width, height: height, bitsPerComponent: 8,
-                        bytesPerRow: width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                        data: buffer.baseAddress, width: region.width, height: region.height,
+                        bitsPerComponent: 8, bytesPerRow: region.width * 4,
+                        space: CGColorSpace(name: CGColorSpace.sRGB)!,
                         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
                 else { return }
-                // The bitmap's rows run top to bottom, like the capture. The root's coordinates
-                // run top down when it's flipped, as a hosting view's are.
-                context.translateBy(x: 0, y: CGFloat(height))
+                // Map root coordinates, which run top down (a hosting view is flipped), to the
+                // region's pixels, whose rows also run top down.
+                context.translateBy(x: CGFloat(-x), y: CGFloat(region.height + y))
                 context.scaleBy(x: scale, y: -scale)
                 if !root.isGeometryFlipped {
                     context.translateBy(x: 0, y: root.bounds.height)
                     context.scaleBy(x: 1, y: -1)
+                }
+                // Clip to ancestors that clip their content, such as a selection's rounded rect.
+                var ancestor = layer.superlayer
+                while let clipping = ancestor, clipping !== root {
+                    if clipping.masksToBounds {
+                        context.addPath(
+                            CGPath(
+                                roundedRect: root.convert(clipping.bounds, from: clipping),
+                                cornerWidth: clipping.cornerRadius,
+                                cornerHeight: clipping.cornerRadius,
+                                transform: nil))
+                        context.clip()
+                    }
+                    ancestor = clipping.superlayer
                 }
                 context.translateBy(x: frame.minX, y: frame.minY)
                 if layer.isGeometryFlipped == root.isGeometryFlipped {
@@ -127,7 +223,7 @@
                 }
                 layer.render(in: context)
             }
-            return pixels
+            return region
         }
     }
 #endif

@@ -107,10 +107,15 @@ _(fill in on completion)_
     - Read the closure directly from the `Preview` value's memory instead of through `Mirror`'s `Any` box. The layout is `Preview.dataSource@16`, an existential holding `DefaultPreviewSource<Body>`, whose `structure@32` is a 57-byte enum whose group payload is `(metadata, makeBody)`.
     - Inspect the `PreviewSource` protocol's requirements.
     - Watch how XCPreviewAgent drives a group.
-- [ ] **`vibrant-text`**
-  - Text in Liquid Glass sidebars renders black in dark mode. SwiftUI draws vibrant text in a placeholder color, and the window server colors it from what's behind the window. Neither a vibrant nor a plain AppKit appearance changes that.
-  - Already handled: selected rows (drawn emphasized), and vibrant icons and fills (composited from their `vibrantColorMatrix` filters by `Vibrancy`).
-  - Lead: capture through the window server with ScreenCaptureKit. That needs the Screen Recording permission: acceptable for the viewer, not for CI. Otherwise, find which layer the text's coloring hangs on.
+- [x] **`vibrant-text`**
+  - Sidebar vibrancy (text, icons, fills, selection) rendered wrong with `cacheDisplay`.
+  - Fixed two ways:
+    - **Window-server capture** with ScreenCaptureKit is the default when Screen Recording is granted, and is exact.
+    - **Emulation** is the fallback: each vibrant layer's color matrix applied to its backdrop, measured against the window server at ≤0.7% of pixels changed in light mode. Dark glass backgrounds differ by ΔE ≈ 15.
+  - Both match the window server's inactive-window style, because the test process is never the active app.
+  - Cost: window-server capture waits for the window server to settle, about 0.65 s per image versus about 0.1 s emulated.
+- [ ] **`capture-speed`**
+  - Bring window-server capture closer to emulated speed. Options: settle on a damage signal instead of a fixed delay, or capture several windows concurrently.
 - [ ] **`readme`**
   - Usage docs. Include:
     - `swift test --filter SwiftBookSnapshots` to run only the snapshots.

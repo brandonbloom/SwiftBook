@@ -208,7 +208,10 @@ There is one mechanism: **scan the binary at runtime** for `PreviewRegistry` con
 ### Rendering
 
 - **Pinned for determinism:** appearance, scale, size (from the layout trait), locale, time zone, and dynamic type size.
-- **macOS** renders an `NSHostingView` in an offscreen borderless window with an explicit `NSAppearance`. Fulbloom has proven this setup.
+- **macOS** renders an `NSHostingView` in a borderless window with an explicit `NSAppearance`. There are two ways to capture it, and each snapshot's metadata records which one was used:
+  - **Window server (default when permitted).** ScreenCaptureKit captures the window ordered behind all others, so nothing flashes and focus isn't taken. This is exact, including vibrancy and Liquid Glass. It needs the Screen Recording permission for the process that runs tests (on a dev Mac or a self-hosted runner, for example). It shows a window as the window server draws it for a background app.
+  - **Emulated (fallback).** `cacheDisplay` offscreen, with vibrancy composited from each layer's color-matrix filter. It's close to the window server, but sidebar glass backgrounds and text antialiasing differ slightly.
+  - `SWIFTBOOK_CAPTURE` forces one or the other. References recorded with one method don't match renders made with the other; the failure message says so.
 - **iOS and tvOS** render a `UIHostingController` in a `UIWindow` using `drawHierarchy`. This runs inside a **real app process** in a pinned simulator, because without a host app `drawHierarchy` returns blank images ([spike](spikes/ios-renderer.md)).
   - SwiftBook generates and builds that renderer app itself. The user doesn't need an app target.
   - First choice: a hidden `.swiftpm` package with an `.iOSApplication` product. Fallback: `swift build` plus our own `.app` wrapper.

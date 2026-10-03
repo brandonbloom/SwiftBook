@@ -190,6 +190,10 @@ public enum SwiftBook {
         compare("SwiftBook", \.swiftBookVersion)
         compare("locale", \.locale)
         compare("time zone", \.timeZone)
+        if reference.capture != actual.capture {
+            changes.append(
+                "capture \(reference.capture ?? "emulated") → \(actual.capture ?? "emulated")")
+        }
         if reference.scale != actual.scale {
             changes.append("scale \(reference.scale) → \(actual.scale)")
         }
