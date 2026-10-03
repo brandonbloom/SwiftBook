@@ -126,8 +126,10 @@ Fulbloom adopts SwiftBook at the end of this phase.
   - Fixed by drawing with `displayIgnoringOpacity(_:in:)`, which `cacheDisplay` wraps, so the glass stays. Against the window server, Fulbloom's sidebar search field went from mean ΔE 6.4 to 3.9 in light mode and from 10.9 to 5.6 in dark. The zoo's references were unchanged.
   - Still differs from the window server: the glass edge highlight, and the dimmed placeholder text inside glass. Window-server capture is exact.
   - The Oct 2 drift of Fulbloom's references stays unexplained. It happened inside the swap this avoids.
-- [ ] **`record-summary`**
+- [x] **`record-summary`**
   - In `changed` and `all` modes, report which references were re-recorded, even when the run passes, so a reviewer knows what to look at. From Fulbloom's adoption feedback.
+  - Each re-recorded reference is a Swift Testing warning: what changed, and a diff image under `.build/swiftbook/recorded/`. The run still passes. `all` mode leaves byte-identical references alone and doesn't report them.
+  - Artifacts moved under `.build/swiftbook/{failures,recorded}/`. `$SWIFTBOOK_ARTIFACTS` replaces `.build/swiftbook`.
 - [ ] **`readme`**
   - Usage docs. Include:
     - `swift test --filter SwiftBookSnapshots` to run only the snapshots.

@@ -45,6 +45,32 @@
             }
         }
 
+        @Test func reportsRerecordedReferencesWithoutFailing() async throws {
+            let card = try await story("Card", "Card")
+            let light = Variants(appearances: [.light])
+            let url = store.url(for: card.story.id, device: .mac, environment: RenderEnvironment())
+            var dark = RenderEnvironment()
+            dark.appearance = .dark
+            try FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try await MacRenderer.render(card.story, in: dark).pngData().write(to: url)
+
+            // Known issues include warnings, so this checks the warning's text and severity.
+            try await withKnownIssue {
+                try await SwiftBook.verify(
+                    card, filePath: #filePath, variants: light, store: store, mode: .changed)
+            } matching: { issue in
+                issue.severity == .warning
+                    && issue.comments.contains { comment in
+                        comment.rawValue.contains("Re-recorded PreviewZoo/Card/Card (mac.light)")
+                            && comment.rawValue.contains("pixels changed")
+                            && comment.rawValue.contains("Diff image:")
+                    }
+            }
+            try await SwiftBook.verify(
+                card, filePath: #filePath, variants: light, store: store, mode: .never)
+        }
+
         @Test func failsWhenAReferenceIsMissingInNeverMode() async throws {
             let card = try await story("Card", "Card")
             try await withKnownIssue {

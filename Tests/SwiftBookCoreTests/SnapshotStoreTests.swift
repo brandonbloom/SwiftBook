@@ -137,14 +137,25 @@ import Testing
         #expect(!FileManager.default.fileExists(atPath: url.path))
     }
 
-    @Test func rerecordsEverythingInAllMode() throws {
+    @Test func rerecordsEverythingThatDiffersInAllMode() throws {
         _ = try store.verify(snapshot(gray: 100), mode: .missing)
-        guard case .recorded(_, let previous) = try store.verify(snapshot(gray: 100), mode: .all)
+        // Even a change within tolerance is recorded.
+        guard case .recorded(_, let previous) = try store.verify(snapshot(gray: 101), mode: .all)
         else {
             Issue.record("expected a recording")
             return
         }
-        #expect(previous?.isIdentical == true)
+        #expect(previous?.matches == true)
+        #expect(previous?.isIdentical == false)
+    }
+
+    @Test func leavesIdenticalReferencesAloneInAllMode() throws {
+        _ = try store.verify(snapshot(gray: 100), mode: .missing)
+        guard case .matched(let diff) = try store.verify(snapshot(gray: 100), mode: .all) else {
+            Issue.record("expected a match")
+            return
+        }
+        #expect(diff.isIdentical)
     }
 
     @Test func explainsGitLFSPointers() throws {

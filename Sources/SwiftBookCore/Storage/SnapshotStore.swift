@@ -37,7 +37,8 @@ public enum Verification: @unchecked Sendable {
 
     /// The snapshot matches its reference within the tolerance.
     case matched(ImageDiff)
-    /// The reference was written. `previous` compares against the reference it replaced, if any.
+    /// The reference was written. `previous` compares against the reference it replaced, if any
+    /// could be read.
     case recorded(URL, previous: ImageDiff?)
     /// The snapshot doesn't match its reference.
     case mismatched(ImageDiff, reference: URL, referenceMetadata: SnapshotMetadata?)
@@ -101,9 +102,15 @@ public struct SnapshotStore: Sendable {
             return .recorded(url, previous: nil)
         }
         if mode == .all {
+            // An identical reference needs no rewrite, so it isn't reported as recorded.
+            if reference == png {
+                return .matched(
+                    try compare(
+                        snapshot.image, toReference: reference, at: url, tolerance: tolerance))
+            }
             let previous = try? compare(
                 snapshot.image, toReference: reference, at: url, tolerance: tolerance)
-            if reference != png { try write(png, to: url) }
+            try write(png, to: url)
             return .recorded(url, previous: previous)
         }
         let diff = try compare(

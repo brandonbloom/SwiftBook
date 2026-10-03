@@ -117,13 +117,19 @@ public enum SwiftBook {
         case .matched:
             break
         case .recorded(let url, let previous):
-            // Recording on request is a pass. Recording because nothing existed fails, so a new
-            // reference gets reviewed before it's committed.
-            if mode == .missing, previous == nil {
-                Issue.record(
-                    "Recorded a new reference for \(subject) at \(relative(url, to: store)). Review it, then commit it.",
-                    sourceLocation: sourceLocation)
+            // Recording on request passes with a warning, so the run lists what to review.
+            // Recording because nothing existed fails, so a new reference gets reviewed before
+            // it's committed.
+            let diffImage = try previous.flatMap { previous in
+                try writeRecordedDiff(previous, reference: url, store: store)
             }
+            Issue.record(
+                Comment(
+                    rawValue: recordedMessage(
+                        subject: subject, reference: relative(url, to: store), previous: previous,
+                        diffImage: diffImage)),
+                severity: mode == .missing && previous == nil ? .error : .warning,
+                sourceLocation: sourceLocation)
         case .missing(let url):
             Issue.record(
                 """
@@ -131,7 +137,7 @@ public enum SwiftBook {
                 \(RecordMode.environmentVariable)=missing.
                 """, sourceLocation: sourceLocation)
         case .mismatched(let diff, let url, let referenceMetadata):
-            let artifacts = try writeArtifacts(
+            let artifacts = try writeFailureArtifacts(
                 of: snapshot, diff: diff, reference: url, store: store)
             Issue.record(
                 Comment(
@@ -147,22 +153,7 @@ public enum SwiftBook {
         subject: String, diff: ImageDiff, reference: String, referenceMetadata: SnapshotMetadata?,
         actualMetadata: SnapshotMetadata, artifacts: URL
     ) -> String {
-        var lines = ["\(subject) doesn't match \(reference)."]
-        if diff.sizesMatch {
-            let percent = (diff.changedPixelRatio * 100).formatted(
-                .number.precision(.fractionLength(0...2)))
-            var line =
-                "\(diff.changedPixels) pixels changed (\(percent)%), max ΔE \(Int(diff.maxDeltaE.rounded()))"
-            if let bounds = diff.changedBounds {
-                line +=
-                    ", within \(Int(bounds.width))×\(Int(bounds.height)) at (\(Int(bounds.minX)), \(Int(bounds.minY)))"
-            }
-            lines.append(line + ".")
-        } else {
-            lines.append(
-                "Size changed from \(Int(diff.expectedSize.width))×\(Int(diff.expectedSize.height)) "
-                    + "to \(Int(diff.actualSize.width))×\(Int(diff.actualSize.height)) pixels.")
-        }
+        var lines = ["\(subject) doesn't match \(reference).", change(diff)]
         if let referenceMetadata, referenceMetadata != actualMetadata {
             let changes = environmentChanges(from: referenceMetadata, to: actualMetadata)
             if !changes.isEmpty {
@@ -173,6 +164,40 @@ public enum SwiftBook {
         lines.append("Actual and diff images: \(artifacts.path)")
         lines.append("To accept the change: \(RecordMode.environmentVariable)=changed swift test")
         return lines.joined(separator: "\n")
+    }
+
+    static func recordedMessage(
+        subject: String, reference: String, previous: ImageDiff?, diffImage: URL?
+    ) -> String {
+        guard let previous else {
+            return
+                "Recorded a new reference for \(subject) at \(reference). Review it, then commit it."
+        }
+        var lines = ["Re-recorded \(subject) at \(reference)."]
+        lines.append(
+            previous.matches
+                ? "It's within tolerance of the reference it replaced." : change(previous))
+        if let diffImage { lines.append("Diff image: \(diffImage.path)") }
+        lines.append("Review it, then commit it.")
+        return lines.joined(separator: "\n")
+    }
+
+    /// How an image differs from its reference, as a sentence.
+    static func change(_ diff: ImageDiff) -> String {
+        guard diff.sizesMatch else {
+            return
+                "Size changed from \(Int(diff.expectedSize.width))×\(Int(diff.expectedSize.height)) "
+                + "to \(Int(diff.actualSize.width))×\(Int(diff.actualSize.height)) pixels."
+        }
+        let percent = (diff.changedPixelRatio * 100).formatted(
+            .number.precision(.fractionLength(0...2)))
+        var line =
+            "\(diff.changedPixels) pixels changed (\(percent)%), max ΔE \(Int(diff.maxDeltaE.rounded()))"
+        if let bounds = diff.changedBounds {
+            line +=
+                ", within \(Int(bounds.width))×\(Int(bounds.height)) at (\(Int(bounds.minX)), \(Int(bounds.minY)))"
+        }
+        return line + "."
     }
 
     /// The rendering-environment fields that differ, such as an OS update.
@@ -200,19 +225,30 @@ public enum SwiftBook {
         return changes
     }
 
-    /// Writes the actual and diff images next to where a project's build products go.
-    private static func writeArtifacts(
-        of snapshot: Snapshot, diff: ImageDiff, reference: URL, store: SnapshotStore
-    )
+    /// Where images for people to look at go: `$SWIFTBOOK_ARTIFACTS`, or else `.build/swiftbook`
+    /// in the project. Each kind gets a subdirectory mirroring `Snapshots/`, and the result is the
+    /// path for `reference` without its extension.
+    private static func artifactPath(for reference: URL, store: SnapshotStore, kind: String)
         throws -> URL
     {
         let base =
             ProcessInfo.processInfo.environment["SWIFTBOOK_ARTIFACTS"].map { URL(filePath: $0) }
-            ?? store.root.deletingLastPathComponent().appending(path: ".build/swiftbook/failures")
+            ?? store.root.deletingLastPathComponent().appending(path: ".build/swiftbook")
         let relativePath = String(reference.path.dropFirst(store.root.path.count))
-        let actual = base.appending(path: relativePath).deletingPathExtension()
+        let path = base.appending(path: kind).appending(path: relativePath)
+            .deletingPathExtension()
         try FileManager.default.createDirectory(
-            at: actual.deletingLastPathComponent(), withIntermediateDirectories: true)
+            at: path.deletingLastPathComponent(), withIntermediateDirectories: true)
+        return path
+    }
+
+    /// Writes and attaches the actual and diff images of a failure, and returns their directory.
+    private static func writeFailureArtifacts(
+        of snapshot: Snapshot, diff: ImageDiff, reference: URL, store: SnapshotStore
+    )
+        throws -> URL
+    {
+        let actual = try artifactPath(for: reference, store: store, kind: "failures")
         let actualPNG = try snapshot.pngData()
         try actualPNG.write(to: actual.appendingPathExtension("actual.png"))
         Attachment.record(actualPNG, named: actual.lastPathComponent + ".actual.png")
@@ -224,6 +260,19 @@ public enum SwiftBook {
             Attachment.record(referencePNG, named: actual.lastPathComponent + ".reference.png")
         }
         return actual.deletingLastPathComponent()
+    }
+
+    /// Writes and attaches the diff between a re-recorded reference and the one it replaced, and
+    /// returns its path, or `nil` if there's no diff image.
+    private static func writeRecordedDiff(
+        _ diff: ImageDiff, reference: URL, store: SnapshotStore
+    ) throws -> URL? {
+        guard let diffPNG = try diff.pngData() else { return nil }
+        let url = try artifactPath(for: reference, store: store, kind: "recorded")
+            .appendingPathExtension("diff.png")
+        try diffPNG.write(to: url)
+        Attachment.record(diffPNG, named: url.lastPathComponent)
+        return url
     }
 
     private static func relative(_ url: URL, to store: SnapshotStore) -> String {
