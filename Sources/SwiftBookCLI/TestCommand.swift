@@ -233,7 +233,8 @@
             print(
                 "\(device): \(results.count) snapshots: \(counts.matched) matched, \(counts.new) new, \(counts.rerecorded) re-recorded, \(counts.failed) failed."
                     + (renderer.restarts > 0
-                        ? " The renderer crashed or hung and was restarted \(renderer.restarts) times."
+                        ? " The renderer crashed or hung and was restarted \(renderer.restarts) times:\n"
+                            + renderer.incidents.map { "  \($0)" }.joined(separator: "\n")
                         : "")
             )
             return (results, failed)

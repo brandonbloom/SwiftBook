@@ -14,6 +14,8 @@
         private var process: RendererProcess
         /// How many times the renderer has been restarted.
         public private(set) var restarts = 0
+        /// What ended each renderer that was restarted mid-render: the story, and the error.
+        public private(set) var incidents: [String] = []
 
         /// Starts a renderer with `start`, which also starts each replacement.
         public init(start: @escaping @Sendable () throws -> RendererProcess) throws {
@@ -43,6 +45,7 @@
                 } catch {
                     // An error the renderer reported leaves it running; that's the story's fault.
                     guard !first.isRunning else { throw error }
+                    incidents.append("\(story): \(error)")
                     do {
                         return try running().render(story, in: environment, timeout: timeout)
                     } catch let retry {

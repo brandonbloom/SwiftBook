@@ -183,10 +183,13 @@
             let next = lines.next(timeout: timeout)
             guard case .line(let line) = next else {
                 if next == .timedOut {
+                    // Where it's stuck, for whoever has to find out why.
+                    let sample = child.sample()
                     child.stop(.seconds(2))
                     throw RendererError(
                         description:
-                            "the renderer took longer than \(timeout) to \(request.method) and was stopped"
+                            "the renderer took longer than \(timeout) to \(request.method)\(request.story.map { " \($0)" } ?? "") and was stopped"
+                            + (sample.map { ". Its threads, sampled: \($0.path)" } ?? "")
                     )
                 }
                 // Its output closed: it exited, or is about to.
@@ -211,6 +214,7 @@
 
         /// The renderer's process: started here, or an app the simulator started.
         private struct Child: Sendable {
+            let pid: pid_t
             let isRunning: @Sendable () -> Bool
             /// Asks it to terminate, kills it if it hasn't after the grace period, and returns
             /// once it has exited.
@@ -220,12 +224,23 @@
             /// What it last wrote to standard error.
             let errorText: @Sendable () -> String
 
+            /// Samples the process's threads for two seconds into a file, and returns it.
+            func sample() -> URL? {
+                let file = FileManager.default.temporaryDirectory.appending(
+                    path: "swiftbook-renderer-\(pid)-\(UUID().uuidString.prefix(8)).sample.txt")
+                guard
+                    Shell.run(["sample", String(pid), "2", "-file", file.path])?.succeeded == true
+                else { return nil }
+                return file
+            }
+
             func errorSuffix() -> String {
                 let text = errorText().trimmingCharacters(in: .whitespacesAndNewlines)
                 return text.isEmpty ? "" : ". It said:\n\(text.suffix(4096))"
             }
 
             init(process: Process, errorTail: Tail) {
+                pid = process.processIdentifier
                 // Never `waitUntilExit`: off the main thread it can wait forever for Foundation
                 // to notice an exit. Poll, with deadlines, instead.
                 isRunning = { process.isRunning }
@@ -244,6 +259,7 @@
             /// An app process the simulator launched. It isn't this process's child, so its exit
             /// status is unknown; its standard error goes to `errorLog`.
             init(pid: pid_t, errorLog: URL) {
+                self.pid = pid
                 let isRunning: @Sendable () -> Bool = { kill(pid, 0) == 0 || errno == EPERM }
                 self.isRunning = isRunning
                 stop = { grace in Child.stop(pid: pid, grace: grace, isRunning: isRunning) }

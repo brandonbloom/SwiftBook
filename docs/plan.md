@@ -214,6 +214,10 @@ Fulbloom adopts SwiftBook at the end of this phase.
       - A capture that's all one color must hold for a second before it counts as settled, since a presentation such as an inspector sheet may not have drawn yet.
       - The hangs didn't reproduce in four runs on Fulbloom's branch, two of them under load.
       - One story's Liquid Glass tab bar settles one pixel in one of two states (ΔE about 2), so its reference failed every other run. The diff engine now has a noise floor: at most 10 changed pixels, none past ΔE 3, still match. `swiftbook test` takes tolerance options, since it can't read `#SwiftBookTests(tolerance:)`.
+      - Hangs under load, investigated with stack samples. A renderer that times out is now sampled before it's stopped, and the sample's path is in the error. `swiftbook test` lists the stories that caused restarts. Two causes were found:
+        - SwiftBook's check for blank captures walked every pixel in Swift, which takes seconds in a debug-built renderer. It now uses `memcmp`.
+        - SwiftUI sometimes spins in `CFRelease` while building a List header, about one run in five under heavy load. That's a framework bug; the restart and retry contain it.
+      - Open: under load, PhoneBrowser (spending)'s whole glass tab bar once shifted tint by up to ΔE 4. It didn't reproduce. Holding every capture with a backdrop for 300 ms cost 40 s per Fulbloom run, so it isn't in.
 - [x] **`tvos-runtime`**
   - Install the tvOS simulator runtime (a human step) and get the zoo rendering on tvOS.
   - Done: Brandon installed tvOS 27, and the zoo renders and verifies on Apple TV 4K.

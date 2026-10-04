@@ -158,28 +158,34 @@
             }
         #endif
 
-        /// How long a capture that's all one color must hold before it counts as settled.
+        /// How long a capture that's all one color must hold before it counts as settled: a
+        /// blank capture may come before a presentation, such as a sheet, has drawn.
         static let uniformSettling = Duration.seconds(1)
 
-        /// Whether every pixel of 32-bit `pixels` is the same.
+        /// Whether every pixel of 32-bit `pixels` is the same: whether the buffer equals itself
+        /// shifted by one pixel. `memcmp` keeps this fast in the debug builds renderers use,
+        /// where a Swift loop over millions of pixels takes seconds.
         static func isUniform(_ pixels: Data) -> Bool {
-            pixels.withUnsafeBytes { buffer in
-                let words = buffer.bindMemory(to: UInt32.self)
-                guard let first = words.first else { return true }
-                return words.allSatisfy { $0 == first }
+            guard pixels.count > 4 else { return true }
+            return pixels.withUnsafeBytes { buffer in
+                memcmp(buffer.baseAddress!, buffer.baseAddress! + 4, buffer.count - 4) == 0
             }
         }
 
+        /// Captures `window` until it holds still: two captures in a row identical, held for long
+        /// enough for what the capture shows.
         private static func stableCapture(
             of window: UIWindow, scale: Double, timeout: Duration, error: (String) -> RenderError
         ) async throws -> CGImage {
             let start = ContinuousClock.now
-            // A blank capture may come before a presentation, such as a sheet, has drawn.
             let deadline = start + timeout + uniformSettling
             let format = UIGraphicsImageRendererFormat()
             format.scale = scale
             format.opaque = true
             var previous: Data?
+            var previousTime = start
+            // When the current run of identical captures began.
+            var stableSince: ContinuousClock.Instant?
             var captures = 0
             while true {
                 window.layoutIfNeeded()
@@ -187,19 +193,23 @@
                     _ in
                     _ = window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
                 }
+                let now = ContinuousClock.now
                 captures += 1
                 // Normalize to 8-bit sRGB, like macOS captures.
                 guard let cgImage = image.cgImage, let normalized = try Bitmap(cgImage).image(),
                     let pixels = normalized.dataProvider?.data as Data?
                 else { throw error("capture has no pixels") }
                 if pixels == previous {
-                    // A capture that's all one color counts as settled only after it has held
-                    // for a while.
-                    guard Self.isUniform(pixels), ContinuousClock.now - start < uniformSettling
-                    else { return normalized }
+                    let since = stableSince ?? previousTime
+                    stableSince = since
+                    let needed = Self.isUniform(pixels) ? uniformSettling : .zero
+                    if now - since >= needed { return normalized }
+                } else {
+                    stableSince = nil
                 }
                 previous = pixels
-                guard ContinuousClock.now < deadline else {
+                previousTime = now
+                guard now < deadline else {
                     throw error("still changing after \(captures) captures over \(timeout)")
                 }
                 try await Task.sleep(for: .milliseconds(16))
