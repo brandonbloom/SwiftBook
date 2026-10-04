@@ -327,7 +327,8 @@ Fulbloom adopts SwiftBook at the end of this phase.
 - Done, in `mise run ci`:
   - `RendererSupervisorTests` runs FaultZoo's crash, hang and slow previews through real renderers, and writes a real compile error into FaultZoo (`CompileError.swift`, which Git ignores) to check the banner and recovery.
   - `anEditRerendersTheSelection` holds an edit to an updated canvas under 20 s (about 4 s). `scripts/latency` reports edit to render per device.
-  - `MainThreadWatchdog` times the viewer's main thread every 50 ms from a background thread, and logs stalls over 250 ms. The smoke test fails above 500 ms; it measures about 100 ms, even comparing revisions.
+  - `MainThreadWatchdog` times the viewer's main thread every 50 ms in scripted sessions (snapshot mode), with App Nap off, and logs stalls over 250 ms. The smoke test fails above 500 ms; on the unchanged zoo it measures about 70 ms.
+  - Open: with change badges showing (a zoo copy with an edit), one stall of about 300 ms appears just after the first renders, while samples show the main thread idle in its run loop.
   - `ViewerModelTests` and `HistoryTests` cover A, B and C.
 
 **Human validation packet:**

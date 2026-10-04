@@ -64,8 +64,9 @@
                 ContentView(model: model)
                     .frame(minWidth: 800, minHeight: 500)
                     .task {
-                        // Once the window is up: launching isn't a stall.
-                        MainThreadWatchdog.shared.start()
+                        // Scripted sessions watch for stalls, once the window is up: launching
+                        // isn't one.
+                        if snapshot != nil { MainThreadWatchdog.shared.start() }
                         await model.start()
                         if let story { model.selectedNode = story }
                         if let compare {
