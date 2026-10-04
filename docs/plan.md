@@ -143,9 +143,6 @@ Fulbloom adopts SwiftBook at the end of this phase.
 - [x] **`preview-arguments`**
   - Support parameterized `#Preview(arguments:)`: one story per argument, named `<preview> / <argument>`, with the group metadata's item descriptions as labels.
   - The group closure is `makeBody(PreviewGroupIndex?) -> (Body, PreviewGroupIndex)`, and it takes its index and returns both results indirectly, because `PreviewGroupIndex` is resilient. Calling it through `Reflection.function` crashed because a closure held in a generic parameter returns a tuple as one indirect value, not two. `PreviewGroup` calls it instead through a shadow generic struct whose stored closure has the same convention.
-- [ ] **`capture-speed`**
-  - Bring window-server capture closer to emulated speed. Options: settle on a damage signal instead of a fixed delay, or capture several windows concurrently.
-
 - [x] **`cli-skeleton`**
   - The `swiftbook` command with `init` (`.gitattributes` LFS rule and difftool configuration) and `doctor` (toolchain, simulators, LFS, and discovery and adapter health).
   - Exit codes separate "snapshots changed" from "something broke".
@@ -235,7 +232,17 @@ Fulbloom adopts SwiftBook at the end of this phase.
 
 ### Phase 2 retro
 
-_(fill in on completion)_
+- **What worked.**
+  - One renderer protocol serves every client and platform. The CLI, the viewer, and the iPhone, iPad and Apple TV renderers all speak it, and supervision (timeouts, restarts, samples of hung renderers) lives in one place.
+  - `swift build` plus a hand-made `.app` beat a generated Xcode project for the iOS host: simpler, faster, and the same packaging for tvOS.
+  - Fulbloom's iPhone adoption found real bugs fast. Each round of friction became a fix and a zoo canary.
+- **What surprised us: simulators are noisy under load.** Framework hangs, blank first frames, and Liquid Glass settling a pixel either way each needed their own defense: restart and retry, holding uniform captures, and the noise floor. Brandon approved keeping the noise floor (10 pixels, ΔE 3) as the default.
+- **What surprised us: debug-build costs.** Per-pixel loops and `Array(repeating:count:)` take seconds on screen-sized images in debug builds, enough to look like hangs. Hot paths over pixels use `memcmp` and `memset`.
+- **What surprised us: `Process.waitUntilExit` hangs** when called off the main thread, because it spins a run loop. Waits poll instead.
+- **Adoption friction.** Brandon's global Git config lacked the LFS filters, which `doctor` and `init` already catch; `git lfs install` fixes it. The CLI can't read `#SwiftBookTests`' arguments, so simulated devices test only light and dark, and `excluding:` doesn't apply.
+- **Replan.**
+  - `capture-speed` moved to Phase 4. The viewer and CI capture emulated by default, so window-server speed matters less than expected.
+  - New Phase 4 step `cli-test-config`, so `swiftbook test` honors the variants, tolerance, and exclusions that `#SwiftBookTests` declares.
 
 ## Phase 3: macOS viewer
 
@@ -286,7 +293,8 @@ _(fill in on completion)_
     - **Two passes:** first, stories whose source file changed against the basis get a dotted badge. Then each render of the current generation is compared with the story's Mac reference at the basis, and the badge becomes changed, new (no reference), failed, or none (unchanged). Edits and rebuilds redo both.
     - **Capture:** the viewer's renderer captures emulated unless `SWIFTBOOK_CAPTURE` says otherwise, so comparisons match references recorded the way CI records them.
     - **Checked on the zoo:** against the working tree, all 36 stories come out unchanged. Editing one badge's text marks exactly that story changed; the other stories in its file show source-changed, then clear.
-    - Not yet: removed stories (references at the basis for stories that no longer exist), and comparing devices other than the Mac.- [ ] **`toolbar-compare`**
+    - Not yet: removed stories (references at the basis for stories that no longer exist), and comparing devices other than the Mac.
+- [ ] **`toolbar-compare`**
   - Comparison mode (A), comparison dimension (B) and dimension values (C), including the revision dimension.
   - 2-up and grid layouts, with zoom and pan synchronized across cells.
   - Diff metrics on each cell.
@@ -315,6 +323,10 @@ _(fill in on completion)_
   - The iOS and tvOS renderers stream into the macOS viewer with live rebuilds.
 - [ ] **`zoo-more-forms`**
   - Extend the zoo to the preview forms it leaves out: widgets, Live Activities, and visionOS and watchOS previews if those platforms come into scope.
+- [ ] **`cli-test-config`**
+  - `swiftbook test` reads the variants, tolerance, and `excluding:` that `#SwiftBookTests` declares, so simulated devices test what the Mac tests. The renderer could report the declaration from the user's test target, or the declaration could move into a manifest both read.
+- [ ] **`capture-speed`**
+  - Bring window-server capture closer to emulated speed. Options: settle on a damage signal instead of a fixed delay, or capture several windows concurrently.
 - [ ] **`git-difftool`**
   - `git difftool` opens the viewer's comparison mode for PNGs.
 
