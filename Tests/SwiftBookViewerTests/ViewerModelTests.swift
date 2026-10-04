@@ -14,12 +14,19 @@
         private var _generation = 1
         private var _failNextBuild: String?
         private var _requests: [String] = []
+        private var _builds = 0
         let failing: Set<String>
+        /// How long each rebuild takes.
+        let buildTime: Duration
 
-        init(_ ids: [String], failing: Set<String> = []) {
+        init(_ ids: [String], failing: Set<String> = [], buildTime: Duration = .zero) {
             _stories = Self.infos(ids)
             self.failing = failing
+            self.buildTime = buildTime
         }
+
+        /// How many rebuilds have started.
+        var builds: Int { lock.withLock { _builds } }
 
         static func infos(_ ids: [String]) -> [StoryInfo] {
             ids.map {
@@ -42,7 +49,9 @@
         func stories() async throws -> [StoryInfo] { lock.withLock { _stories } }
 
         func rebuild() async throws -> Int {
-            try lock.withLock {
+            lock.withLock { _builds += 1 }
+            try await Task.sleep(for: buildTime)
+            return try lock.withLock {
                 if let message = _failNextBuild {
                     _failNextBuild = nil
                     throw RendererError(description: message)
@@ -173,6 +182,35 @@
             await model.reload()
             #expect(model.buildError == nil)
             #expect(model.generation == 2)
+        }
+
+        @Test func rebuildsOnceForABurstOfEdits() async throws {
+            let renderer = FakeRenderer(["M/A/One"])
+            let model = model(renderer)
+            await model.start()
+            for _ in 0..<5 {
+                model.filesChanged(["/tmp/Package/Sources/A.swift"], debounce: .milliseconds(50))
+            }
+            try await Task.sleep(for: .milliseconds(300))
+            #expect(renderer.builds == 1)
+            #expect(model.generation == 2)
+        }
+
+        @Test func rebuildsOnceMoreForEditsDuringABuild() async throws {
+            let renderer = FakeRenderer(["M/A/One"], buildTime: .milliseconds(300))
+            let model = model(renderer)
+            await model.start()
+            model.filesChanged(["/tmp/Package/Sources/A.swift"], debounce: .milliseconds(10))
+            try await Task.sleep(for: .milliseconds(100))
+            #expect(model.isRebuilding)
+            // Several edits mid-build make one more build, not several.
+            for _ in 0..<3 {
+                model.filesChanged(["/tmp/Package/Sources/B.swift"], debounce: .milliseconds(10))
+            }
+            try await Task.sleep(for: .milliseconds(900))
+            #expect(renderer.builds == 2)
+            #expect(model.generation == 3)
+            #expect(!model.isRebuilding)
         }
 
         @Test func reportsARendererThatWontStart() async {

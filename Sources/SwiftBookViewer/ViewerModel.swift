@@ -99,6 +99,9 @@
         private(set) var pending: Set<RenderKey> = []
 
         private var renderer: (any StoryRenderer)?
+        /// Whether a change arrived during a rebuild, which then needs another.
+        private var reloadAgain = false
+        private var reloadTask: Task<Void, Never>?
         private let startRenderer: @Sendable (URL) async throws -> any StoryRenderer
 
         init(
@@ -128,10 +131,38 @@
             }
         }
 
+        /// Responds to edits: rebuilds once the changes have paused for `debounce`. Changes during
+        /// a rebuild cause exactly one more, after it.
+        func filesChanged(_ paths: [String], debounce: Duration = .milliseconds(300)) {
+            guard status == .ready else { return }
+            log(
+                "changed: \(paths.map { URL(filePath: $0).lastPathComponent }.joined(separator: ", "))"
+            )
+            if isRebuilding {
+                reloadAgain = true
+                return
+            }
+            reloadTask?.cancel()
+            reloadTask = Task {
+                try? await Task.sleep(for: debounce)
+                guard !Task.isCancelled else { return }
+                await reload()
+            }
+        }
+
         /// Builds the package again and shows the new build's stories. Until then, and if the
         /// build fails, the current renders stay up.
         func reload() async {
-            guard let renderer, !isRebuilding else { return }
+            guard let renderer, !isRebuilding else {
+                if isRebuilding { reloadAgain = true }
+                return
+            }
+            defer {
+                if reloadAgain {
+                    reloadAgain = false
+                    Task { await reload() }
+                }
+            }
             isRebuilding = true
             defer { isRebuilding = false }
             log("rebuilding")

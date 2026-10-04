@@ -51,7 +51,14 @@
                     .frame(minWidth: 800, minHeight: 500)
                     .task {
                         await model.start()
+                        // Rebuild on edits for as long as the window is open.
+                        let watcher = FileWatcher(directory: model.package) { paths in
+                            Task { @MainActor in model.filesChanged(paths) }
+                        }
+                        defer { watcher.stop() }
                         if let snapshot { await Self.snapshot(model, to: snapshot) }
+                        // The task, and so the watcher, lasts until the window closes.
+                        while !Task.isCancelled { try? await Task.sleep(for: .seconds(3600)) }
                     }
             }
             .defaultLaunchBehavior(.presented)

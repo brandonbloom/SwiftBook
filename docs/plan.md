@@ -254,9 +254,15 @@ _(fill in on completion)_
     - **Recovery:** a render that crashes the renderer, or outlives the timeout (30 s; the viewer shows it), fails with the reason, and the renderer restarts from the same build for the next request.
     - **In the model:** renders remember their generation. After a reload, the old image stays up, with a spinner, until its replacement arrives. A failed rebuild keeps the last good renders under a banner with the diagnostics. Reload is a toolbar button (⌘R) until `build-orchestrator` watches files.
     - **Fault fixture:** `Fixtures/FaultZoo` has previews that crash, hang, and are slow. `RendererSupervisorTests` renders them through real renderers, in about 20 s.
-- [ ] **`build-orchestrator`**
+- [x] **`build-orchestrator`**
   - Watches files, runs incremental `swift build` and `xcodebuild`, and shows diagnostics in a banner.
   - When a build fails, the viewer keeps showing the last good renders.
+  - Done for the Mac.
+    - **Watching:** `FileWatcher` uses FSEvents on the package, ignoring `.build`, `.swiftpm`, `.git`, and `Snapshots`.
+    - **Rebuilding:** the model rebuilds once edits pause (300 ms), and edits during a build cause exactly one more. Each rebuild is an incremental `swift build` of the renderer host, through the supervisor.
+    - **Failures:** a failed build shows its compiler errors in the banner over the last good renders.
+    - **Measured:** `LiveReloadTests` takes an edit to an updated canvas, through a real watcher, build, and renderer on FaultZoo, in about 4.4 s.
+    - `xcodebuild` waits for `ios-in-viewer`, since the viewer renders only the Mac so far.
 - [ ] **`render-cache`**
   - Caches renders by (generation, story, variant) and renders what's visible first.
 - [ ] **`sidebar-history`**
