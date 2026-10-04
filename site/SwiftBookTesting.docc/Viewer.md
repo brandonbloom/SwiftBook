@@ -17,15 +17,14 @@ package. Its log goes to `.build/swiftbook/viewer.log`.
 
 ### Browsing stories
 
-The sidebar lists stories by module, file, and story. The canvas shows the selected story, and
-the toolbar switches between light and dark.
+The sidebar lists stories by module, file, and story, and the canvas shows the selected story.
 
 - **Search** filters stories by ID.
 - **Click** a module or file row to expand or collapse it.
 - **Arrow keys** move through the outline as in Finder: up and down move the selection, left
   collapses a row or moves to its parent, and right expands a row or moves to its first child.
 
-After rendering the selected story, the viewer renders the rest in sidebar order, so switching
+After rendering what's on the canvas, the viewer renders the rest in sidebar order, so switching
 stories is instant.
 
 ### Seeing what changed
@@ -43,7 +42,27 @@ arrives, the badge says whether its image did: **changed**, **new** (no referenc
 or **failed** to render. Stories that render as their references did lose the badge. The filter
 button shows only the stories that changed.
 
-Badges compare Mac renders with Mac references.
+Badges compare Mac renders with Mac references. The viewer captures the way those references
+were recorded, from the window server or emulated, so a story doesn't look changed just because
+it was captured differently; see <doc:Capture>. `SWIFTBOOK_CAPTURE` overrides this.
+
+### Comparing
+
+The toolbar sets three things:
+
+- **Layout**: a single story, **2-up**, or a **grid**.
+- **Compare**: what the cells differ in: **color scheme**, **layout direction**, or
+  **revision**.
+- **Color scheme and layout direction**: the values every cell uses, except along the compared
+  dimension.
+
+Comparing revisions puts the reference at the sidebar's basis beside the working tree's render,
+labeled with how many pixels changed and the largest ΔE. The grid adds a third cell that
+highlights the difference. References are recorded left to right only, so right-to-left cells say
+there's nothing to compare.
+
+Zoom applies to every cell at once: use the toolbar, ⌘−, ⌘0, ⌘=, or pinch. Scrolling one cell
+scrolls the others with it, so you can look at the same detail everywhere.
 
 ### Live reload
 
@@ -65,5 +84,5 @@ Your previews run in a separate renderer process, so nothing they do can take th
 
 - <doc:CommandLine>
 
-<!-- sources: Sources/SwiftBookViewer Sources/SwiftBookCLI/ViewCommand.swift -->
-<!-- checked: 5656084 -->
+<!-- sources: Sources/SwiftBookViewer Sources/SwiftBookCLI/ViewCommand.swift Sources/SwiftBookCore/Storage/SnapshotStore.swift -->
+<!-- checked: 11fe2f9 -->

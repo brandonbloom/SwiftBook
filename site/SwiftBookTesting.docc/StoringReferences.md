@@ -46,4 +46,4 @@ Only modules the renderer links are pruned, so references for code SwiftBook can
 - <doc:ComparingHistory>
 
 <!-- sources: Sources/SwiftBookCore/Storage Sources/SwiftBookCLI/InitCommand.swift Sources/SwiftBookCLI/PruneCommand.swift Sources/SwiftBookCLI/DoctorCommand.swift -->
-<!-- checked: 5656084 -->
+<!-- checked: 11fe2f9 -->
