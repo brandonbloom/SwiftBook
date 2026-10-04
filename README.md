@@ -94,7 +94,7 @@ swiftbook test --device iphone --record never   # and ipad, tv, as you have refe
 
 ## Command line
 
-Build it with `swift build --product swiftbook` in a checkout of SwiftBook, or run it with `swift run swiftbook` there.
+In a package that depends on SwiftBook, run it with `swift run swiftbook <command>`.
 
 | Command | What it does |
 |---|---|
