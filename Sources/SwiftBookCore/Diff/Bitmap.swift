@@ -15,7 +15,13 @@ struct Bitmap {
     init(_ image: CGImage) throws {
         width = image.width
         height = image.height
-        pixels = [UInt8](repeating: 0, count: width * height * 4)
+        // Zeroed with memset: in a debug build, Array(repeating:count:) copies byte by byte,
+        // which takes seconds for a screen-sized image.
+        let count = width * height * 4
+        pixels = [UInt8](unsafeUninitializedCapacity: count) { buffer, initialized in
+            if let base = buffer.baseAddress { memset(base, 0, count) }
+            initialized = count
+        }
         let drawn = pixels.withUnsafeMutableBytes { buffer in
             guard
                 let context = CGContext(
