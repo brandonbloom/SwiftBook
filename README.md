@@ -91,6 +91,18 @@ SWIFTBOOK_RECORD=never SWIFTBOOK_CAPTURE=emulated swift test
 
 `never` turns a missing reference into a failure instead of an unreviewed recording. `emulated` makes CI independent of Screen Recording permission and the screen lock; see [Capture](#capture). References must be recorded with the same capture method that verifies them.
 
+## Command line
+
+Build it with `swift build --product swiftbook` in a checkout of SwiftBook, or run it with `swift run swiftbook` there.
+
+| Command | What it does |
+|---|---|
+| `swiftbook init` | Adds the Git LFS rule for references to `.gitattributes`. Safe to run again. |
+| `swiftbook doctor [--json]` | Checks macOS, Xcode, Git, Git LFS, the LFS rule, references that are unpulled LFS pointers, Screen Recording permission, and simulator runtimes. |
+| `swiftbook review [--print]` | Opens the review page from the last test run. |
+
+Exit status is 0 for success, 1 when snapshots changed or failed, 2 when something else went wrong, and 64 for usage errors.
+
 ## How it works
 
 **Discovery.** SwiftBook finds previews at runtime, from the conformance records that `#Preview` and `PreviewProvider` compile into your binary. There's nothing to register. It reads each preview's name, traits, and body through Xcode's preview types, and fails loudly, naming your Xcode version, if those types change shape.

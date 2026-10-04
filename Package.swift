@@ -17,7 +17,8 @@ let package = Package(
     ],
     dependencies: [
         // The major version tracks the Swift release; accept every release consumers might pin.
-        .package(url: "https://github.com/swiftlang/swift-syntax.git", "600.0.0"..<"605.0.0")
+        .package(url: "https://github.com/swiftlang/swift-syntax.git", "600.0.0"..<"605.0.0"),
+        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.5.0"),
     ],
     targets: [
         .target(name: "SwiftBookCore", swiftSettings: strict),
@@ -33,10 +34,19 @@ let package = Package(
             ],
             swiftSettings: strict
         ),
+        .target(
+            name: "SwiftBookCLI",
+            dependencies: [
+                "SwiftBookCore",
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            ],
+            swiftSettings: strict),
         .executableTarget(
-            name: "swiftbook", dependencies: ["SwiftBookCore"], swiftSettings: strict),
+            name: "swiftbook", dependencies: ["SwiftBookCLI"], swiftSettings: strict),
         .testTarget(
             name: "SwiftBookCoreTests", dependencies: ["SwiftBookCore"], swiftSettings: strict),
+        .testTarget(
+            name: "SwiftBookCLITests", dependencies: ["SwiftBookCLI"], swiftSettings: strict),
         .testTarget(
             name: "SwiftBookMacrosTests",
             dependencies: [

@@ -248,7 +248,7 @@ Snapshots/
 `<device>` is the device class (`mac`, `catalyst`, `iphone`, `ipad`, `tv`), so `mac.light.png` or `iphone.dark.xxxLarge.png`.
 
 - They sit outside every target directory. SwiftPM doesn't warn about unhandled files, and Xcode's synchronized folders don't pull them in.
-- One LFS rule, which `swiftbook init` writes: `Snapshots/**/*.png filter=lfs diff=lfs merge=lfs -text`.
+- One LFS rule, which `swiftbook init` writes: `**/Snapshots/**/*.png filter=lfs diff=lfs merge=lfs -text`.
 - File names carry only the dimensions. The rendering environment goes in the PNG metadata, so an Xcode upgrade re-renders images instead of renaming them.
 - `prune` deletes orphaned references.
 

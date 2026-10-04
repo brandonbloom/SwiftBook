@@ -150,9 +150,15 @@ Fulbloom adopts SwiftBook at the end of this phase.
 - [ ] **`capture-speed`**
   - Bring window-server capture closer to emulated speed. Options: settle on a damage signal instead of a fixed delay, or capture several windows concurrently.
 
-- [ ] **`cli-skeleton`**
+- [x] **`cli-skeleton`**
   - The `swiftbook` command with `init` (`.gitattributes` LFS rule and difftool configuration) and `doctor` (toolchain, simulators, LFS, and discovery and adapter health).
   - Exit codes separate "snapshots changed" from "something broke".
+  - Done, built on swift-argument-parser, with the commands in a testable `SwiftBookCLI` library.
+    - Exit statuses: 0 for success, 1 when snapshots changed, 2 when something broke, and 64 for usage errors.
+    - `init` writes the LFS rule.
+    - `doctor` checks macOS, Xcode, Git, Git LFS, the LFS rule, unpulled LFS pointers, Screen Recording, and simulator runtimes, with `--json` output.
+    - `review` opens the page from the last test run.
+  - Deferred: the difftool goes with `git-difftool`, since it needs the viewer. Discovery health goes with `renderer-protocol`, since the CLI can't load user code until then.
 - [ ] **`git-service`**
   - Resolve revisions and the merge-base.
   - Read files at a revision with `git cat-file --filters`, fetching LFS objects on demand.

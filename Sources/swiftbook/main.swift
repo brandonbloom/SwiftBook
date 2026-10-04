@@ -1,4 +1,5 @@
-import Foundation
+#if os(macOS)
+    import SwiftBookCLI
 
-FileHandle.standardError.write(Data("swiftbook: no commands yet\n".utf8))
-exit(64)
+    SwiftBookCommand.main()
+#endif
