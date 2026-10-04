@@ -92,7 +92,16 @@ public enum RendererServer {
             var buffer = Data()
             while true {
                 let chunk = input.availableData
-                if chunk.isEmpty { break }
+                if chunk.isEmpty {
+                    // Orphaned: no one is left to read an answer, and the request in progress
+                    // may never finish (a capture can hang), leaving its window on screen.
+                    // The parent's pipes close a moment before the renderer is reparented.
+                    for _ in 0..<20 {
+                        if getppid() == 1 { exit(0) }
+                        usleep(50_000)
+                    }
+                    break
+                }
                 buffer.append(chunk)
                 while let newline = buffer.firstIndex(of: 0x0A) {
                     continuation.yield(buffer[buffer.startIndex..<newline])
