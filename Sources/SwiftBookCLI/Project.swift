@@ -7,8 +7,8 @@
         /// The directory with `Package.swift` or the `.xcodeproj`.
         let root: URL
         let store: SnapshotStore
-        /// The repository's top level, if the project is in one.
-        let repository: URL?
+        /// The repository the project is in, if any.
+        let repository: GitRepository?
 
         /// The project enclosing `directory`.
         init(containing directory: URL) throws {
@@ -23,10 +23,7 @@
                 )
             }
             root = store.root.deletingLastPathComponent()
-            repository = Shell.run(["git", "rev-parse", "--show-toplevel"], in: root)
-                .flatMap {
-                    $0.succeeded ? URL(filePath: $0.output, directoryHint: .isDirectory) : nil
-                }
+            repository = try? GitRepository(containing: root)
         }
 
         /// The project enclosing the current directory.

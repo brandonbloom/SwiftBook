@@ -1,6 +1,7 @@
 #if os(macOS)
     import ArgumentParser
     import Foundation
+    import SwiftBookCore
 
     /// `swiftbook init`: sets a project up to store references in Git LFS.
     struct InitCommand: ParsableCommand {

@@ -46,7 +46,8 @@ let package = Package(
         .testTarget(
             name: "SwiftBookCoreTests", dependencies: ["SwiftBookCore"], swiftSettings: strict),
         .testTarget(
-            name: "SwiftBookCLITests", dependencies: ["SwiftBookCLI"], swiftSettings: strict),
+            name: "SwiftBookCLITests", dependencies: ["SwiftBookCLI", "SwiftBookCore"],
+            swiftSettings: strict),
         .testTarget(
             name: "SwiftBookMacrosTests",
             dependencies: [

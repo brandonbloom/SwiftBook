@@ -155,10 +155,15 @@ Fulbloom adopts SwiftBook at the end of this phase.
     - `doctor` checks macOS, Xcode, Git, Git LFS, the LFS rule, unpulled LFS pointers, Screen Recording, and simulator runtimes, with `--json` output.
     - `review` opens the page from the last test run.
   - Deferred: the difftool goes with `git-difftool`, since it needs the viewer. Discovery health goes with `renderer-protocol`, since the CLI can't load user code until then.
-- [ ] **`git-service`**
+- [x] **`git-service`**
   - Resolve revisions and the merge-base.
   - Read files at a revision with `git cat-file --filters`, fetching LFS objects on demand.
   - List the files changed against a basis.
+  - Done as `GitRepository` in SwiftBookCore (macOS), over the `git` command.
+    - Bases: uncommitted changes, the last commit, the branch's merge-base with the default branch, or any revision.
+    - Changes cover staged and untracked files, and show renames as a deletion and an addition.
+    - An LFS pointer that can't become its image is an error naming Git LFS.
+  - Tested against scratch repositories: revisions, branches across a rebase, staged and untracked changes, LFS round trips, and missing LFS objects.
 - [ ] **`cli-diff-prune`**
   - `diff [<basis>]` and `prune`, with human-readable, JSON and JUnit output.
 - [ ] **`renderer-protocol`**

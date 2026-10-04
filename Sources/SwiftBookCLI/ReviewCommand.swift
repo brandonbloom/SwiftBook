@@ -1,6 +1,7 @@
 #if os(macOS)
     import ArgumentParser
     import Foundation
+    import SwiftBookCore
 
     /// `swiftbook review`: shows the review page from the last `swift test` run.
     struct ReviewCommand: ParsableCommand {

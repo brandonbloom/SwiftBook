@@ -1,5 +1,6 @@
 #if os(macOS)
     import Foundation
+    import SwiftBookCore
     import Testing
 
     @testable import SwiftBookCLI
