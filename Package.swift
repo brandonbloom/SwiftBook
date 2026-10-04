@@ -16,6 +16,8 @@ let package = Package(
         // Linked by the hidden host package that renders a user's stories in its own process.
         .library(name: "SwiftBookRenderer", targets: ["SwiftBookRenderer"]),
         .executable(name: "swiftbook", targets: ["swiftbook"]),
+        // The macOS viewer, which `swiftbook view` builds and launches.
+        .executable(name: "swiftbook-viewer", targets: ["SwiftBookViewer"]),
     ],
     dependencies: [
         // The major version tracks the Swift release; accept every release consumers might pin.
@@ -46,8 +48,13 @@ let package = Package(
             swiftSettings: strict),
         .executableTarget(
             name: "swiftbook", dependencies: ["SwiftBookCLI"], swiftSettings: strict),
+        .executableTarget(
+            name: "SwiftBookViewer", dependencies: ["SwiftBookCore"], swiftSettings: strict),
         .testTarget(
             name: "SwiftBookCoreTests", dependencies: ["SwiftBookCore"], swiftSettings: strict),
+        .testTarget(
+            name: "SwiftBookViewerTests", dependencies: ["SwiftBookViewer", "SwiftBookCore"],
+            swiftSettings: strict),
         .testTarget(
             name: "SwiftBookCLITests", dependencies: ["SwiftBookCLI", "SwiftBookCore"],
             swiftSettings: strict),

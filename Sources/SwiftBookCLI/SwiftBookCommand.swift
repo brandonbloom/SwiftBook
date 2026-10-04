@@ -13,7 +13,8 @@
                 errors.
                 """,
             subcommands: [
-                TestCommand.self, DiffCommand.self, ReviewCommand.self, ListCommand.self,
+                ViewCommand.self, TestCommand.self, DiffCommand.self, ReviewCommand.self,
+                ListCommand.self,
                 RenderCommand.self,
                 PruneCommand.self,
                 InitCommand.self,

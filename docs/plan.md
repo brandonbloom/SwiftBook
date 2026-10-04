@@ -230,9 +230,16 @@ _(fill in on completion)_
 
 ## Phase 3: macOS viewer
 
-- [ ] **`viewer-shell`**
+- [x] **`viewer-shell`**
   - `swiftbook view` builds and launches the viewer app from source.
   - The viewer shows a story tree, a canvas, and a toolbar placeholder.
+  - Done.
+    - **The app:** the `swiftbook-viewer` product, a SwiftUI app with a sidebar tree (module, file, story), a canvas, an appearance picker, and a disabled Compare menu as the placeholder. It drives the package's macOS renderer process from a queue of its own, so its main thread never waits.
+    - **`swiftbook view`:** builds the viewer as the package resolved SwiftBook, launches it with `nohup`, and logs to `.build/swiftbook/viewer.log`.
+    - **No arguments:** the viewer reads its package from `SWIFTBOOK_PACKAGE`. AppKit treats command-line arguments as files to open, and SwiftUI then opens no window.
+    - **Smoke test:** with `SWIFTBOOK_VIEWER_SNAPSHOT`, it draws its window to a PNG and its model's state to JSON beside it, then quits. CI checks that it reaches "ready" with a rendered image. The drawing misses the sidebar's vibrant text, which is why the JSON exists.
+    - **Tests:** `ViewerModelTests` covers the tree, start-up, one render per story and appearance, render failures, and a renderer that won't start, using a fake renderer.
+    - **Quitting:** the viewer needs no shutdown step, because a renderer exits when its input closes. Deferring termination until the renderer stopped hung, because the main-actor task never ran while AppKit waited.
 - [ ] **`renderer-supervisor`**
   - Starts, warms up and swaps renderers for each build generation.
   - Enforces render timeouts and restarts crashed or hung renderers.

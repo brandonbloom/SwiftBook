@@ -4,6 +4,10 @@
     /// A renderer failed: it couldn't start, crashed, hung, or reported an error.
     public struct RendererError: Error, CustomStringConvertible, Sendable {
         public let description: String
+
+        public init(description: String) {
+            self.description = description
+        }
     }
 
     /// A running renderer, spoken to over ``RendererProtocol``: a local process for macOS, or an

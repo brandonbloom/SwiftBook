@@ -98,6 +98,7 @@ In a package that depends on SwiftBook, run it with `swift run swiftbook <comman
 
 | Command | What it does |
 |---|---|
+| `swiftbook view` | Opens the viewer: every story in a sidebar, rendered on a canvas, light or dark. Early: comparison, live rebuilds, and history come next. |
 | `swiftbook test [--device iphone] [--record <mode>] [--junit <file>]` | Snapshot-tests stories on each device: the Mac through `swift test`, and iPhone, iPad and Apple TV in SwiftBook's own simulators, light and dark. With no `--device`, tests every device that has references. |
 | `swiftbook diff [<revision>] [--merge-base]` | Lists references added, deleted, or changed in the working tree against a revision (`HEAD` by default), with how many pixels changed. `--format json` or `junit` for machines; `--open` shows before, after and diff images. |
 | `swiftbook list [--check] [--device iphone]` | Lists the package's stories. `--check` also builds each one and reports any SwiftBook can't read. |

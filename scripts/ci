@@ -19,6 +19,16 @@ SWIFTBOOK_RECORD=never SWIFTBOOK_CAPTURE=emulated swift test --package-path Fixt
 # The zoo's iPhone, iPad, and Apple TV references, rendered in SwiftBook's own simulators.
 swiftbook="$(swift build --show-bin-path)/swiftbook"
 (cd Fixtures/PreviewZoo && "$swiftbook" test --device iphone --device ipad --device tv --record never)
+# The viewer opens on the zoo, finds its stories, and renders one. It draws its window to a PNG
+# and describes what it shows in JSON beside it, then quits.
+snapshot="$(mktemp -d)/viewer.png"
+# A hung viewer fails after two minutes instead of stalling CI.
+SWIFTBOOK_PACKAGE="$SWIFTBOOK_HOME/Fixtures/PreviewZoo" SWIFTBOOK_VIEWER_SNAPSHOT="$snapshot" \
+  perl -e 'alarm 120; exec @ARGV' "$(swift build --show-bin-path)/swiftbook-viewer" >/dev/null 2>&1 || true
+grep -q '"status":"ready"' "${snapshot%.png}.json" && grep -q '"render":"image' "${snapshot%.png}.json" || {
+  echo "ci: the viewer didn't render the zoo: $(cat "${snapshot%.png}.json" 2>/dev/null)" >&2
+  exit 1
+}
 # How long an edit takes to reach a new render, for the record.
 scripts/latency mac iphone
 # Everything must also build for the simulator platforms, warning-free. SWIFTBOOK_STRICT makes our

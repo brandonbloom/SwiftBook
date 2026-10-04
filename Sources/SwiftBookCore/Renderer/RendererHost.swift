@@ -196,7 +196,7 @@
 
         /// The compiler's errors in a failed build's output, or its end if there are none.
         /// Build logs bury them under long command lines.
-        static func diagnostics(in output: String) -> String {
+        public static func diagnostics(in output: String) -> String {
             let errors = output.split(separator: "\n")
                 .filter { $0.contains("error:") && !$0.hasPrefix("error: Build failed") }
             var seen = Set<Substring>()
