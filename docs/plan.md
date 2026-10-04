@@ -173,6 +173,8 @@ Fulbloom adopts SwiftBook at the end of this phase.
   - A generated hidden `.swiftpm` host with an `.iOSApplication` product, built with `xcodebuild`.
   - The fallback is `swift build` plus our own `.app` wrapper; see the [spike](spikes/ios-renderer.md).
   - SwiftBook creates and reuses its own dedicated simulator.
+  - Fulbloom's iPhone app is the first real test bed. Its `PhoneBrowser` previews (iOS-only, in FBFUI) use a Liquid Glass floating tab bar and a split search tab (`Tab(role: .search)` with `.tabViewSearchActivation(.searchTabSelection)`), a good fidelity check for materials and the tab bar. When `cli-test` can run iOS, message the "iOS app parallel development" session, which will wire it into Fulbloom's CI.
+  - In a host app, a SwiftPM resource directory copied as `Resources` (`.copy("Resources")`) makes codesign fail with "bundle format unrecognized", because iOS bundles are flat. The host must handle or diagnose this for user packages.
 - [ ] **`cli-test`**
   - `swiftbook test [--platform] [--record]` runs macOS through `swift test` and iOS/tvOS through the renderer app.
   - With no `--platform`, it runs every platform that has references.
