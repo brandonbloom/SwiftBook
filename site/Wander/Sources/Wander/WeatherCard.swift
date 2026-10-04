@@ -39,7 +39,10 @@ public struct WeatherCard: View {
         .frame(width: 280)
         .background(
             LinearGradient(
-                colors: [Color(red: 0.25, green: 0.55, blue: 0.95), Color(red: 0.45, green: 0.3, blue: 0.85)],
+                colors: [
+                    Color(red: 0.25, green: 0.55, blue: 0.95),
+                    Color(red: 0.45, green: 0.3, blue: 0.85),
+                ],
                 startPoint: .topLeading, endPoint: .bottomTrailing),
             in: .rect(cornerRadius: 24))
     }
