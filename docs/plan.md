@@ -292,6 +292,7 @@ Fulbloom adopts SwiftBook at the end of this phase.
     - **Basis:** uncommitted changes, the last commit, this branch (the merge base with the default branch), or any revision typed in. It starts on uncommitted changes when the working tree is dirty, and the last commit when it's clean. A "changed only" toggle sits beside it.
     - **Two passes:** first, stories whose source file changed against the basis get a dotted badge. Then each render of the current generation is compared with the story's Mac reference at the basis, and the badge becomes changed, new (no reference), failed, or none (unchanged). Edits and rebuilds redo both.
     - **Capture:** the viewer's renderer captures the way the package's Mac references were recorded, as their metadata says, so comparisons with them mean something: from the window server if they were (and it may record the screen), and emulated, as CI records, otherwise. `SWIFTBOOK_CAPTURE` overrides. Wander's window-server references showed 5 of 6 stories falsely changed before this.
+    - ScreenCaptureKit can wait indefinitely, apparently while macOS asks whether to allow screen recording. Each of its calls now gets 10 s, then fails with a message naming the prompt and `SWIFTBOOK_CAPTURE=emulated`, instead of hanging until the render timeout.
     - **Checked on the zoo:** against the working tree, all 36 stories come out unchanged. Editing one badge's text marks exactly that story changed; the other stories in its file show source-changed, then clear.
     - Not yet: removed stories (references at the basis for stories that no longer exist), and comparing devices other than the Mac.
 - [x] **`toolbar-compare`**
@@ -299,11 +300,15 @@ Fulbloom adopts SwiftBook at the end of this phase.
   - 2-up and grid layouts, with zoom and pan synchronized across cells.
   - Diff metrics on each cell.
   - Done for the Mac's dimensions.
-    - **(A):** single, 2-up, or grid. **(B):** color scheme, layout direction, or revision. **(C):** color scheme and layout direction pickers, which apply to every cell except along the compared dimension. The sidebar's basis is the revision picker.
+    - **(A):** single, 2-up, or grid. The grid crosses the compared dimension with a second one down: color scheme, or layout direction when comparing color schemes. **(B):** color scheme, layout direction, or revision. **(C):** color scheme and layout direction pickers, which apply to every cell except along the compared dimension. The sidebar's basis is the revision picker.
     - **Revision:** the reference at the basis beside the working tree's render, with the changed-pixel ratio and largest ΔE. The grid adds the highlighted difference. References exist only left to right, so right-to-left cells say so.
     - **Zoom and pan:** one zoom for every cell (toolbar, ⌘−, ⌘0, ⌘=, or pinch). The cell under the pointer leads scrolling, and the others follow.
     - **Snapshots:** `SWIFTBOOK_VIEWER_STORY` and `SWIFTBOOK_VIEWER_COMPARE` (such as `grid:revision`) set up the smoke test's snapshot, for checks and docs.
-    - Not yet: dynamic type, contrast and control borders (no Mac support, or not in `RenderEnvironment` yet), devices (with `ios-in-viewer`), a story's `#Preview(arguments:)` values, and locales. With only two values per dimension, the grid differs from 2-up only for revisions.
+    - Not yet: dynamic type, contrast and control borders (no Mac support, or not in `RenderEnvironment` yet), devices (with `ios-in-viewer`), a story's `#Preview(arguments:)` values, and locales.
+    - From Brandon's first look:
+      - The sidebar left stale rows behind when filters changed, because nested disclosure groups in a selectable list don't diff reliably. It's now a flat list of rows that the model indents and expands.
+      - A one-dimensional grid looked like 2-up, hence the second dimension.
+      - The zoom buttons are one control group, apart from Reload.
 - [ ] **`interactive-window`**
   - "Open interactively" asks the renderer to show the story in its own window.
 

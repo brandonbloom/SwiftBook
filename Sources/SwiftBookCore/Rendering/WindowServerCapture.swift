@@ -65,8 +65,10 @@
             window.orderBack(nil)
             let windowID = CGWindowID(window.windowNumber)
             for _ in 0..<50 {
-                let content = try await SCShareableContent.excludingDesktopWindows(
-                    false, onScreenWindowsOnly: false)
+                let content = try await answer {
+                    try await SCShareableContent.excludingDesktopWindows(
+                        false, onScreenWindowsOnly: false)
+                }
                 if let scWindow = content.windows.first(where: { $0.windowID == windowID }) {
                     let configuration = SCStreamConfiguration()
                     configuration.width = Int((size.width * scale).rounded())
@@ -87,8 +89,12 @@
         func capture() async throws -> CGImage {
             let image: CGImage
             do {
-                image = try await SCScreenshotManager.captureImage(
-                    contentFilter: filter, configuration: configuration)
+                image = try await Self.answer {
+                    try await SCScreenshotManager.captureImage(
+                        contentFilter: filter, configuration: configuration)
+                }
+            } catch let error as RenderErrorDescription {
+                throw error
             } catch {
                 let reason =
                     CaptureMethod.screenIsLocked
@@ -104,6 +110,51 @@
                 throw RenderErrorDescription(description: "can't read the window server's capture")
             }
             return normalized
+        }
+    }
+
+    extension WindowServerCapture {
+        /// How long ScreenCaptureKit gets to answer a call.
+        static let deadline = Duration.seconds(10)
+
+        /// `call`'s result, unless ScreenCaptureKit takes longer than ``deadline``. It can wait
+        /// indefinitely, for example while macOS asks whether to allow screen recording.
+        @MainActor static func answer<T>(_ call: @escaping @MainActor () async throws -> T)
+            async throws -> T
+        {
+            try await withCheckedThrowingContinuation { continuation in
+                // Whichever finishes first, the call or the deadline, resumes.
+                let finished = Finished()
+                let work = Task { @MainActor in
+                    // Unsafe: ScreenCaptureKit's results aren't Sendable, but this hands one
+                    // from the main actor to a caller on the main actor.
+                    nonisolated(unsafe) let result = await Result { try await call() }
+                    if finished.claim() { continuation.resume(with: result) }
+                }
+                Task { @MainActor in
+                    try? await Task.sleep(for: deadline)
+                    guard finished.claim() else { return }
+                    work.cancel()
+                    continuation.resume(
+                        throwing: RenderErrorDescription(
+                            description: """
+                                the window server didn't answer within \(deadline). macOS may be \
+                                waiting for someone to allow screen recording; check for its \
+                                prompt, or set \(CaptureMethod.environmentVariable)=emulated.
+                                """))
+                }
+            }
+        }
+
+        /// Whether a race has been decided.
+        @MainActor private final class Finished {
+            private var done = false
+
+            /// True the first time only.
+            func claim() -> Bool {
+                defer { done = true }
+                return !done
+            }
         }
     }
 #endif
