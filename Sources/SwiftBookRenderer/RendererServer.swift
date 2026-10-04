@@ -209,6 +209,15 @@ public enum RendererServer {
             configuration.delegateClass = RendererSceneDelegate.self
             return configuration
         }
+
+        #if os(iOS)
+            func application(
+                _ application: UIApplication,
+                supportedInterfaceOrientationsFor window: UIWindow?
+            ) -> UIInterfaceOrientationMask {
+                RendererOrientation.allowed
+            }
+        #endif
     }
 
     final class RendererSceneDelegate: UIResponder, UIWindowSceneDelegate {

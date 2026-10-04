@@ -141,6 +141,14 @@ public struct SnapshotStore: Sendable {
         return try ImageDiff.compare(expected: expected, actual: image, tolerance: tolerance)
     }
 
+    /// Decodes `png`, naming `path` if it can't.
+    static func image(_ png: Data, at path: String) throws -> CGImage {
+        guard let source = CGImageSourceCreateWithData(png as CFData, nil),
+            let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
+        else { throw StorageError(description: "\(path) isn't a readable image") }
+        return image
+    }
+
     private func write(_ png: Data, to url: URL) throws {
         try FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true)

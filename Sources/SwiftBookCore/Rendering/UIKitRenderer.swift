@@ -5,7 +5,8 @@
     /// Renders stories on iOS and tvOS by hosting them in a window of the renderer app.
     ///
     /// Needs a real app process with a window scene: in a test bundle without a host app,
-    /// `drawHierarchy` draws nothing.
+    /// `drawHierarchy` draws nothing. On iOS, the app's scene rotates to each story's
+    /// orientation, so the app must allow every orientation.
     @MainActor public enum UIKitRenderer {
         /// The device this process renders as.
         public static var device: Device {
@@ -50,6 +51,12 @@
             defer { ProcessTimeZone.restore(processTimeZone) }
             UIView.setAnimationsEnabled(false)
 
+            #if os(iOS)
+                // The story's orientation, or portrait. The whole scene rotates, as the device
+                // would.
+                try await rotate(scene, to: story.orientation ?? .portrait, error: error)
+            #endif
+
             let view = AnyView(try await story.makeView().pinned(to: environment))
             let window = UIWindow(windowScene: scene)
             window.overrideUserInterfaceStyle = environment.appearance == .dark ? .dark : .light
@@ -67,14 +74,14 @@
             switch story.layout {
             case .device:
                 // The whole screen, with the device's safe areas, as in Xcode's canvas.
-                size = scene.screen.bounds.size
+                size = scene.effectiveGeometry.coordinateSpace.bounds.size
             case .fixed(let width, let height):
                 host.safeAreaRegions = []
                 size = CGSize(width: width, height: height)
             case .sizeThatFits:
                 // Without this, the safe area inflates the measured size.
                 host.safeAreaRegions = []
-                let screen = scene.screen.bounds.size
+                let screen = scene.effectiveGeometry.coordinateSpace.bounds.size
                 let fitting = host.sizeThatFits(in: screen)
                 size = CGSize(
                     width: fitting.width > 0 && fitting.width.isFinite
@@ -117,6 +124,35 @@
                     swiftBookVersion: SwiftBookInfo.version))
         }
 
+        #if os(iOS)
+            /// Rotates `scene` to `orientation` and waits until it has.
+            private static func rotate(
+                _ scene: UIWindowScene, to orientation: StoryOrientation,
+                error: (String) -> RenderError
+            ) async throws {
+                let (mask, target): (UIInterfaceOrientationMask, UIInterfaceOrientation) =
+                    switch orientation {
+                    case .portrait: (.portrait, .portrait)
+                    case .portraitUpsideDown: (.portraitUpsideDown, .portraitUpsideDown)
+                    case .landscapeLeft: (.landscapeLeft, .landscapeLeft)
+                    case .landscapeRight: (.landscapeRight, .landscapeRight)
+                    }
+                guard scene.effectiveGeometry.interfaceOrientation != target else { return }
+                RendererOrientation.allowed = mask
+                for window in scene.windows {
+                    window.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+                }
+                scene.requestGeometryUpdate(.iOS(interfaceOrientations: mask))
+                let deadline = ContinuousClock.now + .seconds(3)
+                while scene.effectiveGeometry.interfaceOrientation != target {
+                    guard ContinuousClock.now < deadline else {
+                        throw error("the device didn't rotate to \(orientation)")
+                    }
+                    try await Task.sleep(for: .milliseconds(20))
+                }
+            }
+        #endif
+
         private static func stableCapture(
             of window: UIWindow, scale: Double, timeout: Duration, error: (String) -> RenderError
         ) async throws -> CGImage {
@@ -146,4 +182,12 @@
             }
         }
     }
+
+    #if os(iOS)
+        /// The orientations the renderer app allows right now: only the one being rendered, so a
+        /// requested rotation sticks.
+        @MainActor public enum RendererOrientation {
+            public static var allowed: UIInterfaceOrientationMask = .portrait
+        }
+    #endif
 #endif

@@ -13,6 +13,27 @@ public struct Snapshot: @unchecked Sendable {
     public let image: CGImage
     public let metadata: SnapshotMetadata
 
+    init(
+        story: StoryID, device: Device, environment: RenderEnvironment, image: CGImage,
+        metadata: SnapshotMetadata
+    ) {
+        self.story = story
+        self.device = device
+        self.environment = environment
+        self.image = image
+        self.metadata = metadata
+    }
+
+    /// A snapshot a renderer sent as PNG, with its metadata.
+    public init(png: Data, story: StoryID, device: Device, environment: RenderEnvironment) throws {
+        guard let metadata = try SnapshotMetadata.read(fromPNG: png) else {
+            throw StorageError(description: "the render of \(story) has no SwiftBook metadata")
+        }
+        self.init(
+            story: story, device: device, environment: environment,
+            image: try SnapshotStore.image(png, at: story.description), metadata: metadata)
+    }
+
     /// The image as a PNG, with ``metadata`` in a `SwiftBook` text chunk.
     public func pngData() throws -> Data {
         try PNG.encode(image, text: ["SwiftBook": try metadata.json()])

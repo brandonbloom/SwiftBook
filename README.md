@@ -87,6 +87,7 @@ The actual, diff and reference images are also attached to the test result. In d
 
 ```sh
 SWIFTBOOK_RECORD=never SWIFTBOOK_CAPTURE=emulated swift test
+swiftbook test --device iphone --record never   # and ipad, tv, as you have references
 ```
 
 `never` turns a missing reference into a failure instead of an unreviewed recording. `emulated` makes CI independent of Screen Recording permission and the screen lock; see [Capture](#capture). References must be recorded with the same capture method that verifies them.
@@ -97,15 +98,16 @@ Build it with `swift build --product swiftbook` in a checkout of SwiftBook, or r
 
 | Command | What it does |
 |---|---|
+| `swiftbook test [--device iphone] [--record <mode>] [--junit <file>]` | Snapshot-tests stories on each device: the Mac through `swift test`, and iPhone, iPad and Apple TV in SwiftBook's own simulators, light and dark. With no `--device`, tests every device that has references. |
 | `swiftbook diff [<revision>] [--merge-base]` | Lists references added, deleted, or changed in the working tree against a revision (`HEAD` by default), with how many pixels changed. `--format json` or `junit` for machines; `--open` shows before, after and diff images. |
-| `swiftbook list [--check] [--platform ios]` | Lists the package's stories. `--check` also builds each one and reports any SwiftBook can't read. |
-| `swiftbook render [<story>…] [--platform ios] [-o <dir>]` | Renders stories, light and dark, to PNG files laid out like references. |
+| `swiftbook list [--check] [--device iphone]` | Lists the package's stories. `--check` also builds each one and reports any SwiftBook can't read. |
+| `swiftbook render [<story>…] [--device iphone] [-o <dir>]` | Renders stories, light and dark, to PNG files laid out like references. |
 | `swiftbook prune [--dry-run]` | Deletes references to stories that no longer exist. Only modules the renderer links are pruned. |
 | `swiftbook init` | Adds the Git LFS rule for references to `.gitattributes`. Safe to run again. |
 | `swiftbook doctor [--json] [--quick]` | Checks macOS, Xcode, Git, Git LFS, the LFS rule, references that are unpulled LFS pointers, Screen Recording permission, simulator runtimes, and that every story can be read. |
 | `swiftbook review [--print]` | Opens the review page from the last test run. |
 
-`list`, `render`, `prune` and `doctor` build a renderer: a hidden package under `.build/swiftbook/renderer` that links your package's library products, so SwiftBook can load your previews in a process of their own. The first build takes as long as building your package; later ones are incremental. With `--platform ios`, the renderer is an app that runs in SwiftBook's own iPhone 17 Pro simulator, which it creates on first use.
+`list`, `render`, `prune` and `doctor` build a renderer: a hidden package under `.build/swiftbook/renderer` that links your package's library products, so SwiftBook can load your previews in a process of their own. The first build takes as long as building your package; later ones are incremental. `--device` takes `mac`, `iphone`, `ipad`, or `tv` (or `macos`, `ios`, `tvos`). On iPhone, iPad, and Apple TV, the renderer is an app that runs in SwiftBook's own simulator for that device (iPhone 17 Pro, 11-inch iPad Pro, Apple TV 4K), which it creates on first use.
 
 Exit status is 0 for success, 1 when references or snapshots changed or failed, 2 when something else went wrong, and 64 for usage errors.
 
@@ -156,8 +158,8 @@ The macro also takes `variants:` to change which environments each story renders
 
 ## Limitations
 
-- `swift test` renders only macOS. `swiftbook render --platform ios` renders iOS, but iOS snapshot testing (`swiftbook test`) isn't done yet.
-- On iOS, the orientation trait is ignored: landscape previews render in portrait.
+- `swift test` renders only macOS; `swiftbook test --device iphone` (or `ipad`, `tv`) tests the others.
+- On iPhone, iPad, and Apple TV, `swiftbook test` checks light and dark only, and doesn't apply `#SwiftBookTests`' `excluding:`.
 
 ## Developing SwiftBook
 

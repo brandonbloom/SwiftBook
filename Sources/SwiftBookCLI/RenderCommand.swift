@@ -17,8 +17,8 @@
         @Argument(help: "Stories to render, as Module/Group/Name.")
         var stories: [String] = []
 
-        @Option(help: "The platform to render on: macos, ios, or tvos.")
-        var platform = Platform.macOS
+        @Option(name: [.customLong("device"), .customLong("platform")], help: deviceHelp)
+        var device = Device.mac
 
         @Option(name: .shortAndLong, help: "The directory to write PNG files to.")
         var output = ".build/swiftbook/renders"
@@ -26,7 +26,7 @@
         func run() throws {
             do {
                 let project = try Project.current()
-                let renderer = try Renderers.start(for: project, on: platform)
+                let renderer = try Renderers.start(for: project, on: device)
                 defer { renderer.shutdown() }
                 let all = try renderer.stories()
                 let selected =
@@ -45,10 +45,10 @@
                 var failures = 0
                 for story in selected {
                     for appearance in RenderEnvironment.Appearance.allCases {
-                        var environment = RenderEnvironment.standard(for: platform.device)
+                        var environment = RenderEnvironment.standard(for: device)
                         environment.appearance = appearance
                         let url = store.url(
-                            for: story, device: platform.device, environment: environment)
+                            for: story, device: device, environment: environment)
                         do {
                             let png = try renderer.render(story, in: environment)
                             try FileManager.default.createDirectory(

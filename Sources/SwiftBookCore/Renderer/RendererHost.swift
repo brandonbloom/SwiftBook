@@ -63,11 +63,12 @@
                 }
             }
 
-            /// The platform name `vtool` and `Info.plist` use.
+            /// The platform as `vtool` takes it: by name, or by number (`PLATFORM_TVOSSIMULATOR`)
+            /// where it has none.
             var vtoolPlatform: String {
                 switch self {
                 case .iOS: "iossim"
-                case .tvOS: "tvossim"
+                case .tvOS: "8"
                 }
             }
 
@@ -174,6 +175,13 @@
                 "UILaunchScreen": [String: Any](),
                 // SDK 27 requires the scene lifecycle; the app delegate configures the scene.
                 "UIApplicationSceneManifest": ["UIApplicationSupportsMultipleScenes": false],
+                // Stories may ask for any orientation, and the app rotates to each. Full screen
+                // keeps iPad windowing from resizing it.
+                "UISupportedInterfaceOrientations": [
+                    "UIInterfaceOrientationPortrait", "UIInterfaceOrientationPortraitUpsideDown",
+                    "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight",
+                ],
+                "UIRequiresFullScreen": true,
             ]
             try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
                 .write(to: app.appending(path: "Info.plist"))

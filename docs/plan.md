@@ -198,12 +198,19 @@ Fulbloom adopts SwiftBook at the end of this phase.
     - **Rendering:** `UIKitRenderer` renders each story in its own window of the app with `drawHierarchy`. The device layout fills the screen with its safe areas; fitted and fixed layouts drop the safe area. It pins the same environment as macOS, at the device's native scale.
     - **Results on the zoo:** 34 stories, all readable, including the UIKit views. Lists, text fields and materials render faithfully, and output is byte-identical across app launches. A warm list takes 6.6 s; rendering all 68 variants takes 15 s.
     - **CLI:** `swiftbook list --platform ios` and a new `swiftbook render [<story>…] [--platform] [-o dir]`.
-    - **Not yet:** the orientation trait (landscape renders in portrait), iPad, and tvOS. The tvOS app builds, but there's no tvOS runtime here to run it (`tvos-runtime`).
-- [ ] **`cli-test`**
+    - **Since added:** orientation, iPad, and tvOS. The app rotates its scene to a story's orientation with `requestGeometryUpdate` before rendering. iPad and Apple TV get their own pinned simulators (11-inch iPad Pro, Apple TV 4K). tvOS needed `vtool` platform number 8 and a background without `systemBackground`.
+- [x] **`cli-test`**
   - `swiftbook test [--platform] [--record]` runs macOS through `swift test` and iOS/tvOS through the renderer app.
   - With no `--platform`, it runs every platform that has references.
-- [ ] **`tvos-runtime`**
+  - Done.
+    - The Mac runs `swift test --filter SwiftBookSnapshots` with the record mode passed through. Other devices render every story, light and dark, through their renderer and verify against `<device>.<appearance>.png` references.
+    - Verification messages, artifacts and the review page come from `SnapshotReport` in SwiftBookCore, now shared by `#SwiftBookTests` and the CLI, with tool-specific hints such as "swiftbook test --record changed".
+    - `--device` repeats, and accepts platform names (`--platform ios`). `--record` takes a record mode. `--junit` writes one test case per snapshot. With no device, it tests every device that has references.
+    - The zoo has iPhone, iPad, and Apple TV references (204), and CI verifies them with `--record never`, in about 100 s.
+    - Not yet: variants other than light and dark on simulated devices, and `excluding:`. The CLI can't read `#SwiftBookTests`' arguments.
+- [x] **`tvos-runtime`**
   - Install the tvOS simulator runtime (a human step) and get the zoo rendering on tvOS.
+  - Done: Brandon installed tvOS 27, and the zoo renders and verifies on Apple TV 4K.
 
 **Automated verification:**
 - Git service tests against temporary repos, including LFS-tracked PNGs, rebases, and missing LFS objects.
