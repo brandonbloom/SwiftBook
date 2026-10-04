@@ -315,7 +315,8 @@ Fulbloom adopts SwiftBook at the end of this phase.
     - **Protocol:** `open` shows a story in a window of the renderer's own, live: animations on, taking the pointer and focus. `windows` lists the ones still open.
     - **Viewer:** a toolbar button (⌘O) opens the selection in the pickers' variant; double-clicking a cell opens that cell's variant.
     - **Live reload:** when a rebuild swaps renderers, the windows still open reopen on the new build, in the same variants.
-    - **Focus:** the renderer becomes an accessory app for its first window, so it can take focus without a Dock tile. It has no menu bar, so menu shortcuts such as ⌘C don't reach the story.
+    - **Events:** renderers run AppKit's event loop. They used to run the main run loop by hand, which drew and captured fine but never delivered clicks or keys.
+    - **Focus:** the renderer becomes an accessory app for its first window, so it can take focus without a Dock tile. macOS lets an app take focus only from the active one, so the viewer yields it first. It has no menu bar, so menu shortcuts such as ⌘C don't reach the story.
     - **Tests:** `RendererSupervisorTests` opens a FaultZoo story in a real renderer, behind other windows (`SWIFTBOOK_INTERACTIVE_BEHIND`), and checks it reopens after a rebuild.
 
 **Automated verification:**

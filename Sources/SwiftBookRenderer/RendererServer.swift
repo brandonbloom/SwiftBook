@@ -29,8 +29,10 @@ public enum RendererServer {
                 _ = NSApplication.shared.setActivationPolicy(.prohibited)
             }
             serve(input: .standardInput, output: output)
-            // Rendering needs the main run loop: AppKit and SwiftUI update through it.
-            while true { RunLoop.main.run() }
+            // Rendering needs the main run loop, which AppKit's event loop runs: AppKit and
+            // SwiftUI update through it, and interactive windows need its events.
+            MainActor.assumeIsolated { NSApplication.shared.run() }
+            exit(0)
         }
     #elseif os(iOS) || os(tvOS)
         /// Runs the renderer app, which connects back and serves requests until `shutdown`.

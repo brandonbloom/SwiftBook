@@ -177,6 +177,9 @@
             child.stop(timeout)
         }
 
+        /// The renderer's process ID.
+        public var processIdentifier: pid_t { child.pid }
+
         /// Whether the renderer is still running.
         public var isRunning: Bool { child.isRunning() }
 

@@ -1,4 +1,5 @@
 #if os(macOS)
+    import AppKit
     import Foundation
     import SwiftBookCore
 
@@ -114,6 +115,11 @@
         }
 
         func open(_ story: StoryID, in environment: RenderEnvironment) async throws {
+            let pid = try await run { try self.running().processIdentifier }
+            // macOS lets an app take focus only from the active app, which the viewer is.
+            if let renderer = NSRunningApplication(processIdentifier: pid) {
+                await MainActor.run { NSApplication.shared.yieldActivation(to: renderer) }
+            }
             try await run { try self.running().open(story, in: environment) }
         }
 
