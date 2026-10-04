@@ -31,7 +31,9 @@
         static func infos(_ ids: [String]) -> [StoryInfo] {
             ids.map {
                 let parts = $0.split(separator: "/").map(String.init)
-                return StoryInfo(id: StoryID(module: parts[0], group: parts[1], name: parts[2]))
+                return StoryInfo(
+                    id: StoryID(module: parts[0], group: parts[1], name: parts[2]),
+                    fileID: "\(parts[0])/\(parts[1]).swift")
             }
         }
 
@@ -73,6 +75,11 @@
             if failing.contains(story.description) {
                 throw RendererError(description: "boom")
             }
+            return Self.png
+        }
+
+        /// What every render looks like: solid blue.
+        static let png: Data = {
             let image = NSImage(size: CGSize(width: 40, height: 20), flipped: false) { rect in
                 NSColor.systemBlue.setFill()
                 rect.fill()
@@ -80,7 +87,7 @@
             }
             let bitmap = NSBitmapImageRep(data: image.tiffRepresentation!)!
             return bitmap.representation(using: .png, properties: [:])!
-        }
+        }()
     }
 
     @MainActor @Suite struct ViewerModelTests {

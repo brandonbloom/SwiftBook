@@ -59,15 +59,97 @@
                         description: Text("The renderer couldn't start."))
                 case .ready:
                     List(selection: $model.selection) {
-                        OutlineGroup(model.tree, children: \.children) { node in
+                        OutlineGroup(model.visibleTree, children: \.children) { node in
                             if let story = node.story {
-                                Text(node.title).tag(story)
+                                HStack {
+                                    Text(node.title)
+                                    Spacer()
+                                    StatusBadge(status: model.statuses[story] ?? .pending)
+                                }
+                                .tag(story)
                             } else {
                                 Text(node.title).foregroundStyle(.secondary)
                             }
                         }
                     }
+                    .searchable(text: $model.searchText, placement: .sidebar, prompt: "Stories")
+                    .safeAreaInset(edge: .top, spacing: 0) {
+                        if model.basis != nil {
+                            BasisBar(model: model)
+                        }
+                    }
                 }
+            }
+        }
+    }
+
+    /// Chooses what the sidebar compares against, and whether it shows only changes.
+    struct BasisBar: View {
+        @Bindable var model: ViewerModel
+        @State private var askingForRevision = false
+        @State private var revision = ""
+
+        var body: some View {
+            HStack(spacing: 6) {
+                Menu {
+                    ForEach([ViewerBasis.uncommitted, .lastCommit, .branch], id: \.self) { basis in
+                        Button(basis.title) { model.basis = basis }
+                    }
+                    Divider()
+                    Button("Revision…") { askingForRevision = true }
+                } label: {
+                    Text("Against: \(model.basis?.title ?? "")")
+                        .lineLimit(1)
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .help(
+                    model.historyError ?? model.basisRevision.map {
+                        "Comparing with \($0.prefix(9))"
+                    } ?? "")
+                Spacer()
+                Toggle(isOn: $model.showsChangedOnly) {
+                    Image(systemName: "line.3.horizontal.decrease.circle")
+                }
+                .toggleStyle(.button)
+                .buttonStyle(.borderless)
+                .help("Show only stories that changed")
+            }
+            .font(.callout)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .alert("Compare with a revision", isPresented: $askingForRevision) {
+                TextField("Branch, tag, or commit", text: $revision)
+                Button("Compare") {
+                    let trimmed = revision.trimmingCharacters(in: .whitespaces)
+                    if !trimmed.isEmpty { model.basis = .revision(trimmed) }
+                }
+                Button("Cancel", role: .cancel) {}
+            }
+        }
+    }
+
+    /// A story's change against the basis, as a small symbol.
+    struct StatusBadge: View {
+        let status: ChangeStatus
+
+        var body: some View {
+            switch status {
+            case .pending, .unchanged:
+                EmptyView()
+            case .sourceChanged:
+                Image(systemName: "circle.dotted").foregroundStyle(.orange)
+                    .help("The source changed; rendering to see whether the image did")
+            case .changed:
+                Image(systemName: "circle.fill").foregroundStyle(.orange)
+                    .imageScale(.small)
+                    .help("Changed")
+            case .new:
+                Image(systemName: "plus.circle.fill").foregroundStyle(.green)
+                    .help("New: no reference at the basis")
+            case .failed:
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                    .help("Didn't render")
             }
         }
     }

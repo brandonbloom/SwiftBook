@@ -74,6 +74,8 @@
         struct Rendered: Equatable {
             let render: Render
             let generation: Int
+            /// The image as the renderer sent it, for comparing with references.
+            var png: Data?
         }
 
         let package: URL
@@ -98,6 +100,34 @@
         /// Renders requested and not yet back.
         private(set) var pending: Set<RenderKey> = []
 
+        /// What the sidebar compares against, or `nil` outside a Git repository.
+        var basis: ViewerBasis? {
+            didSet { if basis != oldValue { refreshHistory() } }
+        }
+        /// The commit the basis names, once resolved.
+        private(set) var basisRevision: String?
+        /// Why the basis couldn't be resolved.
+        private(set) var historyError: String?
+        /// Each story's change against the basis.
+        private(set) var statuses: [StoryID: ChangeStatus] = [:]
+        /// Filters the sidebar to stories whose ID contains it, ignoring case.
+        var searchText = ""
+        /// Filters the sidebar to stories that changed against the basis.
+        var showsChangedOnly = false
+
+        /// The sidebar's tree, with the filters applied.
+        var visibleTree: [StoryNode] {
+            let query = searchText.trimmingCharacters(in: .whitespaces)
+            return StoryNode.tree(
+                stories.filter { story in
+                    (query.isEmpty || story.id.description.localizedCaseInsensitiveContains(query))
+                        && (!showsChangedOnly || (statuses[story.id] ?? .pending).isChange)
+                })
+        }
+
+        private var history: (any HistorySource)?
+        private let openHistory: @Sendable (URL) -> (any HistorySource)?
+        private var changedPaths: [String] = []
         private var renderer: (any StoryRenderer)?
         /// Whether a change arrived during a rebuild, which then needs another.
         private var reloadAgain = false
@@ -108,10 +138,14 @@
             package: URL,
             startRenderer: @escaping @Sendable (URL) async throws -> any StoryRenderer = {
                 try await RendererSupervisor.start(for: $0)
+            },
+            openHistory: @escaping @Sendable (URL) -> (any HistorySource)? = {
+                try? History(package: $0)
             }
         ) {
             self.package = package
             self.startRenderer = startRenderer
+            self.openHistory = openHistory
         }
 
         /// Builds and starts the renderer, lists stories, and selects the first.
@@ -126,6 +160,12 @@
                 try await listStories()
                 status = .ready
                 if selection == nil { selection = stories.first?.id }
+                let package = package
+                let openHistory = openHistory
+                if let history = await Task.detached(operation: { openHistory(package) }).value {
+                    self.history = history
+                    basis = await Task.detached { history.defaultBasis() }.value
+                }
             } catch {
                 status = .failed(String(describing: error))
             }
@@ -170,6 +210,8 @@
                 generation = try await renderer.rebuild()
                 skippedAhead = []
                 try await listStories()
+                // Edits change what differs from the basis.
+                refreshHistory()
                 buildError = nil
                 log("generation \(generation)")
                 if let selection, !stories.contains(where: { $0.id == selection }) {
@@ -252,10 +294,11 @@
                     renderNext()
                 }
                 let render: Render
+                var png: Data?
                 do {
-                    let png = try await renderer.render(
+                    png = try await renderer.render(
                         key.story, in: environment, background: background)
-                    if let image = NSImage(data: png) {
+                    if let png, let image = NSImage(data: png) {
                         // The bitmap is at the render's scale; show it at its size in points.
                         if let representation = image.representations.first {
                             image.size = CGSize(
@@ -278,8 +321,72 @@
                 }
                 // Keep a newer render if one already arrived.
                 if (renders[key]?.generation ?? 0) <= generation {
-                    renders[key] = Rendered(render: render, generation: generation)
+                    renders[key] = Rendered(render: render, generation: generation, png: png)
+                    if generation == self.generation, key.appearance == appearance {
+                        compareWithBasis(key)
+                    }
                 }
+            }
+        }
+
+        // MARK: History
+
+        /// Resolves the basis and marks stories whose source changed, then compares every
+        /// current render with its reference at the basis.
+        private func refreshHistory() {
+            guard let history, let basis else { return }
+            Task {
+                let result = await Task.detached {
+                    Result { try history.changes(against: basis) }
+                }.value
+                // A newer basis may have been chosen meanwhile.
+                guard basis == self.basis else { return }
+                switch result {
+                case .success(let changes):
+                    basisRevision = changes.revision
+                    changedPaths = changes.paths
+                    historyError = nil
+                case .failure(let error):
+                    basisRevision = nil
+                    changedPaths = []
+                    historyError = String(describing: error)
+                    statuses = [:]
+                    return
+                }
+                statuses = Dictionary(
+                    uniqueKeysWithValues: stories.map { story in
+                        (
+                            story.id,
+                            History.sourceChanged(story, in: changedPaths)
+                                ? ChangeStatus.sourceChanged : .pending
+                        )
+                    })
+                for key in renders.keys where key.appearance == appearance {
+                    compareWithBasis(key)
+                }
+            }
+        }
+
+        /// Compares the current generation's render for `key` with the basis's reference, and
+        /// records the story's status.
+        private func compareWithBasis(_ key: RenderKey) {
+            guard let history, let revision = basisRevision,
+                let rendered = renders[key], rendered.generation == generation
+            else { return }
+            guard case .image = rendered.render, let png = rendered.png else {
+                statuses[key.story] = .failed
+                return
+            }
+            Task {
+                let status = await Task.detached {
+                    History.imageStatus(
+                        render: png,
+                        reference: try? history.reference(
+                            for: key.story, appearance: key.appearance, at: revision))
+                }.value
+                // Only if nothing has moved on meanwhile.
+                guard revision == basisRevision, renders[key] == rendered else { return }
+                statuses[key.story] = status
             }
         }
 
@@ -292,6 +399,9 @@
             var selection: String?
             var render: String?
             var buildError: String?
+            var basis: String?
+            /// How many stories have each change status.
+            var changes: [String: Int]
         }
 
         var summary: Summary {
@@ -306,7 +416,8 @@
                     case .failed(let message): "failed: \(message)"
                     }
                 } ?? (isRenderingSelection ? "rendering" : nil),
-                buildError: buildError)
+                buildError: buildError, basis: basis?.title,
+                changes: Dictionary(grouping: statuses.values, by: { "\($0)" }).mapValues(\.count))
         }
 
         /// Writes a line to standard error, which `swiftbook view` sends to the viewer's log.

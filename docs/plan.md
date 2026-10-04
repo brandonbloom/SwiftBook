@@ -275,12 +275,18 @@ _(fill in on completion)_
     - **Background timeout:** background renders get 5 s, so a slow story can't hold up the one someone is waiting for. A background failure isn't cached; the story renders with the full timeout when selected.
     - **Cost:** a story that really hangs can delay a reload by up to that 5 s, once per build. On FaultZoo, edit to canvas takes 3.8 s normally and 9.7 s when the hanging story is mid-render.
     - What's visible becomes more than the selection once `toolbar-compare` adds cells. Then the queue should take every visible cell first.
-- [ ] **`sidebar-history`**
+- [x] **`sidebar-history`**
   - Search and grouping.
   - Basis filters: uncommitted changes, last commit, branch, any revision.
   - Change status in two passes: source changed first, then image changed.
   - Status badges.
-- [ ] **`toolbar-compare`**
+  - Done.
+    - **Search:** stories filter by ID.
+    - **Basis:** uncommitted changes, the last commit, this branch (the merge base with the default branch), or any revision typed in. It starts on uncommitted changes when the working tree is dirty, and the last commit when it's clean. A "changed only" toggle sits beside it.
+    - **Two passes:** first, stories whose source file changed against the basis get a dotted badge. Then each render of the current generation is compared with the story's Mac reference at the basis, and the badge becomes changed, new (no reference), failed, or none (unchanged). Edits and rebuilds redo both.
+    - **Capture:** the viewer's renderer captures emulated unless `SWIFTBOOK_CAPTURE` says otherwise, so comparisons match references recorded the way CI records them.
+    - **Checked on the zoo:** against the working tree, all 36 stories come out unchanged. Editing one badge's text marks exactly that story changed; the other stories in its file show source-changed, then clear.
+    - Not yet: removed stories (references at the basis for stories that no longer exist), and comparing devices other than the Mac.- [ ] **`toolbar-compare`**
   - Comparison mode (A), comparison dimension (B) and dimension values (C), including the revision dimension.
   - 2-up and grid layouts, with zoom and pan synchronized across cells.
   - Diff metrics on each cell.

@@ -142,7 +142,7 @@ public struct SnapshotStore: Sendable {
     }
 
     /// Decodes `png`, naming `path` if it can't.
-    static func image(_ png: Data, at path: String) throws -> CGImage {
+    public static func image(_ png: Data, at path: String) throws -> CGImage {
         guard let source = CGImageSourceCreateWithData(png as CFData, nil),
             let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
         else { throw StorageError(description: "\(path) isn't a readable image") }
