@@ -40,31 +40,38 @@
             process.standardInput = FileHandle.nullDevice
             do { try process.run() } catch { return nil }
             // Drain both pipes at once, so a program filling one can't block on it while this
-            // waits on the other.
-            let errorReader = Task.detached { error.fileHandleForReading.readDataToEndOfFile() }
+            // waits on the other. The second reader is a GCD thread, not a Swift task: waiting
+            // on a task here could deadlock when every cooperative thread is busy waiting too.
+            nonisolated(unsafe) var errorData = Data()
+            let errorRead = DispatchGroup()
+            errorRead.enter()
+            DispatchQueue.global().async {
+                errorData = error.fileHandleForReading.readDataToEndOfFile()
+                errorRead.leave()
+            }
             let data = output.fileHandleForReading.readDataToEndOfFile()
-            let errorData = errorReader.waitForResult()
-            process.waitUntilExit()
+            errorRead.wait()
+            let status = exitStatus(of: process)
             // `env` exits 127 when the program doesn't exist.
-            if process.terminationStatus == 127 { return nil }
+            if status == 127 { return nil }
             return Result(
-                status: process.terminationStatus, data: data,
+                status: status, data: data,
                 error: String(decoding: errorData, as: UTF8.self)
                     .trimmingCharacters(in: .whitespacesAndNewlines))
         }
-    }
 
-    extension Task where Failure == Never {
-        /// Blocks until the task finishes. Only for tasks that never wait on the caller.
-        fileprivate func waitForResult() -> Success {
-            let semaphore = DispatchSemaphore(value: 0)
-            nonisolated(unsafe) var result: Success?
-            Task<Void, Never>.detached {
-                result = await self.value
-                semaphore.signal()
-            }
-            semaphore.wait()
-            return result!
+        /// Waits for `process`, whose output has closed, to exit, and returns its status.
+        ///
+        /// Not `waitUntilExit`: off the main thread, Foundation can fail to notice an exit, and
+        /// that waits forever. This polls for a while, then reaps the process itself.
+        private static func exitStatus(of process: Process) -> Int32 {
+            let deadline = ContinuousClock.now + .seconds(5)
+            while process.isRunning, ContinuousClock.now < deadline { usleep(1_000) }
+            guard process.isRunning else { return process.terminationStatus }
+            var status: Int32 = 0
+            guard waitpid(process.processIdentifier, &status, 0) > 0 else { return -1 }
+            // The status as WEXITSTATUS would decode it, or 128 plus the signal that ended it.
+            return status & 0x7f == 0 ? (status >> 8) & 0xff : 128 + (status & 0x7f)
         }
     }
 #endif

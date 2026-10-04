@@ -5,8 +5,10 @@
 
     @testable import SwiftBookViewer
 
-    /// The supervisor against real renderers of previews that crash, hang, and dawdle.
-    @Suite(.serialized) struct RendererSupervisorTests {
+    /// The supervisor and live reloading, against real renderers of FaultZoo, whose previews
+    /// crash, hang, and dawdle. Serialized: the tests share FaultZoo's renderer build, and one of
+    /// them edits a source, which would load the machine and rebuild under the other.
+    @MainActor @Suite(.serialized) struct RendererSupervisorTests {
         static let faultZoo = URL(filePath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()
             .appending(path: "Fixtures/FaultZoo", directoryHint: .isDirectory)
@@ -16,8 +18,9 @@
         }
 
         @Test func survivesCrashesAndHangsAndSwapsGenerations() async throws {
+            // Generous enough for a loaded machine; the hang still has to hit it.
             let supervisor = try await RendererSupervisor.start(
-                for: Self.faultZoo, renderTimeout: .seconds(3))
+                for: Self.faultZoo, renderTimeout: .seconds(8))
             #expect(await supervisor.generation() == 1)
             let stories = try await supervisor.stories().map(\.name)
             #expect(stories == ["Fine", "Crashes", "Hangs", "Slow"])
@@ -38,7 +41,7 @@
             await #expect {
                 try await supervisor.render(Self.story("Hangs"), in: RenderEnvironment())
             } throws: { String(describing: $0).contains("took longer than") }
-            #expect(ContinuousClock.now - start < .seconds(10))
+            #expect(ContinuousClock.now - start < .seconds(20))
             #expect(
                 try await supervisor.render(Self.story("Fine"), in: RenderEnvironment()) == fine)
 
@@ -49,6 +52,50 @@
             #expect(try await supervisor.rebuild() == 2)
             #expect(
                 try await supervisor.render(Self.story("Fine"), in: RenderEnvironment()) == fine)
+        }
+
+        /// An edit reaching the canvas, through a real file watcher, build, and renderer.
+        @Test func anEditRerendersTheSelection() async throws {
+            let package = Self.faultZoo
+            let model = ViewerModel(package: package)
+            await model.start()
+            #expect(model.status == .ready)
+            model.selection = Self.story("Fine")
+            let watcher = FileWatcher(directory: package) { paths in
+                Task { @MainActor in model.filesChanged(paths) }
+            }
+            defer { watcher.stop() }
+            try await Task.sleep(for: .milliseconds(500))
+            while model.isRenderingSelection { try await Task.sleep(for: .milliseconds(20)) }
+            #expect(model.renders.values.allSatisfy { $0.generation == 1 })
+
+            // Touching a source counts as an edit, without changing what it renders. FSEvents can
+            // miss a change made just after its stream starts, so touch again until a rebuild
+            // begins.
+            let source = package.appending(path: "Sources/FaultZoo/Faults.swift").path
+            let start = ContinuousClock.now
+            var touched = ContinuousClock.now - .seconds(10)
+            while model.generation < 2 || model.isRenderingSelection || model.isRebuilding {
+                try #require(
+                    ContinuousClock.now - start < .seconds(60), "no new render within a minute")
+                if model.generation < 2, !model.isRebuilding,
+                    ContinuousClock.now - touched > .seconds(3)
+                {
+                    try FileManager.default.setAttributes(
+                        [.modificationDate: Date()], ofItemAtPath: source)
+                    touched = ContinuousClock.now
+                }
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            let latency = ContinuousClock.now - start
+            print("latency: edit → updated canvas: \(latency)")
+            #expect(latency < .seconds(20))
+            let key = ViewerModel.RenderKey(story: Self.story("Fine"), appearance: .light)
+            #expect(model.renders[key]?.generation == 2)
+            if case .image = model.renders[key]?.render {
+            } else {
+                Issue.record("expected an image, got \(String(describing: model.renders[key]))")
+            }
         }
     }
 #endif

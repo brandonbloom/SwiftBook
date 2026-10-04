@@ -226,14 +226,17 @@
             }
 
             init(process: Process, errorTail: Tail) {
+                // Never `waitUntilExit`: off the main thread it can wait forever for Foundation
+                // to notice an exit. Poll, with deadlines, instead.
                 isRunning = { process.isRunning }
                 stop = { grace in
                     Child.stop(pid: process.processIdentifier, grace: grace) { process.isRunning }
-                    process.waitUntilExit()
                 }
                 exitDescription = {
-                    process.waitUntilExit()
-                    return "exited with status \(process.terminationStatus)"
+                    let deadline = ContinuousClock.now + .seconds(2)
+                    while process.isRunning, ContinuousClock.now < deadline { usleep(10_000) }
+                    return process.isRunning
+                        ? "stopped responding" : "exited with status \(process.terminationStatus)"
                 }
                 errorText = { errorTail.text }
             }

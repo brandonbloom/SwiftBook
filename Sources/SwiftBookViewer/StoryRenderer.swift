@@ -81,13 +81,17 @@
 
         func rebuild() async throws -> Int {
             // Building takes a while; the current renderer keeps serving meanwhile.
+            Self.log("build started")
             let executable = try await onBuildQueue { try self.build(self.package) }
+            Self.log("build finished; starting the new renderer")
             let fresh = try await onBuildQueue { () -> RendererProcess in
                 let process = try RendererProcess(executable: executable)
+                Self.log("new renderer started; warming up")
                 // Warm up: discovery runs on the first list, before anyone waits on it.
                 _ = try process.stories()
                 return process
             }
+            Self.log("new renderer warm; swapping")
             return try await run {
                 let old = self.process
                 self.executable = executable
@@ -97,6 +101,10 @@
                 old?.shutdown(timeout: .seconds(2))
                 return self.currentGeneration
             }
+        }
+
+        private static func log(_ message: String) {
+            FileHandle.standardError.write(Data("swiftbook-viewer: \(message)\n".utf8))
         }
 
         /// The running renderer, restarted from the current build if it has exited.
