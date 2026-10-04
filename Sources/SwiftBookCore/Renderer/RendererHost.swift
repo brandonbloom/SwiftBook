@@ -104,7 +104,7 @@
                             name: "\(Self.name)",
                             dependencies: [
                                 .product(name: "SwiftBookRenderer", package: "swiftbook"),
-                                \(products.joined(separator: ",\n                    ")),
+                                \(products.joined(separator: ",\n                ")),
                             ])
                     ]
                 )
