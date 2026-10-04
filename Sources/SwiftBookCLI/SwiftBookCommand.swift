@@ -13,7 +13,9 @@
                 errors.
                 """,
             subcommands: [
-                DiffCommand.self, ReviewCommand.self, InitCommand.self, DoctorCommand.self,
+                DiffCommand.self, ReviewCommand.self, ListCommand.self, PruneCommand.self,
+                InitCommand.self,
+                DoctorCommand.self,
             ])
 
         public init() {}

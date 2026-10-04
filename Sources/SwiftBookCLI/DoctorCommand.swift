@@ -14,8 +14,11 @@
         @Flag(help: "Print the results as JSON.")
         var json = false
 
+        @Flag(help: "Skip building a renderer to check discovery, which is slow the first time.")
+        var quick = false
+
         func run() throws {
-            let checks = Doctor.checks(project: try? Project.current())
+            let checks = Doctor.checks(project: try? Project.current(), discovery: !quick)
             if json {
                 let encoder = JSONEncoder()
                 encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
@@ -54,8 +57,9 @@
     }
 
     enum Doctor {
-        /// Every check, for `project` if there is one.
-        static func checks(project: Project?) -> [Check] {
+        /// Every check, for `project` if there is one. `discovery` builds a renderer to check that
+        /// every story can be read.
+        static func checks(project: Project?, discovery: Bool = false) -> [Check] {
             var checks = [macOS(), xcode(), git(), lfs()]
             if let project {
                 checks += [lfsRule(project), references(project)]
@@ -67,13 +71,42 @@
                         fix: "Run swiftbook doctor in your package or project."))
             }
             checks += [capture(), simulators()]
-            checks.append(
-                Check(
-                    name: "Discovery", status: .skipped,
-                    detail:
-                        "swift test checks it: a preview SwiftBook can't read fails loudly. swiftbook doctor will check it once the CLI runs renderers."
-                ))
+            if let project, discovery {
+                checks.append(Self.discovery(project))
+            } else {
+                checks.append(
+                    Check(
+                        name: "Discovery", status: .skipped,
+                        detail: project == nil ? "No project." : "Skipped by --quick."))
+            }
             return checks
+        }
+
+        static func discovery(_ project: Project) -> Check {
+            let stories: [StoryInfo]
+            do {
+                let renderer = try Renderers.start(for: project)
+                defer { renderer.shutdown() }
+                stories = try renderer.stories(check: true)
+            } catch {
+                return Check(
+                    name: "Discovery", status: .failure,
+                    detail: "Couldn't run a renderer: \(error)",
+                    fix: "Check that the package's library products build with swift build.")
+            }
+            let failures = stories.filter { $0.error != nil }
+            guard let first = failures.first else {
+                return Check(
+                    name: "Discovery", status: .ok,
+                    detail: "\(stories.count) stories discovered, and every one can be read.")
+            }
+            return Check(
+                name: "Discovery", status: .failure,
+                detail:
+                    "\(failures.count) of \(stories.count) stories can't be read, such as \(first.id): \(first.error!)",
+                fix:
+                    "Run swiftbook list --check to see them all. If a standard preview can't be read, report it with your Xcode version."
+            )
         }
 
         static func macOS() -> Check {

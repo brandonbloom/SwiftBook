@@ -151,7 +151,7 @@ public struct SnapshotStore: Sendable {
 
     /// A story, group, or module name as one path component: readable, and valid on macOS,
     /// Windows, and Git. Characters reserved by any of them become `_`.
-    static func fileName(_ name: String) -> String {
+    public static func fileName(_ name: String) -> String {
         let reserved = Set("/\\:*?\"<>|")
         var result = String(
             name.map { reserved.contains($0) || $0.isASCII && $0.asciiValue! < 0x20 ? "_" : $0 })

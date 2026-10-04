@@ -13,6 +13,8 @@ let package = Package(
     products: [
         .library(name: "SwiftBookCore", targets: ["SwiftBookCore"]),
         .library(name: "SwiftBookTesting", targets: ["SwiftBookTesting"]),
+        // Linked by the hidden host package that renders a user's stories in its own process.
+        .library(name: "SwiftBookRenderer", targets: ["SwiftBookRenderer"]),
         .executable(name: "swiftbook", targets: ["swiftbook"]),
     ],
     dependencies: [
@@ -34,6 +36,7 @@ let package = Package(
             ],
             swiftSettings: strict
         ),
+        .target(name: "SwiftBookRenderer", dependencies: ["SwiftBookCore"], swiftSettings: strict),
         .target(
             name: "SwiftBookCLI",
             dependencies: [

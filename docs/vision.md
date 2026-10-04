@@ -173,7 +173,7 @@ The macOS viewer never links user code. All user code runs in separate **rendere
 ```
 
 **Renderers**
-- Each renderer is built from a hidden host package under `.build/swiftbook/` that depends on the user's package and links its library products. No source is generated, because discovery happens at runtime.
+- Each renderer is built from a hidden host package under `.build/swiftbook/` that depends on the user's package and links its library products. Its only source is a fixed entry point; nothing is generated from the user's code, because discovery happens at runtime.
 - Renderers are **per platform and per build generation**. A successful build starts a new renderer and warms it up. Once it is ready, the viewer swaps over to it and shuts the old one down. The viewer never tries to unload code from a running process.
 - The protocol has three requests: list stories, render (story, variant) → PNG plus metadata, and shutdown.
 

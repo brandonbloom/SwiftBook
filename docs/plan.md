@@ -172,11 +172,18 @@ Fulbloom adopts SwiftBook at the end of this phase.
     - `--open` writes a page of before, after and diff images.
     - It exits 1 when something changed. The comparison lives in SwiftBookCore (`SnapshotStore.changes(since:in:)`) for the viewer to reuse.
   - `prune` moved to `renderer-protocol`. Deciding what's orphaned needs every current story and variant, and only a process that loads the user's code knows them. Guessing from a partial test run could delete live references.
-- [ ] **`renderer-protocol`**
+- [x] **`renderer-protocol`**
   - A versioned IPC protocol (list, render, shutdown), shared by the CLI, the viewer and every renderer.
   - A macOS renderer process that implements it.
   - `swiftbook prune`: delete references whose story or variant no longer exists, using the renderer's list.
   - `swiftbook doctor` reports how many previews were discovered and read.
+  - Done.
+    - **Protocol (`RendererProtocol`, version 1):** newline-delimited JSON on the renderer's stdin and stdout, starting with a hello. `list` returns stories, and with `check` it builds each view and reports failures. `render` returns a PNG with its metadata. Then `shutdown`. The renderer moves its own stdout to stderr, so user code that prints can't corrupt the stream.
+    - **Host (`RendererHost`):** a package at `.build/swiftbook/renderer`. It links every library product of the user's package plus the new `SwiftBookRenderer` library, and depends on SwiftBook the way the user's package resolved it: the same path, or the same URL and revision. It starts from the user's `Package.resolved`. No linker flags were needed: SwiftPM links package targets' object files whole, so conformance records survive. If SwiftBook is in `swift package edit` mode in the user's package, the host still uses the pinned revision.
+    - **Supervision (`RendererProcess`):** per-request timeouts stop a hung renderer (SIGTERM, then SIGKILL). A crash is reported with its exit status and the tail of its stderr. A renderer speaking another protocol version is refused.
+    - **Commands:** `swiftbook list [--check] [--json]`. `swiftbook prune [--dry-run]` deletes story directories that match no current story, only in modules the renderer links, and keeps variants. `doctor` checks discovery unless `--quick`.
+    - **Timing on the zoo:** a cold host build and list takes about 14 s; warm, about 4 s, including the no-op build. A renderer's render of the zoo's Card is byte-identical to the reference recorded by `swift test`.
+    - Variant-level pruning waits until the CLI knows which variants each platform records.
 - [ ] **`ios-host-app`**
   - A generated hidden `.swiftpm` host with an `.iOSApplication` product, built with `xcodebuild`.
   - The fallback is `swift build` plus our own `.app` wrapper; see the [spike](spikes/ios-renderer.md).

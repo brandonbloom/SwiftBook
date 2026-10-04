@@ -11,6 +11,12 @@ public struct StoryID: Hashable, Sendable, CustomStringConvertible {
 
     public var description: String { "\(module)/\(group)/\(name)" }
 
+    public init(module: String, group: String, name: String) {
+        self.module = module
+        self.group = group
+        self.name = name
+    }
+
     /// Assigns identities to stories listed in source order.
     ///
     /// Unnamed stories take their group's name, as Xcode's canvas labels them. Within a group, the
