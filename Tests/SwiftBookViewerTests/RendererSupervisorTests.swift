@@ -17,6 +17,25 @@
             StoryID(module: "FaultZoo", group: "Faults", name: name)
         }
 
+        @Test func capturesTheWayTheReferencesWereRecorded() {
+            let root = Self.faultZoo.deletingLastPathComponent().deletingLastPathComponent()
+            let variable = CaptureMethod.environmentVariable
+            // The zoo's references are emulated. (SnapshotStoreTests covers reading the window
+            // server's.)
+            #expect(
+                RendererSupervisor.environment(
+                    for: root.appending(path: "Fixtures/PreviewZoo"), inherited: [:])
+                    == [variable: "emulated"])
+            // No references: emulated, as CI records.
+            #expect(
+                RendererSupervisor.environment(for: Self.faultZoo, inherited: [:])
+                    == [variable: "emulated"])
+            #expect(
+                RendererSupervisor.environment(
+                    for: root.appending(path: "Fixtures/PreviewZoo"),
+                    inherited: [variable: "windowServer"]) == [variable: "windowServer"])
+        }
+
         @Test func survivesCrashesAndHangsAndSwapsGenerations() async throws {
             // Generous enough for a loaded machine; the hang still has to hit it.
             let supervisor = try await RendererSupervisor.start(

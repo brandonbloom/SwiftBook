@@ -79,6 +79,21 @@ public struct SnapshotStore: Sendable {
         throw StorageError(description: "no Package.swift or .xcodeproj encloses \(filePath)")
     }
 
+    /// How `device`'s references were captured, as their metadata names the method, judging by
+    /// the first readable one. `nil` if there are none, or it doesn't say.
+    public func recordedCapture(on device: Device) -> String? {
+        let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil)
+        while let url = enumerator?.nextObject() as? URL {
+            guard url.pathExtension == "png",
+                url.lastPathComponent.hasPrefix("\(device.rawValue)."),
+                let data = try? Data(contentsOf: url),
+                let metadata = try? SnapshotMetadata.read(fromPNG: data)
+            else { continue }
+            return metadata.capture
+        }
+        return nil
+    }
+
     /// Where the reference for a story rendered on `device` in `environment` lives.
     public func url(for story: StoryID, device: Device, environment: RenderEnvironment) -> URL {
         [story.module, story.group, story.name].reduce(root) { url, component in

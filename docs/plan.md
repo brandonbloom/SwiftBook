@@ -291,7 +291,7 @@ Fulbloom adopts SwiftBook at the end of this phase.
     - **Search:** stories filter by ID.
     - **Basis:** uncommitted changes, the last commit, this branch (the merge base with the default branch), or any revision typed in. It starts on uncommitted changes when the working tree is dirty, and the last commit when it's clean. A "changed only" toggle sits beside it.
     - **Two passes:** first, stories whose source file changed against the basis get a dotted badge. Then each render of the current generation is compared with the story's Mac reference at the basis, and the badge becomes changed, new (no reference), failed, or none (unchanged). Edits and rebuilds redo both.
-    - **Capture:** the viewer's renderer captures emulated unless `SWIFTBOOK_CAPTURE` says otherwise, so comparisons match references recorded the way CI records them.
+    - **Capture:** the viewer's renderer captures the way the package's Mac references were recorded, as their metadata says, so comparisons with them mean something: from the window server if they were (and it may record the screen), and emulated, as CI records, otherwise. `SWIFTBOOK_CAPTURE` overrides. Wander's window-server references showed 5 of 6 stories falsely changed before this.
     - **Checked on the zoo:** against the working tree, all 36 stories come out unchanged. Editing one badge's text marks exactly that story changed; the other stories in its file show source-changed, then clear.
     - Not yet: removed stories (references at the basis for stories that no longer exist), and comparing devices other than the Mac.
 - [x] **`toolbar-compare`**

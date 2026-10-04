@@ -35,6 +35,22 @@ import Testing
         #expect(url.path.hasSuffix("Snapshots/Zoo/Card/Card (dark)/mac.dark.png"))
     }
 
+    @Test func readsHowReferencesWereCaptured() throws {
+        #expect(store.recordedCapture(on: .mac) == nil)
+        var snapshot = snapshot(gray: 128)
+        var metadata = snapshot.metadata
+        metadata.capture = "windowServer"
+        snapshot = Snapshot(
+            story: story, device: .mac, environment: snapshot.environment, image: snapshot.image,
+            metadata: metadata)
+        let url = store.url(for: story, device: .mac, environment: snapshot.environment)
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try snapshot.pngData().write(to: url)
+        #expect(store.recordedCapture(on: .mac) == "windowServer")
+        #expect(store.recordedCapture(on: .iphone) == nil)
+    }
+
     @Test func namesVariantsByNonDefaultDimensions() {
         var environment = RenderEnvironment()
         #expect(

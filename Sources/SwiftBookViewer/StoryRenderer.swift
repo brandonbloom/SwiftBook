@@ -34,6 +34,7 @@
         private var executable: URL?
         private var process: RendererProcess?
         private var currentGeneration = 0
+        private let environment: [String: String]
 
         init(
             package: URL, renderTimeout: Duration = .seconds(30),
@@ -44,6 +45,7 @@
             self.package = package
             self.renderTimeout = renderTimeout
             self.build = build
+            environment = Self.environment(for: package)
         }
 
         /// Builds the package's renderer and starts it.
@@ -65,12 +67,23 @@
             try await run { try self.running().stories() }
         }
 
-        /// The renderer's environment. Its captures must match how references were recorded for
-        /// comparisons to mean anything, so it captures emulated, as CI does, unless
-        /// `SWIFTBOOK_CAPTURE` says otherwise.
-        static var environment: [String: String] {
+        /// The renderer's environment. Its captures must match how the package's Mac references
+        /// were recorded for comparisons to mean anything. Unless `SWIFTBOOK_CAPTURE` says
+        /// otherwise, it captures from the window server if they were (and the renderer may
+        /// record the screen), and emulated, as CI does, otherwise.
+        static func environment(
+            for package: URL,
+            inherited: [String: String] = ProcessInfo.processInfo.environment
+        ) -> [String: String] {
             let variable = CaptureMethod.environmentVariable
-            return [variable: ProcessInfo.processInfo.environment[variable] ?? "emulated"]
+            if let method = inherited[variable], !method.isEmpty { return [variable: method] }
+            let store = SnapshotStore(
+                root: package.appending(path: "Snapshots", directoryHint: .isDirectory))
+            if store.recordedCapture(on: .mac) == CaptureMethod.windowServer.rawValue {
+                // The renderer's own choice: the window server when it can.
+                return [:]
+            }
+            return [variable: CaptureMethod.emulated.rawValue]
         }
 
         /// How long a background render may take.
@@ -89,7 +102,7 @@
                     // one bad story doesn't take the rest down with it.
                     guard !process.isRunning, let executable = self.executable else { throw error }
                     self.process = try? RendererProcess(
-                        executable: executable, environment: Self.environment)
+                        executable: executable, environment: self.environment)
                     throw RendererError(
                         description:
                             "\(error)\nThe renderer was restarted; other stories are unaffected.")
@@ -104,7 +117,7 @@
             Self.log("build finished; starting the new renderer")
             let fresh = try await onBuildQueue { () -> RendererProcess in
                 let process = try RendererProcess(
-                    executable: executable, environment: Self.environment)
+                    executable: executable, environment: self.environment)
                 Self.log("new renderer started; warming up")
                 // Warm up: discovery runs on the first list, before anyone waits on it.
                 _ = try process.stories()
@@ -133,7 +146,7 @@
                 throw RendererError(description: "the renderer isn't running")
             }
             let restarted = try RendererProcess(
-                executable: executable, environment: Self.environment)
+                executable: executable, environment: self.environment)
             process = restarted
             return restarted
         }
