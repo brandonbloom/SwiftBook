@@ -37,8 +37,8 @@
             }
         }
 
-        /// Every render request, as "<story> <appearance> g<generation>", with " ahead" for a
-        /// background render.
+        /// Every render request, as "<story> <appearance> g<generation>", with " rtl" for right
+        /// to left and " ahead" for a background render.
         var requests: [String] { lock.withLock { _requests } }
 
         /// Replaces the stories the next build will list.
@@ -69,7 +69,9 @@
         {
             lock.withLock {
                 _requests.append(
-                    "\(story) \(environment.appearance) g\(_generation)\(background ? " ahead" : "")"
+                    "\(story) \(environment.appearance) g\(_generation)"
+                        + (environment.layoutDirection == .rightToLeft ? " rtl" : "")
+                        + (background ? " ahead" : "")
                 )
             }
             if failing.contains(story.description) {
@@ -268,7 +270,7 @@
             await model.start()
             await settle(model)
             // A background failure isn't shown or retried in the background.
-            #expect(model.renders[.init(story: Self.story("M/A/Slow"), appearance: .light)] == nil)
+            #expect(model.renders[.init(story: Self.story("M/A/Slow"), variant: .init())] == nil)
             model.selection = Self.story("M/A/Slow")
             await settle(model)
             #expect(
@@ -310,6 +312,41 @@
             // A story has nothing to expand.
             model.moveRight()
             #expect(model.selectedNode == "M/A/One")
+        }
+
+        @Test func comparesAcrossTheChosenDimension() async {
+            let renderer = FakeRenderer(["M/A/One"])
+            let model = model(renderer)
+            await model.start()
+            await settle(model)
+            #expect(model.cells.map(\.title) == [""])
+
+            model.compareMode = .twoUp
+            #expect(model.cells.map(\.title) == ["Light", "Dark"])
+            await settle(model)
+            #expect(renderer.requests == ["M/A/One light g1", "M/A/One dark g1"])
+            #expect(model.cells.allSatisfy { model.state(of: $0) != .loading })
+
+            // The other pickers apply to every cell.
+            model.appearance = .dark
+            model.compareDimension = .layoutDirection
+            #expect(model.cells.map(\.title) == ["Left to right", "Right to left"])
+            await settle(model)
+            #expect(renderer.requests.last == "M/A/One dark g1 rtl")
+            // The grid has nothing more to show for two values.
+            model.compareMode = .grid
+            #expect(model.cells.count == 2)
+        }
+
+        @Test func zoomsInSteps() {
+            let model = model(FakeRenderer([]))
+            model.zoomIn()
+            #expect(model.zoom == 1.5)
+            model.zoom = 1.2
+            model.zoomOut()
+            #expect(model.zoom == 1)
+            for _ in 0..<20 { model.zoomOut() }
+            #expect(model.zoom == 0.25)
         }
 
         @Test func reportsARendererThatWontStart() async {

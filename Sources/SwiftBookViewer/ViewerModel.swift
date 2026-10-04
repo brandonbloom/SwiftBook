@@ -66,9 +66,86 @@
             case failed(String)
         }
 
+        /// A value for each dimension the viewer varies.
+        struct Variant: Hashable {
+            var appearance = RenderEnvironment.Appearance.light
+            var layoutDirection = LayoutDirection.leftToRight
+        }
+
         struct RenderKey: Hashable {
             let story: StoryID
+            let variant: Variant
+        }
+
+        /// (A) How the canvas lays out the selection.
+        enum CompareMode: String, CaseIterable, Hashable {
+            case single
+            /// Two values of the comparison dimension, side by side.
+            case twoUp
+            /// Every value of the comparison dimension, plus the difference when comparing
+            /// revisions.
+            case grid
+        }
+
+        /// (B) The dimension a comparison spreads across.
+        enum CompareDimension: String, CaseIterable, Hashable {
+            case appearance
+            case layoutDirection
+            /// The reference at the basis against the working tree's render.
+            case revision
+        }
+
+        /// One image on the canvas.
+        struct Cell: Identifiable, Hashable {
+            enum Content: Hashable {
+                case render(RenderKey)
+                /// The Mac reference for the key at the basis.
+                case reference(RenderKey)
+                /// Where the key's render differs from its reference at the basis.
+                case diff(RenderKey)
+            }
+
+            let title: String
+            let content: Content
+            var id: Content { content }
+        }
+
+        /// What a cell shows.
+        enum CellState: Equatable {
+            case image(NSImage)
+            case failed(String)
+            /// Waiting on a render, a reference, or a comparison.
+            case loading
+            /// Nothing to show, and why.
+            case empty(String)
+        }
+
+        /// How a render differs from its reference at the basis.
+        struct Comparison: Equatable {
+            let changedPixelRatio: Double
+            let maxDeltaE: Double
+            let sizesMatch: Bool
+            let matches: Bool
+            /// The changed pixels, highlighted over the render.
+            let image: NSImage?
+        }
+
+        private struct ReferenceKey: Hashable {
+            let story: StoryID
             let appearance: RenderEnvironment.Appearance
+            let revision: String
+        }
+
+        private enum Reference: Equatable {
+            case found(Data)
+            case missing
+            case failed(String)
+        }
+
+        private struct ComparisonKey: Hashable {
+            let render: RenderKey
+            let revision: String
+            let generation: Int
         }
 
         /// A render, and the build generation it came from.
@@ -93,7 +170,7 @@
         private(set) var tree: [StoryNode] = []
         var selection: StoryID? {
             didSet {
-                renderSelection()
+                visibleCellsChanged()
                 // Keep the sidebar's row in step, unless it's already on this story.
                 if let selection, selectedNode != selection.description {
                     selectedNode = selection.description
@@ -112,9 +189,26 @@
                 }
             }
         }
+        /// (C) The color scheme, for every cell not spread across it.
         var appearance = RenderEnvironment.Appearance.light {
-            didSet { renderSelection() }
+            didSet { visibleCellsChanged() }
         }
+        /// (C) The layout direction, for every cell not spread across it.
+        var layoutDirection = LayoutDirection.leftToRight {
+            didSet { visibleCellsChanged() }
+        }
+        var compareMode = CompareMode.single {
+            didSet { visibleCellsChanged() }
+        }
+        var compareDimension = CompareDimension.appearance {
+            didSet { visibleCellsChanged() }
+        }
+        /// The canvas's magnification, shared by every cell.
+        var zoom = 1.0
+        /// The canvas's scroll offset, shared by every cell so they show the same region.
+        var panOffset = CGPoint.zero
+        /// The variant the pickers choose.
+        var variant: Variant { Variant(appearance: appearance, layoutDirection: layoutDirection) }
         private(set) var renders: [RenderKey: Rendered] = [:]
         /// Renders requested and not yet back.
         private(set) var pending: Set<RenderKey> = []
@@ -298,7 +392,7 @@
                 if let selection, !stories.contains(where: { $0.id == selection }) {
                     self.selection = stories.first?.id
                 } else {
-                    renderSelection()
+                    visibleCellsChanged()
                 }
             } catch {
                 buildError = String(describing: error)
@@ -313,7 +407,7 @@
         }
 
         private var currentKey: RenderKey? {
-            selection.map { RenderKey(story: $0, appearance: appearance) }
+            selection.map { RenderKey(story: $0, variant: variant) }
         }
 
         /// The render the canvas shows: the selection in the chosen appearance, possibly from an
@@ -324,7 +418,7 @@
 
         /// Whether the canvas is waiting on a render of the selection.
         var isRenderingSelection: Bool {
-            currentKey.map(pending.contains) ?? false
+            !pending.isDisjoint(with: visibleRenderKeys)
         }
 
         /// Whether stories render ahead of the selection, so switching to them is instant.
@@ -336,8 +430,21 @@
         /// selected, with the full timeout.
         private var skippedAhead: Set<RenderKey> = []
 
-        private func renderSelection() {
+        /// Starts whatever the canvas's cells need: renders, references, and comparisons.
+        private func visibleCellsChanged() {
             renderNext()
+            loadReferences()
+            compareVisible()
+        }
+
+        /// The renders the canvas's cells need, in cell order.
+        private var visibleRenderKeys: [RenderKey] {
+            cells.compactMap { cell in
+                switch cell.content {
+                case .render(let key), .diff(let key): key
+                case .reference: nil
+                }
+            }
         }
 
         /// Whether `key` has no render from the current generation.
@@ -345,16 +452,15 @@
             (renders[key]?.generation ?? 0) < generation
         }
 
-        /// The next render to do: the selection, then the other stories in the sidebar's order
-        /// from just after it, in the same appearance.
+        /// The next render to do: the canvas's cells, then the other stories in the sidebar's
+        /// order from just after the selection, in the pickers' variant.
         private func nextKey() -> RenderKey? {
-            if let key = currentKey, needsRender(key) { return key }
+            if let key = visibleRenderKeys.first(where: needsRender) { return key }
             guard rendersAhead, !stories.isEmpty else { return nil }
             let ids = stories.map(\.id)
             let start = selection.flatMap { ids.firstIndex(of: $0) }.map { $0 + 1 } ?? 0
             for offset in 0..<ids.count {
-                let key = RenderKey(
-                    story: ids[(start + offset) % ids.count], appearance: appearance)
+                let key = RenderKey(story: ids[(start + offset) % ids.count], variant: variant)
                 if needsRender(key), !skippedAhead.contains(key) { return key }
             }
             return nil
@@ -363,10 +469,11 @@
         private func renderNext() {
             guard inFlight == nil, let renderer, let key = nextKey() else { return }
             inFlight = key
-            let background = key != currentKey
+            let background = !visibleRenderKeys.contains(key)
             pending.insert(key)
             var environment = RenderEnvironment()
-            environment.appearance = key.appearance
+            environment.appearance = key.variant.appearance
+            environment.layoutDirection = key.variant.layoutDirection
             let generation = generation
             Task {
                 defer {
@@ -379,15 +486,9 @@
                 do {
                     png = try await renderer.render(
                         key.story, in: environment, background: background)
-                    if let png, let image = NSImage(data: png) {
-                        // The bitmap is at the render's scale; show it at its size in points.
-                        if let representation = image.representations.first {
-                            image.size = CGSize(
-                                width: Double(representation.pixelsWide) / environment.scale,
-                                height: Double(representation.pixelsHigh) / environment.scale)
-                        }
+                    if let png, let image = Self.image(png, scale: environment.scale) {
                         render = .image(image)
-                        log("rendered \(key.story) (\(key.appearance))")
+                        log("rendered \(key.story) (\(key.variant.appearance))")
                     } else {
                         render = .failed("the renderer sent an unreadable image")
                     }
@@ -403,11 +504,201 @@
                 // Keep a newer render if one already arrived.
                 if (renders[key]?.generation ?? 0) <= generation {
                     renders[key] = Rendered(render: render, generation: generation, png: png)
-                    if generation == self.generation, key.appearance == appearance {
+                    if generation == self.generation, setsStatus(key) {
                         compareWithBasis(key)
                     }
+                    compareVisible()
                 }
             }
+        }
+
+        /// `png` as an image of its size in points, given the scale it was rendered at.
+        nonisolated static func image(_ png: Data, scale: Double) -> NSImage? {
+            guard let image = NSImage(data: png) else { return nil }
+            if let representation = image.representations.first {
+                image.size = CGSize(
+                    width: Double(representation.pixelsWide) / scale,
+                    height: Double(representation.pixelsHigh) / scale)
+            }
+            return image
+        }
+
+        // MARK: Canvas
+
+        /// The canvas's cells, per the toolbar.
+        var cells: [Cell] {
+            guard let selection else { return [] }
+            let key = RenderKey(story: selection, variant: variant)
+            func cell(_ title: String, _ change: (inout Variant) -> Void) -> Cell {
+                var variant = variant
+                change(&variant)
+                return Cell(
+                    title: title, content: .render(RenderKey(story: selection, variant: variant)))
+            }
+            guard compareMode != .single else { return [Cell(title: "", content: .render(key))] }
+            switch compareDimension {
+            case .appearance:
+                return [
+                    cell("Light") { $0.appearance = .light },
+                    cell("Dark") { $0.appearance = .dark },
+                ]
+            case .layoutDirection:
+                return [
+                    cell("Left to right") { $0.layoutDirection = .leftToRight },
+                    cell("Right to left") { $0.layoutDirection = .rightToLeft },
+                ]
+            case .revision:
+                let basisTitle = [
+                    basis?.title ?? "Basis", basisRevision.map { String($0.prefix(7)) },
+                ]
+                .compactMap { $0 }.joined(separator: " · ")
+                let cells = [
+                    Cell(title: basisTitle, content: .reference(key)),
+                    Cell(title: "Working tree", content: .render(key)),
+                ]
+                return compareMode == .grid
+                    ? cells + [Cell(title: "Difference", content: .diff(key))] : cells
+            }
+        }
+
+        func state(of cell: Cell) -> CellState {
+            switch cell.content {
+            case .render(let key):
+                switch renders[key]?.render {
+                case .image(let image)?: return .image(image)
+                case .failed(let message)?: return .failed(message)
+                case nil: return .loading
+                }
+            case .reference(let key):
+                if let unavailable = referenceUnavailable(key) { return .empty(unavailable) }
+                switch references[referenceKey(key)!] {
+                case .found(let png)?:
+                    return Self.image(png, scale: RenderEnvironment().scale).map(CellState.image)
+                        ?? .failed("the reference isn't a readable image")
+                case .missing?: return .empty("No reference at the basis")
+                case .failed(let message)?: return .failed(message)
+                case nil: return .loading
+                }
+            case .diff(let key):
+                if let unavailable = referenceUnavailable(key) { return .empty(unavailable) }
+                if case .missing? = references[referenceKey(key)!] {
+                    return .empty("No reference at the basis")
+                }
+                if case .failed(let message)? = renders[key]?.render { return .failed(message) }
+                guard let comparison = comparison(for: key) else { return .loading }
+                return comparison.image.map(CellState.image) ?? .empty("Identical")
+            }
+        }
+
+        /// How the cell's render differs from its reference at the basis, when comparing
+        /// revisions.
+        func comparison(of cell: Cell) -> Comparison? {
+            switch cell.content {
+            case .render(let key), .diff(let key):
+                compareDimension == .revision && compareMode != .single ? comparison(for: key) : nil
+            case .reference: nil
+            }
+        }
+
+        private func comparison(for key: RenderKey) -> Comparison? {
+            guard let revision = basisRevision else { return nil }
+            return comparisons[
+                ComparisonKey(render: key, revision: revision, generation: generation)]
+        }
+
+        private var references: [ReferenceKey: Reference] = [:]
+        private var loadingReferences: Set<ReferenceKey> = []
+        private var comparisons: [ComparisonKey: Comparison] = [:]
+        private var comparing: Set<ComparisonKey> = []
+
+        private func referenceKey(_ key: RenderKey) -> ReferenceKey? {
+            basisRevision.map {
+                ReferenceKey(story: key.story, appearance: key.variant.appearance, revision: $0)
+            }
+        }
+
+        /// Why `key` can't have a reference, if it can't.
+        private func referenceUnavailable(_ key: RenderKey) -> String? {
+            if history == nil { return "Not in a Git repository" }
+            if let historyError { return historyError }
+            if key.variant.layoutDirection != .leftToRight {
+                return "References are recorded left to right only"
+            }
+            return basisRevision == nil ? "Resolving the basis…" : nil
+        }
+
+        /// Fetches the references the canvas's cells need from the basis.
+        private func loadReferences() {
+            guard let history, compareDimension == .revision, compareMode != .single else { return }
+            for key in visibleRenderKeys where referenceUnavailable(key) == nil {
+                guard let referenceKey = referenceKey(key), references[referenceKey] == nil,
+                    !loadingReferences.contains(referenceKey)
+                else { continue }
+                loadingReferences.insert(referenceKey)
+                Task {
+                    let reference = await Task.detached { () -> Reference in
+                        do {
+                            return try history.reference(
+                                for: referenceKey.story, appearance: referenceKey.appearance,
+                                at: referenceKey.revision
+                            ).map(Reference.found) ?? .missing
+                        } catch {
+                            return .failed(String(describing: error))
+                        }
+                    }.value
+                    loadingReferences.remove(referenceKey)
+                    references[referenceKey] = reference
+                    compareVisible()
+                }
+            }
+        }
+
+        /// Compares the canvas's renders with their references, once both are in.
+        private func compareVisible() {
+            guard compareDimension == .revision, compareMode != .single else { return }
+            for key in visibleRenderKeys {
+                guard let referenceKey = referenceKey(key),
+                    case .found(let reference)? = references[referenceKey],
+                    let rendered = renders[key], rendered.generation == generation,
+                    let png = rendered.png
+                else { continue }
+                let comparisonKey = ComparisonKey(
+                    render: key, revision: referenceKey.revision, generation: generation)
+                guard comparisons[comparisonKey] == nil, !comparing.contains(comparisonKey) else {
+                    continue
+                }
+                comparing.insert(comparisonKey)
+                let scale = RenderEnvironment().scale
+                Task {
+                    let comparison = await Task.detached { () -> Comparison? in
+                        guard let expected = try? SnapshotStore.image(reference, at: "reference"),
+                            let actual = try? SnapshotStore.image(png, at: "render"),
+                            let diff = try? ImageDiff.compare(expected: expected, actual: actual)
+                        else { return nil }
+                        let image =
+                            diff.matches
+                            ? nil
+                            : try? diff.pngData().flatMap {
+                                Self.image($0, scale: scale)
+                            }
+                        return Comparison(
+                            changedPixelRatio: diff.changedPixelRatio, maxDeltaE: diff.maxDeltaE,
+                            sizesMatch: diff.sizesMatch, matches: diff.matches, image: image)
+                    }.value
+                    comparing.remove(comparisonKey)
+                    if let comparison { comparisons[comparisonKey] = comparison }
+                }
+            }
+        }
+
+        private static let zoomLevels = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8]
+
+        func zoomIn() {
+            zoom = Self.zoomLevels.first { $0 > zoom + 0.001 } ?? Self.zoomLevels.last!
+        }
+
+        func zoomOut() {
+            zoom = Self.zoomLevels.last { $0 < zoom - 0.001 } ?? Self.zoomLevels.first!
         }
 
         // MARK: History
@@ -442,10 +733,18 @@
                                 ? ChangeStatus.sourceChanged : .pending
                         )
                     })
-                for key in renders.keys where key.appearance == appearance {
+                for key in renders.keys where setsStatus(key) {
                     compareWithBasis(key)
                 }
+                loadReferences()
+                compareVisible()
             }
+        }
+
+        /// Whether `key`'s render decides its story's status: it's in the chosen appearance, and
+        /// left to right like the references.
+        private func setsStatus(_ key: RenderKey) -> Bool {
+            key.variant == Variant(appearance: appearance)
         }
 
         /// Compares the current generation's render for `key` with the basis's reference, and
@@ -463,7 +762,7 @@
                     History.imageStatus(
                         render: png,
                         reference: try? history.reference(
-                            for: key.story, appearance: key.appearance, at: revision))
+                            for: key.story, appearance: key.variant.appearance, at: revision))
                 }.value
                 // Only if nothing has moved on meanwhile.
                 guard revision == basisRevision, renders[key] == rendered else { return }
@@ -483,6 +782,8 @@
             var basis: String?
             /// How many stories have each change status.
             var changes: [String: Int]
+            /// The canvas's cells, by title.
+            var cells: [String]
         }
 
         var summary: Summary {
@@ -498,7 +799,8 @@
                     }
                 } ?? (isRenderingSelection ? "rendering" : nil),
                 buildError: buildError, basis: basis?.title,
-                changes: Dictionary(grouping: statuses.values, by: { "\($0)" }).mapValues(\.count))
+                changes: Dictionary(grouping: statuses.values, by: { "\($0)" }).mapValues(\.count),
+                cells: cells.map(\.title))
         }
 
         /// Writes a line to standard error, which `swiftbook view` sends to the viewer's log.

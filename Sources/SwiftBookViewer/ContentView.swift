@@ -13,13 +13,28 @@
                 Canvas(model: model)
             }
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Picker("Appearance", selection: $model.appearance) {
-                        Text("Light").tag(RenderEnvironment.Appearance.light)
-                        Text("Dark").tag(RenderEnvironment.Appearance.dark)
+                ToolbarItemGroup(placement: .principal) {
+                    CompareControls(model: model)
+                }
+                ToolbarItemGroup {
+                    Button {
+                        model.zoomOut()
+                    } label: {
+                        Label("Zoom Out", systemImage: "minus.magnifyingglass")
                     }
-                    .pickerStyle(.segmented)
-                    .help("Color scheme")
+                    .keyboardShortcut("-")
+                    .help("Zoom out")
+                    Button("\(Int((model.zoom * 100).rounded()))%") { model.zoom = 1 }
+                        .keyboardShortcut("0")
+                        .monospacedDigit()
+                        .help("Actual size")
+                    Button {
+                        model.zoomIn()
+                    } label: {
+                        Label("Zoom In", systemImage: "plus.magnifyingglass")
+                    }
+                    .keyboardShortcut("=")
+                    .help("Zoom in")
                 }
                 ToolbarItem {
                     Button {
@@ -31,15 +46,52 @@
                     .disabled(model.status != .ready || model.isRebuilding)
                     .help("Build the package again and re-render")
                 }
-                ToolbarItem {
-                    // Comparison mode and dimension come with toolbar-compare.
-                    Menu("Compare", systemImage: "rectangle.split.2x1") {
-                        Text("Single")
-                    }
-                    .disabled(true)
-                    .help("Comparison (coming soon)")
-                }
             }
+        }
+    }
+
+    /// The toolbar's comparison mode (A), comparison dimension (B), and dimension values (C).
+    struct CompareControls: View {
+        @Bindable var model: ViewerModel
+
+        private var comparing: Bool { model.compareMode != .single }
+
+        var body: some View {
+            Picker("Layout", selection: $model.compareMode) {
+                Label("Single", systemImage: "rectangle").tag(ViewerModel.CompareMode.single)
+                Label("2-up", systemImage: "rectangle.split.2x1").tag(ViewerModel.CompareMode.twoUp)
+                Label("Grid", systemImage: "square.grid.2x2").tag(ViewerModel.CompareMode.grid)
+            }
+            .pickerStyle(.segmented)
+            .labelStyle(.iconOnly)
+            .help("Comparison mode")
+            Picker("Compare", selection: $model.compareDimension) {
+                Text("Color Scheme").tag(ViewerModel.CompareDimension.appearance)
+                Text("Layout Direction").tag(ViewerModel.CompareDimension.layoutDirection)
+                Text("Revision").tag(ViewerModel.CompareDimension.revision)
+            }
+            .pickerStyle(.menu)
+            .fixedSize()
+            .disabled(!comparing)
+            .help("What to compare across")
+            Picker("Appearance", selection: $model.appearance) {
+                Label("Light", systemImage: "sun.max").tag(RenderEnvironment.Appearance.light)
+                Label("Dark", systemImage: "moon").tag(RenderEnvironment.Appearance.dark)
+            }
+            .pickerStyle(.segmented)
+            .labelStyle(.iconOnly)
+            .disabled(comparing && model.compareDimension == .appearance)
+            .help("Color scheme")
+            Picker("Layout Direction", selection: $model.layoutDirection) {
+                Label("Left to Right", systemImage: "text.alignleft").tag(
+                    LayoutDirection.leftToRight)
+                Label("Right to Left", systemImage: "text.alignright").tag(
+                    LayoutDirection.rightToLeft)
+            }
+            .pickerStyle(.segmented)
+            .labelStyle(.iconOnly)
+            .disabled(comparing && model.compareDimension == .layoutDirection)
+            .help("Layout direction")
         }
     }
 
@@ -231,19 +283,7 @@
                     if case .failed(let message) = model.status {
                         ErrorText(title: "The renderer couldn't start", message: message)
                     } else if let story = model.selection {
-                        switch model.currentRender {
-                        case .image(let image)?:
-                            ScrollView([.horizontal, .vertical]) {
-                                Image(nsImage: image)
-                                    .border(.separator)
-                                    .padding(24)
-                            }
-                            .defaultScrollAnchor(.center)
-                        case .failed(let message)?:
-                            ErrorText(title: "Couldn't render \(story.name)", message: message)
-                        case nil:
-                            ProgressStatus(text: "Rendering \(story.name)…")
-                        }
+                        Cells(model: model, story: story)
                     } else {
                         ContentUnavailableView(
                             "Select a story", systemImage: "rectangle.on.rectangle")
@@ -260,6 +300,140 @@
             }
             .navigationTitle(model.selection?.name ?? model.package.lastPathComponent)
             .navigationSubtitle(model.selection.map { "\($0.module) › \($0.group)" } ?? "")
+        }
+    }
+
+    /// The canvas's cells, laid out per the comparison mode. Pinching zooms them all.
+    struct Cells: View {
+        @Bindable var model: ViewerModel
+        let story: StoryID
+        @State private var pinchStart: Double?
+
+        var body: some View {
+            let cells = model.cells
+            // Up to three cells fit in a row; more wrap into a square grid.
+            let columns =
+                cells.count <= 3 ? cells.count : Int(Double(cells.count).squareRoot().rounded(.up))
+            Grid(horizontalSpacing: 1, verticalSpacing: 1) {
+                ForEach(Array(stride(from: 0, to: cells.count, by: max(columns, 1))), id: \.self) {
+                    start in
+                    GridRow {
+                        ForEach(cells[start..<min(start + columns, cells.count)]) { cell in
+                            CellView(
+                                cell: cell, model: model, story: story, showsTitle: cells.count > 1)
+                        }
+                    }
+                }
+            }
+            .background(.separator)
+            .simultaneousGesture(
+                MagnifyGesture()
+                    .onChanged { value in
+                        let start = pinchStart ?? model.zoom
+                        pinchStart = start
+                        model.zoom = min(8, max(0.25, start * value.magnification))
+                    }
+                    .onEnded { _ in pinchStart = nil })
+        }
+    }
+
+    /// One image on the canvas. The cell under the pointer leads scrolling, and the others
+    /// follow it.
+    struct CellView: View {
+        let cell: ViewerModel.Cell
+        @Bindable var model: ViewerModel
+        let story: StoryID
+        let showsTitle: Bool
+        @State private var position = ScrollPosition()
+        @State private var hovering = false
+
+        var body: some View {
+            VStack(spacing: 0) {
+                if showsTitle {
+                    HStack {
+                        Text(cell.title).font(.headline)
+                        Spacer()
+                        if let comparison = model.comparison(of: cell) {
+                            ComparisonText(comparison: comparison)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(.bar)
+                }
+                content
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(.background)
+            }
+            .onHover { hovering = $0 }
+        }
+
+        @ViewBuilder private var content: some View {
+            switch model.state(of: cell) {
+            case .image(let image):
+                ScrollView([.horizontal, .vertical]) {
+                    Image(nsImage: image)
+                        .resizable()
+                        .interpolation(model.zoom >= 2 ? .none : .high)
+                        .frame(
+                            width: image.size.width * model.zoom,
+                            height: image.size.height * model.zoom
+                        )
+                        .border(.separator)
+                        .padding(24)
+                }
+                .defaultScrollAnchor(.center)
+                .scrollPosition($position)
+                .onScrollGeometryChange(for: CGPoint.self) {
+                    $0.contentOffset
+                } action: {
+                    _, offset in
+                    if hovering, model.panOffset != offset { model.panOffset = offset }
+                }
+                .onChange(of: model.panOffset) { _, offset in
+                    if !hovering { position.scrollTo(point: offset) }
+                }
+            case .failed(let message):
+                ErrorText(title: "Couldn't render \(story.name)", message: message)
+            case .loading:
+                ProgressStatus(
+                    text: {
+                        switch cell.content {
+                        case .render: "Rendering \(story.name)…"
+                        case .reference: "Reading the reference…"
+                        case .diff: "Comparing…"
+                        }
+                    }())
+            case .empty(let reason):
+                Text(reason).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    /// A comparison's diff metrics, in brief.
+    struct ComparisonText: View {
+        let comparison: ViewerModel.Comparison
+
+        var body: some View {
+            Group {
+                if !comparison.sizesMatch {
+                    Text("Sizes differ").foregroundStyle(.orange)
+                } else if comparison.maxDeltaE == 0 {
+                    Text("Identical")
+                } else {
+                    Text(
+                        "\(comparison.changedPixelRatio.formatted(.percent.precision(.fractionLength(0...2)))) changed · ΔE \(comparison.maxDeltaE.formatted(.number.precision(.fractionLength(1))))"
+                    )
+                    .foregroundStyle(comparison.matches ? Color.secondary : Color.orange)
+                }
+            }
+            .font(.callout)
+            .monospacedDigit()
+            .help(
+                comparison.matches
+                    ? "Within tolerance of the reference"
+                    : "Differs from the reference: changed pixels and the largest perceptual difference"
+            )
         }
     }
 

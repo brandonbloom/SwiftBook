@@ -100,7 +100,7 @@
             let latency = ContinuousClock.now - start
             print("latency: edit → updated canvas: \(latency)")
             #expect(latency < .seconds(20))
-            let key = ViewerModel.RenderKey(story: Self.story("Fine"), appearance: .light)
+            let key = ViewerModel.RenderKey(story: Self.story("Fine"), variant: .init())
             #expect(model.renders[key]?.generation == 2)
             if case .image = model.renders[key]?.render {
             } else {

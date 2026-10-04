@@ -281,7 +281,7 @@ Fulbloom adopts SwiftBook at the end of this phase.
     - **Order:** one render runs at a time. The selection comes first, then every other story in sidebar order from after the selection, so switching stories is instant once they've rendered. After a reload, the next generation renders the same way.
     - **Background timeout:** background renders get 5 s, so a slow story can't hold up the one someone is waiting for. A background failure isn't cached; the story renders with the full timeout when selected.
     - **Cost:** a story that really hangs can delay a reload by up to that 5 s, once per build. On FaultZoo, edit to canvas takes 3.8 s normally and 9.7 s when the hanging story is mid-render.
-    - What's visible becomes more than the selection once `toolbar-compare` adds cells. Then the queue should take every visible cell first.
+    - With `toolbar-compare`, every visible cell renders first, then the rest ahead.
 - [x] **`sidebar-history`**
   - Search and grouping.
   - Basis filters: uncommitted changes, last commit, branch, any revision.
@@ -294,10 +294,16 @@ Fulbloom adopts SwiftBook at the end of this phase.
     - **Capture:** the viewer's renderer captures emulated unless `SWIFTBOOK_CAPTURE` says otherwise, so comparisons match references recorded the way CI records them.
     - **Checked on the zoo:** against the working tree, all 36 stories come out unchanged. Editing one badge's text marks exactly that story changed; the other stories in its file show source-changed, then clear.
     - Not yet: removed stories (references at the basis for stories that no longer exist), and comparing devices other than the Mac.
-- [ ] **`toolbar-compare`**
+- [x] **`toolbar-compare`**
   - Comparison mode (A), comparison dimension (B) and dimension values (C), including the revision dimension.
   - 2-up and grid layouts, with zoom and pan synchronized across cells.
   - Diff metrics on each cell.
+  - Done for the Mac's dimensions.
+    - **(A):** single, 2-up, or grid. **(B):** color scheme, layout direction, or revision. **(C):** color scheme and layout direction pickers, which apply to every cell except along the compared dimension. The sidebar's basis is the revision picker.
+    - **Revision:** the reference at the basis beside the working tree's render, with the changed-pixel ratio and largest ΔE. The grid adds the highlighted difference. References exist only left to right, so right-to-left cells say so.
+    - **Zoom and pan:** one zoom for every cell (toolbar, ⌘−, ⌘0, ⌘=, or pinch). The cell under the pointer leads scrolling, and the others follow.
+    - **Snapshots:** `SWIFTBOOK_VIEWER_STORY` and `SWIFTBOOK_VIEWER_COMPARE` (such as `grid:revision`) set up the smoke test's snapshot, for checks and docs.
+    - Not yet: dynamic type, contrast and control borders (no Mac support, or not in `RenderEnvironment` yet), devices (with `ios-in-viewer`), a story's `#Preview(arguments:)` values, and locales. With only two values per dimension, the grid differs from 2-up only for revisions.
 - [ ] **`interactive-window`**
   - "Open interactively" asks the renderer to show the story in its own window.
 

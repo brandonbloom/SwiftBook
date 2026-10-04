@@ -7,7 +7,9 @@
     /// Usually started by `swiftbook view`. It opens the package in `SWIFTBOOK_PACKAGE`, or else
     /// the current directory. With `SWIFTBOOK_VIEWER_SNAPSHOT` set to a path, it draws its window
     /// to that PNG once the first story has rendered, and quits: a smoke test that needs no
-    /// screen. The model's state goes beside it as JSON.
+    /// screen. The model's state goes beside it as JSON. For snapshots of particular states,
+    /// `SWIFTBOOK_VIEWER_STORY` selects a story by ID, and `SWIFTBOOK_VIEWER_COMPARE` sets the
+    /// comparison as `<mode>:<dimension>`, for example `grid:revision`.
     ///
     /// It takes no arguments: AppKit treats them as files to open, and SwiftUI then opens no
     /// window.
@@ -15,10 +17,14 @@
         @NSApplicationDelegateAdaptor private var delegate: ViewerDelegate
         @State private var model: ViewerModel
         private let snapshot: URL?
+        private let story: String?
+        private let compare: String?
 
         init() {
             let environment = ProcessInfo.processInfo.environment
             snapshot = environment["SWIFTBOOK_VIEWER_SNAPSHOT"].map { URL(filePath: $0) }
+            story = environment["SWIFTBOOK_VIEWER_STORY"]
+            compare = environment["SWIFTBOOK_VIEWER_COMPARE"]
             let package = URL(
                 filePath: environment["SWIFTBOOK_PACKAGE"]
                     ?? FileManager.default.currentDirectoryPath,
@@ -33,7 +39,10 @@
             where !model.pending.isEmpty || model.statuses.values.contains(.pending) {
                 try? await Task.sleep(for: .milliseconds(50))
             }
-            while model.isRenderingSelection {
+            for _ in 0..<600
+            where model.isRenderingSelection
+                || model.cells.contains(where: { model.state(of: $0) == .loading })
+            {
                 try? await Task.sleep(for: .milliseconds(50))
             }
             try? await Task.sleep(for: .milliseconds(500))
@@ -56,6 +65,18 @@
                     .frame(minWidth: 800, minHeight: 500)
                     .task {
                         await model.start()
+                        if let story { model.selectedNode = story }
+                        if let compare {
+                            let parts = compare.split(separator: ":").map(String.init)
+                            if let mode = parts.first.flatMap(ViewerModel.CompareMode.init) {
+                                model.compareMode = mode
+                            }
+                            if let dimension = parts.dropFirst().first.flatMap(
+                                ViewerModel.CompareDimension.init)
+                            {
+                                model.compareDimension = dimension
+                            }
+                        }
                         // Rebuild on edits for as long as the window is open.
                         let watcher = FileWatcher(directory: model.package) { paths in
                             Task { @MainActor in model.filesChanged(paths) }

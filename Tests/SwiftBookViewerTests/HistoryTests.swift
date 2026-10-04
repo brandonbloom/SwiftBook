@@ -96,6 +96,61 @@
             #expect(model.visibleTree.flatMap { $0.children ?? [] }.map(\.title) == ["C"])
         }
 
+        @Test func comparesTheWorkingTreeWithTheBasis() async throws {
+            let renderer = FakeRenderer(["M/A/Same", "M/B/Edited", "M/C/Fresh"])
+            let history = FakeHistory(references: [
+                "M/A/Same": FakeRenderer.png, "M/B/Edited": Self.png(.systemRed),
+            ])
+            let model = ViewerModel(package: URL(filePath: "/tmp/Package")) { _ in
+                renderer
+            } openHistory: { _ in
+                history
+            }
+            await model.start()
+            await settle(model)
+            model.compareMode = .grid
+            model.compareDimension = .revision
+            #expect(
+                model.cells.map(\.title) == [
+                    "Uncommitted changes · abc123", "Working tree", "Difference",
+                ])
+
+            /// The selection's comparison, once it's in.
+            func comparison() async -> ViewerModel.Comparison? {
+                for _ in 0..<300 {
+                    if let comparison = model.comparison(of: model.cells[1]) { return comparison }
+                    try? await Task.sleep(for: .milliseconds(10))
+                }
+                return nil
+            }
+
+            let same = try #require(await comparison())
+            #expect(same.matches && same.maxDeltaE == 0)
+            #expect(model.state(of: model.cells[2]) == .empty("Identical"))
+            guard case .image = model.state(of: model.cells[0]) else {
+                Issue.record("no reference image")
+                return
+            }
+
+            model.selection = ViewerModelTests.story("M/B/Edited")
+            let edited = try #require(await comparison())
+            #expect(!edited.matches && edited.changedPixelRatio == 1)
+            guard case .image = model.state(of: model.cells[2]) else {
+                Issue.record("no difference image")
+                return
+            }
+
+            model.selection = ViewerModelTests.story("M/C/Fresh")
+            await settle(model)
+            #expect(model.state(of: model.cells[0]) == .empty("No reference at the basis"))
+            #expect(model.state(of: model.cells[2]) == .empty("No reference at the basis"))
+
+            model.layoutDirection = .rightToLeft
+            #expect(
+                model.state(of: model.cells[0])
+                    == .empty("References are recorded left to right only"))
+        }
+
         @Test func readsTheZoosReferencesFromGit() throws {
             let zoo = RendererSupervisorTests.faultZoo.deletingLastPathComponent()
                 .appending(path: "PreviewZoo", directoryHint: .isDirectory)
