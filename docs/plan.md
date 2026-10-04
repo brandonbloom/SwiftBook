@@ -130,7 +130,7 @@ Fulbloom adopts SwiftBook at the end of this phase.
   - In `changed` and `all` modes, report which references were re-recorded, even when the run passes, so a reviewer knows what to look at. From Fulbloom's adoption feedback.
   - Each re-recorded reference is a Swift Testing warning: what changed, and a diff image under `.build/swiftbook/recorded/`. The run still passes. `all` mode leaves byte-identical references alone and doesn't report them.
   - Artifacts moved under `.build/swiftbook/{failures,recorded}/`. `$SWIFTBOOK_ARTIFACTS` replaces `.build/swiftbook`.
-- [ ] **`readme`**
+- [x] **`readme`**
   - Usage docs. Include:
     - `swift test --filter SwiftBookSnapshots` to run only the snapshots.
     - Injecting fixed times in previews instead of reading `Date.now`.
