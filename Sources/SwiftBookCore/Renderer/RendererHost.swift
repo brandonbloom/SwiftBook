@@ -218,7 +218,9 @@
             let manifest = try self.manifest()
             defer {
                 // Mirror `swift package edit` on SwiftBook, so the renderer runs the same source.
-                if let edited = try? swiftBookDependency().edited { try? edit(at: edited) }
+                if let dependency = try? swiftBookDependency(), let edited = dependency.edited {
+                    try? edit(at: edited, identity: dependency.identity)
+                }
             }
             try Self.write(manifest, to: directory.appending(path: "Package.swift"))
             try Self.write(
@@ -237,7 +239,7 @@
         }
 
         /// Puts the host's SwiftBook dependency in edit mode at `path`, unless it already is.
-        func edit(at path: String) throws {
+        func edit(at path: String, identity: String) throws {
             let state = directory.appending(path: ".build/workspace-state.json")
             if let text = try? String(contentsOf: state, encoding: .utf8),
                 text.contains("\"\(path)\"")
@@ -247,7 +249,7 @@
             guard
                 let result = Shell.run(
                     [
-                        "swift", "package", "--package-path", directory.path, "edit", "swiftbook",
+                        "swift", "package", "--package-path", directory.path, "edit", identity,
                         "--path", path,
                     ]),
                 result.succeeded
@@ -273,7 +275,7 @@
                         "\(package.path) has no library products. SwiftBook renders previews in library targets."
                 )
             }
-            let swiftBook = try swiftBookDependency().declaration
+            let swiftBook = try swiftBookDependency()
             let identity = package.lastPathComponent.lowercased()
             let products = libraries.map {
                 ".product(name: \(Self.literal($0)), package: \(Self.literal(identity)))"
@@ -289,13 +291,13 @@
                     platforms: [.macOS("27.0"), .iOS("27.0"), .tvOS("27.0")],
                     dependencies: [
                         .package(path: \(Self.literal(package.path))),
-                        \(swiftBook),
+                        \(swiftBook.declaration),
                     ],
                     targets: [
                         .executableTarget(
                             name: "\(Self.name)",
                             dependencies: [
-                                .product(name: "SwiftBookRenderer", package: "swiftbook"),
+                                .product(name: "SwiftBookRenderer", package: \(Self.literal(swiftBook.identity))),
                                 \(products.joined(separator: ",\n                ")),
                             ])
                     ]
@@ -305,28 +307,35 @@
         }
 
         /// The host's dependency on SwiftBook: the same location and revision the user's
-        /// package resolved. With `swift package edit` in effect, `edited` is the working copy
-        /// the host must also edit.
-        func swiftBookDependency() throws -> (declaration: String, edited: String?) {
+        /// package resolved. `identity` is how SwiftPM names it, which for a path dependency
+        /// comes from the checkout's directory name. With `swift package edit` in effect,
+        /// `edited` is the working copy the host must also edit.
+        func swiftBookDependency() throws -> (
+            declaration: String, identity: String, edited: String?
+        ) {
             let graph = try Self.json(
                 ["swift", "package", "show-dependencies", "--format", "json"], in: package)
             guard
+                // The manifest's name, since a checkout may be in a directory of any name.
                 let node = (graph["dependencies"] as? [[String: Any]])?.first(where: {
-                    ($0["identity"] as? String) == "swiftbook"
+                    ($0["name"] as? String) == "SwiftBook"
                 }),
+                let identity = node["identity"] as? String,
                 let location = node["url"] as? String
             else {
                 throw RendererError(
                     description: "\(package.path) doesn't depend on SwiftBook directly.")
             }
             if location.hasPrefix("/") {
-                return (".package(path: \(Self.literal(location)))", nil)
+                return (".package(path: \(Self.literal(location)))", identity, nil)
             }
             // A remote dependency checked out anywhere but .build/checkouts is being edited.
             let edited = (node["path"] as? String).flatMap {
                 $0.contains("/.build/checkouts/") ? nil : $0
             }
-            guard let revision = pinnedRevision() ?? (edited != nil ? editBaseRevision() : nil)
+            guard
+                let revision = pinnedRevision(of: identity)
+                    ?? (edited != nil ? editBaseRevision(of: identity) : nil)
             else {
                 throw RendererError(
                     description:
@@ -335,30 +344,30 @@
             }
             return (
                 ".package(url: \(Self.literal(location)), revision: \(Self.literal(revision)))",
-                edited
+                identity, edited
             )
         }
 
-        /// The revision `Package.resolved` pins SwiftBook to.
-        private func pinnedRevision() -> String? {
+        /// The revision `Package.resolved` pins the package with `identity` to.
+        private func pinnedRevision(of identity: String) -> String? {
             let pins = (try? Data(contentsOf: package.appending(path: "Package.resolved")))
                 .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
             let pin = (pins?["pins"] as? [[String: Any]])?.first {
-                ($0["identity"] as? String) == "swiftbook"
+                ($0["identity"] as? String) == identity
             }
             return (pin?["state"] as? [String: Any])?["revision"] as? String
         }
 
         /// The revision an edited SwiftBook was checked out at before editing. `Package.resolved`
         /// drops edited dependencies, but the workspace state remembers it.
-        private func editBaseRevision() -> String? {
+        private func editBaseRevision(of identity: String) -> String? {
             let state =
                 (try? Data(contentsOf: package.appending(path: ".build/workspace-state.json")))
                 .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
             let dependencies =
                 (state?["object"] as? [String: Any])?["dependencies"] as? [[String: Any]]
             let dependency = dependencies?.first {
-                (($0["packageRef"] as? [String: Any])?["identity"] as? String) == "swiftbook"
+                (($0["packageRef"] as? [String: Any])?["identity"] as? String) == identity
             }
             let base = ((dependency?["basedOn"] as? [String: Any])?["state"] as? [String: Any])
             return (base?["checkoutState"] as? [String: Any])?["revision"] as? String
