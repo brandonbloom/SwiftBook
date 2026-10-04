@@ -179,8 +179,35 @@ public enum RendererServer {
                 channel.send(RendererResponse(id: request.id, stories: infos))
             case .render:
                 channel.send(await render(request))
+            case .open:
+                channel.send(await open(request))
+            case .windows:
+                #if os(macOS)
+                    channel.send(RendererResponse(id: request.id, windows: InteractiveWindows.open))
+                #else
+                    channel.send(RendererResponse(id: request.id, windows: []))
+                #endif
             }
             return true
+        }
+
+        private func open(_ request: RendererRequest) async -> RendererResponse {
+            #if os(macOS)
+                guard let id = request.story, let story = stories[id] else {
+                    return RendererResponse(
+                        id: request.id, error: "no story \(request.story ?? "(none)")")
+                }
+                do {
+                    try await InteractiveWindows.open(
+                        story, in: request.environment ?? RenderEnvironment())
+                    return RendererResponse(id: request.id)
+                } catch {
+                    return RendererResponse(id: request.id, error: String(describing: error))
+                }
+            #else
+                return RendererResponse(
+                    id: request.id, error: "interactive windows are only on macOS")
+            #endif
         }
 
         private func render(_ request: RendererRequest) async -> RendererResponse {

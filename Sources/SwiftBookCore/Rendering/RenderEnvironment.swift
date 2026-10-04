@@ -49,6 +49,15 @@ public struct RenderEnvironment: Hashable, Sendable {
 extension View {
     /// Applies the environment's SwiftUI values and disables animations.
     func pinned(to environment: RenderEnvironment) -> some View {
+        live(in: environment)
+            .transaction { transaction in
+                transaction.disablesAnimations = true
+                transaction.animation = nil
+            }
+    }
+
+    /// Applies the environment's SwiftUI values, leaving animations on, for interacting with.
+    func live(in environment: RenderEnvironment) -> some View {
         self
             .environment(\.colorScheme, environment.appearance == .dark ? .dark : .light)
             .environment(\.locale, Locale(identifier: environment.localeIdentifier))
@@ -57,10 +66,6 @@ extension View {
             .environment(\.dynamicTypeSize, environment.dynamicTypeSize)
             .environment(\.layoutDirection, environment.layoutDirection)
             .environment(\.displayScale, environment.scale)
-            .transaction { transaction in
-                transaction.disablesAnimations = true
-                transaction.animation = nil
-            }
     }
 }
 

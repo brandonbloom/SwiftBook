@@ -109,6 +109,13 @@
             let title: String
             let content: Content
             var id: Content { content }
+
+            /// The variant the cell shows.
+            var variant: Variant {
+                switch content {
+                case .render(let key), .reference(let key), .diff(let key): key.variant
+                }
+            }
         }
 
         /// What a cell shows.
@@ -727,6 +734,28 @@
                     }.value
                     comparing.remove(comparisonKey)
                     if let comparison { comparisons[comparisonKey] = comparison }
+                }
+            }
+        }
+
+        // MARK: Interactive windows
+
+        /// Why opening a story interactively failed, until dismissed.
+        var openError: String?
+
+        /// Shows the selection live in a window of its own, in `variant`, or else the pickers'.
+        func openInteractively(_ variant: Variant? = nil) {
+            guard let renderer, let selection else { return }
+            let variant = variant ?? self.variant
+            var environment = RenderEnvironment()
+            environment.appearance = variant.appearance
+            environment.layoutDirection = variant.layoutDirection
+            log("opening \(selection) interactively")
+            Task {
+                do {
+                    try await renderer.open(selection, in: environment)
+                } catch {
+                    openError = String(describing: error)
                 }
             }
         }

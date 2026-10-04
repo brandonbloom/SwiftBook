@@ -80,6 +80,26 @@
                     Self.story("Fine"), in: RenderEnvironment(), background: false) == fine)
         }
 
+        @Test func reopensInteractiveWindowsOnTheNewBuild() async throws {
+            // Behind other windows and without focus, so the test doesn't take over the screen.
+            setenv(InteractiveWindows.behindVariable, "1", 1)
+            defer { unsetenv(InteractiveWindows.behindVariable) }
+            let supervisor = try await RendererSupervisor.start(for: Self.faultZoo)
+            var dark = RenderEnvironment()
+            dark.appearance = .dark
+            try await supervisor.open(Self.story("Fine"), in: dark)
+            #expect(try await supervisor.windows().map(\.story) == ["FaultZoo/Faults/Fine"])
+
+            _ = try await supervisor.rebuild()
+            let windows = try await supervisor.windows()
+            #expect(windows.map(\.story) == ["FaultZoo/Faults/Fine"])
+            #expect(windows.first?.environment.appearance == .dark)
+
+            await #expect {
+                try await supervisor.open(Self.story("Nope"), in: dark)
+            } throws: { String(describing: $0).contains("no story") }
+        }
+
         /// An edit reaching the canvas, through a real file watcher, build, and renderer.
         @Test func anEditRerendersTheSelection() async throws {
             let package = Self.faultZoo

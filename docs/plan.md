@@ -309,8 +309,14 @@ Fulbloom adopts SwiftBook at the end of this phase.
       - The sidebar left stale rows behind when filters changed, because nested disclosure groups in a selectable list don't diff reliably. It's now a flat list of rows that the model indents and expands.
       - A one-dimensional grid looked like 2-up, hence the second dimension.
       - The zoom buttons are one control group, apart from Reload.
-- [ ] **`interactive-window`**
+- [x] **`interactive-window`**
   - "Open interactively" asks the renderer to show the story in its own window.
+  - Done.
+    - **Protocol:** `open` shows a story in a window of the renderer's own, live: animations on, taking the pointer and focus. `windows` lists the ones still open.
+    - **Viewer:** a toolbar button (⌘O) opens the selection in the pickers' variant; double-clicking a cell opens that cell's variant.
+    - **Live reload:** when a rebuild swaps renderers, the windows still open reopen on the new build, in the same variants.
+    - **Focus:** the renderer becomes an accessory app for its first window, so it can take focus without a Dock tile. It has no menu bar, so menu shortcuts such as ⌘C don't reach the story.
+    - **Tests:** `RendererSupervisorTests` opens a FaultZoo story in a real renderer, behind other windows (`SWIFTBOOK_INTERACTIVE_BEHIND`), and checks it reopens after a rebuild.
 
 **Automated verification:**
 - Fault-injection fixtures: a compile error, a preview that crashes, a preview that hangs, and a preview that renders slowly. The viewer process survives each one and shows the right status.

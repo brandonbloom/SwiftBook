@@ -12,6 +12,15 @@
             } detail: {
                 Canvas(model: model)
             }
+            .alert(
+                "Couldn't open the story",
+                isPresented: Binding(
+                    get: { model.openError != nil }, set: { if !$0 { model.openError = nil } })
+            ) {
+                Button("OK") {}
+            } message: {
+                Text(model.openError ?? "")
+            }
             .toolbar {
                 ToolbarItemGroup(placement: .principal) {
                     CompareControls(model: model)
@@ -41,6 +50,16 @@
                     }
                 }
                 ToolbarSpacer(.fixed)
+                ToolbarItem {
+                    Button {
+                        model.openInteractively()
+                    } label: {
+                        Label("Open Interactively", systemImage: "macwindow.and.cursorarrow")
+                    }
+                    .keyboardShortcut("o")
+                    .disabled(model.status != .ready || model.selection == nil)
+                    .help("Open the story live in a window of its own (or double-click a cell)")
+                }
                 ToolbarItem {
                     Button {
                         Task { await model.reload() }
@@ -354,6 +373,7 @@
                     .background(.background)
             }
             .onHover { hovering = $0 }
+            .onTapGesture(count: 2) { model.openInteractively(cell.variant) }
         }
 
         @ViewBuilder private var content: some View {

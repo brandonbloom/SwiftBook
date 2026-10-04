@@ -51,6 +51,22 @@
 
         func stories() async throws -> [StoryInfo] { lock.withLock { _stories } }
 
+        /// Every story opened interactively, as "<story> <appearance>", with " rtl" for right to
+        /// left.
+        var opened: [String] { lock.withLock { _opened } }
+        private var _opened: [String] = []
+
+        func open(_ story: StoryID, in environment: RenderEnvironment) async throws {
+            lock.withLock {
+                _opened.append(
+                    "\(story) \(environment.appearance)"
+                        + (environment.layoutDirection == .rightToLeft ? " rtl" : ""))
+            }
+            if failing.contains(story.description) {
+                throw RendererError(description: "boom")
+            }
+        }
+
         func rebuild() async throws -> Int {
             lock.withLock { _builds += 1 }
             try await Task.sleep(for: buildTime)
@@ -357,6 +373,28 @@
                 ])
             await settle(model)
             #expect(Set(renderer.requests).count == 4)
+        }
+
+        @Test func opensStoriesInteractively() async {
+            let renderer = FakeRenderer(["M/A/One", "M/A/Bad"], failing: ["M/A/Bad"])
+            let model = model(renderer)
+            await model.start()
+            model.appearance = .dark
+            model.openInteractively()
+            model.compareMode = .twoUp
+            model.compareDimension = .layoutDirection
+            model.openInteractively(model.cells[1].variant)
+            for _ in 0..<100 where renderer.opened.count < 2 {
+                try? await Task.sleep(for: .milliseconds(10))
+            }
+            #expect(renderer.opened == ["M/A/One dark", "M/A/One dark rtl"])
+
+            model.selection = Self.story("M/A/Bad")
+            model.openInteractively()
+            for _ in 0..<100 where model.openError == nil {
+                try? await Task.sleep(for: .milliseconds(10))
+            }
+            #expect(model.openError == "boom")
         }
 
         @Test func zoomsInSteps() {

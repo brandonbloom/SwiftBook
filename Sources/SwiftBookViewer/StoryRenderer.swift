@@ -12,8 +12,11 @@
         /// hold up one someone is waiting for.
         func render(_ story: StoryID, in environment: RenderEnvironment, background: Bool)
             async throws -> Data
+        /// Shows `story` live in a window of its own, for interacting with.
+        func open(_ story: StoryID, in environment: RenderEnvironment) async throws
         /// Builds the package again and swaps to a renderer of the new build, returning its
-        /// generation. Until then, the current renderer keeps serving.
+        /// generation. Until then, the current renderer keeps serving. Interactive windows
+        /// still open reopen on the new build.
         func rebuild() async throws -> Int
     }
 
@@ -110,18 +113,27 @@
             }
         }
 
+        func open(_ story: StoryID, in environment: RenderEnvironment) async throws {
+            try await run { try self.running().open(story, in: environment) }
+        }
+
+        /// The current renderer's interactive windows that are still open.
+        func windows() async throws -> [RendererWindow] {
+            try await run { try self.running().windows() }
+        }
+
         func rebuild() async throws -> Int {
             // Building takes a while; the current renderer keeps serving meanwhile.
             Self.log("build started")
             let executable = try await onBuildQueue { try self.build(self.package) }
             Self.log("build finished; starting the new renderer")
-            let fresh = try await onBuildQueue { () -> RendererProcess in
+            let (fresh, stories) = try await onBuildQueue {
+                () -> (RendererProcess, [StoryInfo]) in
                 let process = try RendererProcess(
                     executable: executable, environment: self.environment)
                 Self.log("new renderer started; warming up")
                 // Warm up: discovery runs on the first list, before anyone waits on it.
-                _ = try process.stories()
-                return process
+                return (process, try process.stories())
             }
             Self.log("new renderer warm; swapping")
             return try await run {
@@ -130,7 +142,14 @@
                 self.process = fresh
                 self.currentGeneration += 1
                 // Requests run on this queue, so none is using the old renderer now.
+                let windows = (try? old?.windows()) ?? []
                 old?.shutdown(timeout: .seconds(2))
+                // Live reload for interactive windows: the new build shows them again.
+                for window in windows {
+                    if let story = stories.first(where: { $0.id.description == window.story }) {
+                        try? fresh.open(story.id, in: window.environment)
+                    }
+                }
                 return self.currentGeneration
             }
         }

@@ -152,6 +152,21 @@
             return png
         }
 
+        /// Shows `story` in `environment` in a window of its own, live and interactive.
+        public func open(
+            _ story: StoryID, in environment: RenderEnvironment = RenderEnvironment(),
+            timeout: Duration = .seconds(30)
+        ) throws {
+            _ = try send(
+                .init(id: 0, method: .open, story: story.description, environment: environment),
+                timeout: timeout)
+        }
+
+        /// The interactive windows still open.
+        public func windows(timeout: Duration = .seconds(10)) throws -> [RendererWindow] {
+            try send(.init(id: 0, method: .windows), timeout: timeout).windows ?? []
+        }
+
         /// Asks the renderer to exit, and stops it if it doesn't.
         public func shutdown(timeout: Duration = .seconds(5)) {
             _ = try? send(.init(id: 0, method: .shutdown), timeout: timeout)

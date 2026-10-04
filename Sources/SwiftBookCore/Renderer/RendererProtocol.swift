@@ -31,6 +31,11 @@ public struct RendererRequest: Codable, Hashable, Sendable {
         case list
         /// Render `story` in `environment`.
         case render
+        /// Show `story` in `environment` in a window of its own, live and interactive. macOS
+        /// only.
+        case open
+        /// List the windows `open` showed that are still open.
+        case windows
         /// Exit.
         case shutdown
     }
@@ -61,14 +66,32 @@ public struct RendererResponse: Codable, Hashable, Sendable {
     public var stories: [StoryInfo]?
     /// For `render`: the snapshot as PNG, with its metadata.
     public var png: Data?
+    /// For `windows`.
+    public var windows: [RendererWindow]?
     /// Why the request failed.
     public var error: String?
 
-    public init(id: Int, stories: [StoryInfo]? = nil, png: Data? = nil, error: String? = nil) {
+    public init(
+        id: Int, stories: [StoryInfo]? = nil, png: Data? = nil, windows: [RendererWindow]? = nil,
+        error: String? = nil
+    ) {
         self.id = id
         self.stories = stories
         self.png = png
+        self.windows = windows
         self.error = error
+    }
+}
+
+/// A story's interactive window, as `open` showed it.
+public struct RendererWindow: Codable, Hashable, Sendable {
+    /// The story ID, as `Module/Group/Name`.
+    public var story: String
+    public var environment: RenderEnvironment
+
+    public init(story: String, environment: RenderEnvironment) {
+        self.story = story
+        self.environment = environment
     }
 }
 
