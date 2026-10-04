@@ -6,7 +6,8 @@
         public let description: String
     }
 
-    /// A running renderer process, spoken to over ``RendererProtocol``.
+    /// A running renderer, spoken to over ``RendererProtocol``: a local process for macOS, or an
+    /// app in a simulator for iOS and tvOS.
     ///
     /// Requests are answered one at a time, in order. A request that outlives its timeout stops
     /// the renderer; a crashed or stopped renderer fails every later request.
@@ -15,18 +16,19 @@
 
         /// What the renderer said when it started.
         public let hello: RendererHello
-        private let process: Process
+        private let child: Child
         private let input: FileHandle
-        private let lines = LineQueue()
-        private let errorTail = Tail()
+        /// Whether `input` is a socket, which is also the renderer's output.
+        private let isSocket: Bool
+        private let lines: LineQueue
         private let lock = NSLock()
         private var nextID = 1
 
         /// Starts `executable` and waits for its hello. `environment` adds to this process's.
-        public init(
+        public convenience init(
             executable: URL, environment: [String: String] = [:], timeout: Duration = .seconds(60)
         ) throws {
-            process = Process()
+            let process = Process()
             process.executableURL = executable
             process.environment = ProcessInfo.processInfo.environment.merging(environment) { $1 }
             let inputPipe = Pipe()
@@ -35,29 +37,73 @@
             process.standardInput = inputPipe
             process.standardOutput = outputPipe
             process.standardError = errorPipe
-            input = inputPipe.fileHandleForWriting
-            // Writing to a renderer that crashed must fail, not raise SIGPIPE and end this
-            // process too.
-            signal(SIGPIPE, SIG_IGN)
+            Self.ignoreBrokenPipes()
             do { try process.run() } catch {
                 throw RendererError(description: "can't start \(executable.path): \(error)")
             }
+            let lines = LineQueue()
+            let errorTail = Tail()
             Self.read(outputPipe.fileHandleForReading, into: lines)
             Self.read(errorPipe.fileHandleForReading, into: errorTail)
-            let first = lines.next(timeout: timeout)
-            guard case .line(let line) = first else {
-                Self.stop(process)
+            try self.init(
+                child: Child(process: process, errorTail: errorTail),
+                input: inputPipe.fileHandleForWriting, isSocket: false, lines: lines,
+                timeout: timeout)
+        }
+
+        /// Installs and launches the renderer app at `app` in `simulator`, and waits for it to
+        /// connect and say hello. `environment` is passed to the app.
+        public convenience init(
+            app: URL, bundleID: String, in simulator: Simulator,
+            environment: [String: String] = [:], timeout: Duration = .seconds(60)
+        ) throws {
+            Self.ignoreBrokenPipes()
+            let listener = try Listener()
+            try simulator.install(app)
+            let errorLog = FileManager.default.temporaryDirectory.appending(
+                path: "swiftbook-renderer-\(UUID()).log")
+            let pid = try simulator.launch(
+                bundleID: bundleID,
+                environment: environment.merging([
+                    "SWIFTBOOK_RENDERER_PORT": String(listener.port)
+                ]) { $1 },
+                errorLog: errorLog)
+            let child = Child(pid: pid, errorLog: errorLog)
+            guard let connection = listener.accept(timeout: timeout, while: child.isRunning)
+            else {
+                child.stop(.seconds(2))
                 throw RendererError(
                     description:
-                        "the renderer \(first == .closed ? "exited before it started" : "didn't start within \(timeout)")\(errorTail.suffix)"
+                        "the renderer app didn't connect within \(timeout)\(child.errorSuffix())")
+            }
+            let lines = LineQueue()
+            Self.read(connection, into: lines)
+            try self.init(
+                child: child, input: connection, isSocket: true, lines: lines, timeout: timeout)
+        }
+
+        private init(
+            child: Child, input: FileHandle, isSocket: Bool, lines: LineQueue, timeout: Duration
+        ) throws {
+            self.child = child
+            self.input = input
+            self.isSocket = isSocket
+            self.lines = lines
+            let first = lines.next(timeout: timeout)
+            guard case .line(let line) = first else {
+                child.stop(.seconds(2))
+                throw RendererError(
+                    description:
+                        "the renderer \(first == .closed ? "exited before it started" : "didn't start within \(timeout)")\(child.errorSuffix())"
                 )
             }
             guard let hello = try? JSONDecoder().decode(RendererHello.self, from: line) else {
-                Self.stop(process)
-                throw RendererError(description: "the renderer didn't say hello\(errorTail.suffix)")
+                child.stop(.seconds(2))
+                throw RendererError(
+                    description: "the renderer didn't say hello\(child.errorSuffix())")
             }
             guard hello.protocolVersion == RendererProtocol.version else {
-                Self.stop(process)
+                child.stop(.seconds(2))
                 throw RendererError(
                     description:
                         "the renderer speaks protocol \(hello.protocolVersion), not \(RendererProtocol.version); it was built with SwiftBook \(hello.swiftBookVersion)"
@@ -67,7 +113,13 @@
         }
 
         deinit {
-            if process.isRunning { stop() }
+            if child.isRunning() { child.stop(.seconds(2)) }
+        }
+
+        /// Writing to a renderer that crashed must fail, not raise SIGPIPE and end this process
+        /// too.
+        private static func ignoreBrokenPipes() {
+            signal(SIGPIPE, SIG_IGN)
         }
 
         /// Every story the renderer's code declares. With `check`, the renderer also builds each
@@ -99,34 +151,22 @@
         /// Asks the renderer to exit, and stops it if it doesn't.
         public func shutdown(timeout: Duration = .seconds(5)) {
             _ = try? send(.init(id: 0, method: .shutdown), timeout: timeout)
-            // A renderer also exits at the end of its input.
-            try? input.close()
-            stop(grace: timeout)
-        }
-
-        private func stop(grace: Duration = .seconds(2)) {
-            Self.stop(process, grace: grace)
-        }
-
-        /// Ends `process`: asks it to terminate, and kills it if it hasn't after `grace`.
-        /// Returns once it has exited.
-        private static func stop(_ process: Process, grace: Duration = .seconds(2)) {
-            let deadline = ContinuousClock.now + grace
-            if process.isRunning { process.terminate() }
-            while process.isRunning, ContinuousClock.now < deadline { usleep(10_000) }
-            if process.isRunning { kill(process.processIdentifier, SIGKILL) }
-            process.waitUntilExit()
+            // A renderer also exits at the end of its input. Only the writing half closes: a
+            // socket's reader is still using the descriptor.
+            Darwin.shutdown(input.fileDescriptor, SHUT_WR)
+            if !isSocket { try? input.close() }
+            child.stop(timeout)
         }
 
         /// Whether the renderer is still running.
-        public var isRunning: Bool { process.isRunning }
+        public var isRunning: Bool { child.isRunning() }
 
         private func send(_ request: RendererRequest, timeout: Duration) throws -> RendererResponse
         {
             lock.lock()
             defer { lock.unlock() }
-            guard process.isRunning else {
-                throw RendererError(description: "the renderer has exited\(errorTail.suffix)")
+            guard child.isRunning() else {
+                throw RendererError(description: "the renderer has exited\(child.errorSuffix())")
             }
             var request = request
             request.id = nextID
@@ -134,22 +174,21 @@
             var data = try JSONEncoder().encode(request)
             data.append(0x0A)
             do { try input.write(contentsOf: data) } catch {
-                throw RendererError(description: "the renderer has exited\(errorTail.suffix)")
+                throw RendererError(description: "the renderer has exited\(child.errorSuffix())")
             }
             let next = lines.next(timeout: timeout)
             guard case .line(let line) = next else {
                 if next == .timedOut {
-                    stop()
+                    child.stop(.seconds(2))
                     throw RendererError(
                         description:
                             "the renderer took longer than \(timeout) to \(request.method) and was stopped"
                     )
                 }
                 // Its output closed: it exited, or is about to.
-                process.waitUntilExit()
                 throw RendererError(
                     description:
-                        "the renderer exited with status \(process.terminationStatus) during \(request.method)\(errorTail.suffix)"
+                        "the renderer \(child.exitDescription()) during \(request.method)\(child.errorSuffix())"
                 )
             }
             let response: RendererResponse
@@ -164,6 +203,111 @@
             return response
         }
 
+        // MARK: The renderer's process
+
+        /// The renderer's process: started here, or an app the simulator started.
+        private struct Child: Sendable {
+            let isRunning: @Sendable () -> Bool
+            /// Asks it to terminate, kills it if it hasn't after the grace period, and returns
+            /// once it has exited.
+            let stop: @Sendable (_ grace: Duration) -> Void
+            /// How it ended, such as "exited with status 6", once its output has closed.
+            let exitDescription: @Sendable () -> String
+            /// What it last wrote to standard error.
+            let errorText: @Sendable () -> String
+
+            func errorSuffix() -> String {
+                let text = errorText().trimmingCharacters(in: .whitespacesAndNewlines)
+                return text.isEmpty ? "" : ". It said:\n\(text.suffix(4096))"
+            }
+
+            init(process: Process, errorTail: Tail) {
+                isRunning = { process.isRunning }
+                stop = { grace in
+                    Child.stop(pid: process.processIdentifier, grace: grace) { process.isRunning }
+                    process.waitUntilExit()
+                }
+                exitDescription = {
+                    process.waitUntilExit()
+                    return "exited with status \(process.terminationStatus)"
+                }
+                errorText = { errorTail.text }
+            }
+
+            /// An app process the simulator launched. It isn't this process's child, so its exit
+            /// status is unknown; its standard error goes to `errorLog`.
+            init(pid: pid_t, errorLog: URL) {
+                let isRunning: @Sendable () -> Bool = { kill(pid, 0) == 0 || errno == EPERM }
+                self.isRunning = isRunning
+                stop = { grace in Child.stop(pid: pid, grace: grace, isRunning: isRunning) }
+                exitDescription = { "app exited" }
+                errorText = {
+                    (try? String(contentsOf: errorLog, encoding: .utf8)).map {
+                        String($0.suffix(4096))
+                    }
+                        ?? ""
+                }
+            }
+
+            private static func stop(
+                pid: pid_t, grace: Duration, isRunning: @Sendable () -> Bool
+            ) {
+                guard isRunning() else { return }
+                kill(pid, SIGTERM)
+                let deadline = ContinuousClock.now + grace
+                while isRunning(), ContinuousClock.now < deadline { usleep(10_000) }
+                if isRunning() { kill(pid, SIGKILL) }
+                while isRunning(), ContinuousClock.now < deadline + .seconds(2) { usleep(10_000) }
+            }
+        }
+
+        /// A TCP listener on the loopback interface, which simulators share with the host.
+        private struct Listener {
+            let descriptor: Int32
+            let port: UInt16
+
+            init() throws {
+                let descriptor = socket(AF_INET, SOCK_STREAM, 0)
+                guard descriptor >= 0 else {
+                    throw RendererError(description: "can't open a socket for the renderer")
+                }
+                var address = sockaddr_in()
+                address.sin_family = sa_family_t(AF_INET)
+                address.sin_port = 0
+                address.sin_addr.s_addr = inet_addr("127.0.0.1")
+                var length = socklen_t(MemoryLayout<sockaddr_in>.size)
+                let bound = withUnsafeMutablePointer(to: &address) {
+                    $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                        bind(descriptor, $0, length) == 0 && listen(descriptor, 1) == 0
+                            && getsockname(descriptor, $0, &length) == 0
+                    }
+                }
+                guard bound else {
+                    close(descriptor)
+                    throw RendererError(description: "can't listen for the renderer")
+                }
+                self.descriptor = descriptor
+                port = UInt16(bigEndian: address.sin_port)
+            }
+
+            /// The first connection, or `nil` if none comes within `timeout` or while
+            /// `isAlive` holds. Closes the listener either way.
+            func accept(timeout: Duration, while isAlive: () -> Bool) -> FileHandle? {
+                defer { close(descriptor) }
+                let deadline = ContinuousClock.now + timeout
+                while ContinuousClock.now < deadline, isAlive() {
+                    var poller = pollfd(fd: descriptor, events: Int16(POLLIN), revents: 0)
+                    if poll(&poller, 1, 100) > 0 {
+                        let connection = Darwin.accept(descriptor, nil, nil)
+                        if connection >= 0 {
+                            return FileHandle(fileDescriptor: connection, closeOnDealloc: true)
+                        }
+                    }
+                }
+                return nil
+            }
+        }
+
         // MARK: Reading output
 
         private protocol Sink: Sendable {
@@ -173,11 +317,21 @@
 
         /// Reads `handle` on its own thread until it closes.
         private static func read(_ handle: FileHandle, into sink: some Sink) {
+            // POSIX reads, because FileHandle raises an exception if the descriptor closes
+            // while it's reading.
+            let descriptor = handle.fileDescriptor
             Thread.detachNewThread {
-                while true {
-                    let data = handle.availableData
-                    if data.isEmpty { break }
-                    sink.append(data)
+                // Keeps the descriptor open until reading ends.
+                withExtendedLifetime(handle) {
+                    var buffer = [UInt8](repeating: 0, count: 65536)
+                    while true {
+                        let count = buffer.withUnsafeMutableBytes {
+                            Darwin.read(descriptor, $0.baseAddress, $0.count)
+                        }
+                        if count < 0, errno == EINTR { continue }
+                        if count <= 0 { break }
+                        sink.append(Data(buffer[0..<count]))
+                    }
                 }
                 sink.close()
             }
@@ -247,13 +401,10 @@
 
             func close() {}
 
-            /// ": <text>" for appending to a message, or empty if there's nothing.
-            var suffix: String {
+            var text: String {
                 lock.lock()
                 defer { lock.unlock() }
-                let text = String(decoding: data, as: UTF8.self)
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                return text.isEmpty ? "" : ". It said:\n\(text)"
+                return String(decoding: data, as: UTF8.self)
             }
         }
     }

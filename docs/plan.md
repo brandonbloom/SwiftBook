@@ -184,12 +184,21 @@ Fulbloom adopts SwiftBook at the end of this phase.
     - **Commands:** `swiftbook list [--check] [--json]`. `swiftbook prune [--dry-run]` deletes story directories that match no current story, only in modules the renderer links, and keeps variants. `doctor` checks discovery unless `--quick`.
     - **Timing on the zoo:** a cold host build and list takes about 14 s; warm, about 4 s, including the no-op build. A renderer's render of the zoo's Card is byte-identical to the reference recorded by `swift test`.
     - Variant-level pruning waits until the CLI knows which variants each platform records.
-- [ ] **`ios-host-app`**
+- [x] **`ios-host-app`**
   - A generated hidden `.swiftpm` host with an `.iOSApplication` product, built with `xcodebuild`.
   - The fallback is `swift build` plus our own `.app` wrapper; see the [spike](spikes/ios-renderer.md).
   - SwiftBook creates and reuses its own dedicated simulator.
   - Fulbloom's iPhone app is the first real test bed. Its `PhoneBrowser` previews (iOS-only, in FBFUI) use a Liquid Glass floating tab bar and a split search tab (`Tab(role: .search)` with `.tabViewSearchActivation(.searchTabSelection)`), a good fidelity check for materials and the tab bar. When `cli-test` can run iOS, message the "iOS app parallel development" session, which will wire it into Fulbloom's CI.
   - In a host app, a SwiftPM resource directory copied as `Resources` (`.copy("Resources")`) makes codesign fail with "bundle format unrecognized", because iOS bundles are flat. The host must handle or diagnose this for user packages.
+  - Done with the fallback, which proved simpler than `.iOSApplication`.
+    - **Build:** the macOS renderer's host package, cross-compiled with `swift build --triple arm64-apple-ios27.0-simulator`. It's wrapped in a minimal app: the SDK stamped with `vtool`, an `Info.plist` with a scene manifest, the package's resource bundles copied in, and an ad hoc signature.
+    - **Resource diagnosis:** a resource bundle with a top-level `Resources` directory gets a clear error naming the fix.
+    - **Simulator:** `Simulator.dedicated(for:)` creates and reuses "SwiftBook iPhone 17 Pro (iOS 27.0)" on the newest iOS 27+ runtime.
+    - **Connection:** the app connects back over TCP to a port the client listens on, since there's no stdin, and speaks the same protocol. `RendererProcess` supervises it by pid, and reads its stderr from a log file.
+    - **Rendering:** `UIKitRenderer` renders each story in its own window of the app with `drawHierarchy`. The device layout fills the screen with its safe areas; fitted and fixed layouts drop the safe area. It pins the same environment as macOS, at the device's native scale.
+    - **Results on the zoo:** 34 stories, all readable, including the UIKit views. Lists, text fields and materials render faithfully, and output is byte-identical across app launches. A warm list takes 6.6 s; rendering all 68 variants takes 15 s.
+    - **CLI:** `swiftbook list --platform ios` and a new `swiftbook render [<story>…] [--platform] [-o dir]`.
+    - **Not yet:** the orientation trait (landscape renders in portrait), iPad, and tvOS. The tvOS app builds, but there's no tvOS runtime here to run it (`tvos-runtime`).
 - [ ] **`cli-test`**
   - `swiftbook test [--platform] [--record]` runs macOS through `swift test` and iOS/tvOS through the renderer app.
   - With no `--platform`, it runs every platform that has references.

@@ -45,6 +45,153 @@
             return URL(filePath: binPath.output).appending(path: Self.name)
         }
 
+        /// A simulator platform the renderer app can be built for.
+        public enum SimulatorPlatform: String, Sendable, CaseIterable {
+            case iOS, tvOS
+
+            var triple: String {
+                switch self {
+                case .iOS: "arm64-apple-ios27.0-simulator"
+                case .tvOS: "arm64-apple-tvos27.0-simulator"
+                }
+            }
+
+            var sdk: String {
+                switch self {
+                case .iOS: "iphonesimulator"
+                case .tvOS: "appletvsimulator"
+                }
+            }
+
+            /// The platform name `vtool` and `Info.plist` use.
+            var vtoolPlatform: String {
+                switch self {
+                case .iOS: "iossim"
+                case .tvOS: "tvossim"
+                }
+            }
+
+            var plistPlatform: String {
+                switch self {
+                case .iOS: "iPhoneSimulator"
+                case .tvOS: "AppleTVSimulator"
+                }
+            }
+
+            /// `UIDeviceFamily`: iPhone and iPad, or TV.
+            var deviceFamilies: [Int] {
+                switch self {
+                case .iOS: [1, 2]
+                case .tvOS: [3]
+                }
+            }
+        }
+
+        /// A built renderer app.
+        public struct App: Sendable {
+            public let url: URL
+            public let bundleID: String
+        }
+
+        /// Writes the host package if it changed and builds the renderer as an app for
+        /// `platform`'s simulator. `log` receives the build's output.
+        ///
+        /// SwiftPM builds the executable, and SwiftBook wraps it in a minimal app: an
+        /// `Info.plist` with a scene manifest, the package's resource bundles, and an ad hoc
+        /// signature.
+        public func buildApp(
+            for platform: SimulatorPlatform, log: @Sendable (String) -> Void = { _ in }
+        ) throws -> App {
+            try write()
+            guard let sdkPath = Shell.run(["xcrun", "--sdk", platform.sdk, "--show-sdk-path"]),
+                sdkPath.succeeded,
+                let sdkVersion = Shell.run(["xcrun", "--sdk", platform.sdk, "--show-sdk-version"]),
+                sdkVersion.succeeded
+            else {
+                throw RendererError(description: "the \(platform) simulator SDK isn't installed")
+            }
+            let target = [
+                "--package-path", directory.path, "--triple", platform.triple, "--sdk",
+                sdkPath.output,
+            ]
+            guard let result = Shell.run(["swift", "build", "--product", Self.name] + target) else {
+                throw RendererError(description: "swift isn't available")
+            }
+            log(result.output + "\n" + result.error)
+            guard result.succeeded else {
+                throw RendererError(
+                    description:
+                        "couldn't build the \(platform) renderer for \(package.path):\n\((result.output + "\n" + result.error).suffix(4000))"
+                )
+            }
+            guard let binPath = Shell.run(["swift", "build", "--show-bin-path"] + target),
+                binPath.succeeded
+            else { throw RendererError(description: "can't find the renderer's build directory") }
+            let products = URL(filePath: binPath.output, directoryHint: .isDirectory)
+
+            let app = directory.appending(
+                path: ".build/swiftbook-\(platform.rawValue)/\(Self.name).app")
+            let manager = FileManager.default
+            try? manager.removeItem(at: app)
+            try manager.createDirectory(at: app, withIntermediateDirectories: true)
+            // SwiftPM stamps the deployment target as the SDK version, and UIKit matches its
+            // behavior to that stamp: List headers render in an older style. Stamp the real SDK.
+            let stamped = Shell.run([
+                "vtool", "-set-build-version", platform.vtoolPlatform, "27.0", sdkVersion.output,
+                "-replace", "-output", app.appending(path: Self.name).path,
+                products.appending(path: Self.name).path,
+            ])
+            guard stamped?.succeeded == true else {
+                throw RendererError(
+                    description: "vtool couldn't stamp the renderer: \(stamped?.error ?? "")")
+            }
+            for bundle
+                in (try? manager.contentsOfDirectory(at: products, includingPropertiesForKeys: nil))?
+                .filter({ $0.pathExtension == "bundle" }) ?? []
+            {
+                // iOS bundles are flat. One with a top-level Resources directory looks like a
+                // macOS bundle to codesign, which then fails with "bundle format unrecognized".
+                if manager.fileExists(atPath: bundle.appending(path: "Resources").path) {
+                    throw RendererError(
+                        description:
+                            "\(bundle.lastPathComponent) has a top-level Resources directory, which iOS and tvOS bundles can't. Rename the directory the package copies as a resource, such as .copy(\"Resources\"), to something else."
+                    )
+                }
+                try manager.copyItem(at: bundle, to: app.appending(path: bundle.lastPathComponent))
+            }
+            let bundleID =
+                "dev.swiftbook.renderer." + Self.bundleIDComponent(package.lastPathComponent)
+            let plist: [String: Any] = [
+                "CFBundleIdentifier": bundleID,
+                "CFBundleExecutable": Self.name,
+                "CFBundleName": "SwiftBook Renderer",
+                "CFBundlePackageType": "APPL",
+                "CFBundleVersion": "1",
+                "CFBundleShortVersionString": "1.0",
+                "CFBundleSupportedPlatforms": [platform.plistPlatform],
+                "MinimumOSVersion": "27.0",
+                "UIDeviceFamily": platform.deviceFamilies,
+                "UILaunchScreen": [String: Any](),
+                // SDK 27 requires the scene lifecycle; the app delegate configures the scene.
+                "UIApplicationSceneManifest": ["UIApplicationSupportsMultipleScenes": false],
+            ]
+            try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+                .write(to: app.appending(path: "Info.plist"))
+            let signed = Shell.run(["codesign", "--force", "--deep", "--sign", "-", app.path])
+            guard signed?.succeeded == true else {
+                throw RendererError(
+                    description: "couldn't sign the renderer app: \(signed?.error ?? "")")
+            }
+            return App(url: app, bundleID: bundleID)
+        }
+
+        /// `name` with only the characters a bundle identifier allows.
+        static func bundleIDComponent(_ name: String) -> String {
+            let allowed = Set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-")
+            let cleaned = String(name.map { allowed.contains($0) ? $0 : "-" })
+            return cleaned.isEmpty ? "package" : cleaned
+        }
+
         /// Writes the host's manifest, entry point, and pins, leaving unchanged files alone so
         /// builds stay incremental.
         func write() throws {
@@ -94,7 +241,7 @@
 
                 let package = Package(
                     name: "\(Self.name)",
-                    platforms: [.macOS("27.0")],
+                    platforms: [.macOS("27.0"), .iOS("27.0"), .tvOS("27.0")],
                     dependencies: [
                         .package(path: \(Self.literal(package.path))),
                         \(swiftBook),

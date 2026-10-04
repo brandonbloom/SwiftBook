@@ -126,5 +126,35 @@
             // A failed request leaves the renderer serving.
             #expect(try renderer.render(card) == png)
         }
+
+        static let iOSRuntimeInstalled =
+            Shell.run(["xcrun", "simctl", "list", "runtimes"])?.output
+            .split(separator: "\n").contains { $0.hasPrefix("iOS 27") || $0.hasPrefix("iOS 28") }
+            ?? false
+
+        @Test(.enabled(if: iOSRuntimeInstalled)) func rendersTheZooInTheSimulator() throws {
+            let app = try RendererHost(package: Self.zoo).buildApp(for: .iOS)
+            let simulator = try Simulator.dedicated(for: .iphone)
+            #expect(simulator.name.hasPrefix("SwiftBook iPhone 17 Pro"))
+            let renderer = try RendererProcess(app: app.url, bundleID: app.bundleID, in: simulator)
+            defer { renderer.shutdown() }
+            #expect(renderer.hello.platform == "iOS")
+
+            let stories = try renderer.stories(check: true)
+            #expect(stories.allSatisfy { $0.error == nil })
+            #expect(stories.contains { $0.id.description == "PreviewZoo/PlatformViews/UIView" })
+            #expect(!stories.contains { $0.id.description == "PreviewZoo/PlatformViews/NSView" })
+
+            let card = StoryID(module: "PreviewZoo", group: "Card", name: "Card")
+            let environment = RenderEnvironment.standard(for: .iphone)
+            let png = try renderer.render(card, in: environment)
+            let metadata = try #require(try SnapshotMetadata.read(fromPNG: png))
+            #expect(metadata.device == "iphone")
+            #expect(metadata.platform == "iOS")
+            let image = try SnapshotStore.image(png, at: "render")
+            // The device layout fills the pinned iPhone's screen, at its scale.
+            #expect(image.width == 402 * 3 && image.height == 874 * 3)
+            #expect(try renderer.render(card, in: environment) == png)
+        }
     }
 #endif

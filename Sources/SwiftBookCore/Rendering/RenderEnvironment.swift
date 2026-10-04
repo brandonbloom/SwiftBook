@@ -20,6 +20,30 @@ public struct RenderEnvironment: Hashable, Sendable {
     public var deviceHeight: Double = 600
 
     public init() {}
+
+    /// The defaults for `device`: its pinned model's scale and screen size, in points. The Mac
+    /// has no screen of its own, so it gets a fixed canvas.
+    public static func standard(for device: Device) -> RenderEnvironment {
+        var environment = RenderEnvironment()
+        switch device {
+        case .mac, .catalyst:
+            break
+        case .iphone:
+            // iPhone 17 Pro.
+            environment.scale = 3
+            environment.deviceWidth = 402
+            environment.deviceHeight = 874
+        case .ipad:
+            // 11-inch iPad Pro.
+            environment.deviceWidth = 834
+            environment.deviceHeight = 1210
+        case .tv:
+            // Apple TV 4K.
+            environment.deviceWidth = 1920
+            environment.deviceHeight = 1080
+        }
+        return environment
+    }
 }
 
 extension View {
@@ -38,4 +62,12 @@ extension View {
                 transaction.animation = nil
             }
     }
+}
+
+/// A story couldn't be rendered.
+public struct RenderError: Error, CustomStringConvertible, Sendable {
+    public let story: StoryID
+    public let problem: String
+
+    public var description: String { "Couldn't render \(story): \(problem)" }
 }
