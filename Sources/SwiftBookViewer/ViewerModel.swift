@@ -3,6 +3,7 @@
     import Foundation
     import Observation
     import SwiftBookCore
+    import SwiftUI
 
     /// A node of the sidebar's story tree: a module, a group (usually a file), or a story.
     struct StoryNode: Identifiable, Hashable {
@@ -91,7 +92,25 @@
         private(set) var stories: [StoryInfo] = []
         private(set) var tree: [StoryNode] = []
         var selection: StoryID? {
-            didSet { renderSelection() }
+            didSet {
+                renderSelection()
+                // Keep the sidebar's row in step, unless it's already on this story.
+                if let selection, selectedNode != selection.description {
+                    selectedNode = selection.description
+                }
+            }
+        }
+        /// The sidebar's selected row: a story, or a module or group. Selecting a story's row
+        /// selects the story.
+        var selectedNode: String? {
+            didSet {
+                if let selectedNode,
+                    let story = stories.first(where: { $0.id.description == selectedNode })?.id,
+                    selection != story
+                {
+                    selection = story
+                }
+            }
         }
         var appearance = RenderEnvironment.Appearance.light {
             didSet { renderSelection() }
@@ -114,6 +133,68 @@
         var searchText = ""
         /// Filters the sidebar to stories that changed against the basis.
         var showsChangedOnly = false
+        /// The sidebar's collapsed modules and groups, by node ID. Everything else is expanded,
+        /// including groups that appear after a rebuild.
+        private(set) var collapsed: Set<String> = []
+
+        /// Left arrow in the sidebar: collapses the selected module or group, or else moves to
+        /// the row's parent.
+        func moveLeft() {
+            guard let node = selectedNode.flatMap(findNode) else { return }
+            if node.children != nil, !collapsed.contains(node.id) {
+                collapsed.insert(node.id)
+            } else if let parent = parent(of: node.id) {
+                selectedNode = parent.id
+            }
+        }
+
+        /// Right arrow in the sidebar: expands the selected module or group, or moves into it if
+        /// it's already expanded.
+        func moveRight() {
+            guard let node = selectedNode.flatMap(findNode), let children = node.children else {
+                return
+            }
+            if collapsed.contains(node.id) {
+                collapsed.remove(node.id)
+            } else if let first = children.first {
+                selectedNode = first.id
+            }
+        }
+
+        private func findNode(_ id: String) -> StoryNode? {
+            func search(_ nodes: [StoryNode]) -> StoryNode? {
+                for node in nodes {
+                    if node.id == id { return node }
+                    if let found = search(node.children ?? []) { return found }
+                }
+                return nil
+            }
+            return search(visibleTree)
+        }
+
+        private func parent(of id: String) -> StoryNode? {
+            func search(_ nodes: [StoryNode], parent: StoryNode?) -> StoryNode? {
+                for node in nodes {
+                    if node.id == id { return parent }
+                    if let found = search(node.children ?? [], parent: node) { return found }
+                }
+                return nil
+            }
+            return search(visibleTree, parent: nil)
+        }
+
+        func toggleExpanded(_ node: String) {
+            if collapsed.remove(node) == nil { collapsed.insert(node) }
+        }
+
+        /// Whether `node` is expanded, as a binding for a disclosure group.
+        func isExpanded(_ node: String) -> Binding<Bool> {
+            Binding(
+                get: { !self.collapsed.contains(node) },
+                set: { expanded in
+                    if expanded { self.collapsed.remove(node) } else { self.collapsed.insert(node) }
+                })
+        }
 
         /// The sidebar's tree, with the filters applied.
         var visibleTree: [StoryNode] {

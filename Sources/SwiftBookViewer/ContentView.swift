@@ -58,19 +58,36 @@
                         "No stories", systemImage: "exclamationmark.triangle",
                         description: Text("The renderer couldn't start."))
                 case .ready:
-                    List(selection: $model.selection) {
-                        OutlineGroup(model.visibleTree, children: \.children) { node in
-                            if let story = node.story {
-                                HStack {
-                                    Text(node.title)
-                                    Spacer()
-                                    StatusBadge(status: model.statuses[story] ?? .pending)
+                    List(selection: $model.selectedNode) {
+                        // Modules, then groups, then stories. Clicking anywhere on a module or
+                        // group's row expands or collapses it, not just its disclosure arrow.
+                        ForEach(model.visibleTree) { module in
+                            GroupRow(node: module, model: model) {
+                                ForEach(module.children ?? []) { group in
+                                    GroupRow(node: group, model: model) {
+                                        ForEach(group.children ?? []) { story in
+                                            if let id = story.story {
+                                                StoryRow(
+                                                    title: story.title,
+                                                    status: model.statuses[id] ?? .pending
+                                                )
+                                                .tag(id.description)
+                                            }
+                                        }
+                                    }
                                 }
-                                .tag(story)
-                            } else {
-                                Text(node.title).foregroundStyle(.secondary)
                             }
                         }
+                    }
+                    // Arrow keys work as in Finder's outline: left collapses or goes up,
+                    // right expands or goes in.
+                    .onKeyPress(.leftArrow) {
+                        model.moveLeft()
+                        return .handled
+                    }
+                    .onKeyPress(.rightArrow) {
+                        model.moveRight()
+                        return .handled
                     }
                     .searchable(text: $model.searchText, placement: .sidebar, prompt: "Stories")
                     .safeAreaInset(edge: .top, spacing: 0) {
@@ -79,6 +96,42 @@
                         }
                     }
                 }
+            }
+        }
+    }
+
+    /// A module or group in the sidebar, which expands or collapses when its row is clicked.
+    struct GroupRow<Content: View>: View {
+        let node: StoryNode
+        @Bindable var model: ViewerModel
+        @ViewBuilder let content: () -> Content
+
+        var body: some View {
+            DisclosureGroup(isExpanded: model.isExpanded(node.id)) {
+                content()
+            } label: {
+                Text(node.title)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        model.selectedNode = node.id
+                        model.toggleExpanded(node.id)
+                    }
+            }
+            .tag(node.id)
+        }
+    }
+
+    struct StoryRow: View {
+        let title: String
+        let status: ChangeStatus
+
+        var body: some View {
+            HStack {
+                Text(title)
+                Spacer()
+                StatusBadge(status: status)
             }
         }
     }

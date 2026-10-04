@@ -278,6 +278,40 @@
             #expect(model.summary.render == "failed: boom")
         }
 
+        @Test func togglesGroupsOpenAndClosed() {
+            let model = model(FakeRenderer(["M/A/One"]))
+            #expect(model.isExpanded("M/A").wrappedValue)
+            model.toggleExpanded("M/A")
+            #expect(!model.isExpanded("M/A").wrappedValue)
+            #expect(model.isExpanded("M").wrappedValue)
+            model.isExpanded("M/A").wrappedValue = true
+            #expect(model.collapsed.isEmpty)
+        }
+
+        @Test func arrowKeysCollapseExpandAndMoveThroughTheOutline() async {
+            let model = model(FakeRenderer(["M/A/One", "M/A/Two"]))
+            await model.start()
+            model.selection = Self.story("M/A/Two")
+            #expect(model.selectedNode == "M/A/Two")
+            model.moveLeft()
+            #expect(model.selectedNode == "M/A")
+            #expect(model.selection == Self.story("M/A/Two"))
+            model.moveLeft()
+            #expect(model.collapsed == ["M/A"])
+            model.moveLeft()
+            #expect(model.selectedNode == "M")
+            model.moveRight()
+            #expect(model.selectedNode == "M/A")
+            model.moveRight()
+            #expect(model.collapsed.isEmpty)
+            model.moveRight()
+            #expect(model.selectedNode == "M/A/One")
+            #expect(model.selection == Self.story("M/A/One"))
+            // A story has nothing to expand.
+            model.moveRight()
+            #expect(model.selectedNode == "M/A/One")
+        }
+
         @Test func reportsARendererThatWontStart() async {
             let model = ViewerModel(package: URL(filePath: "/tmp/Package")) { _ in
                 throw RendererError(description: "no library products")
