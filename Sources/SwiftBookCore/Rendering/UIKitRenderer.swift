@@ -158,10 +158,24 @@
             }
         #endif
 
+        /// How long a capture that's all one color must hold before it counts as settled.
+        static let uniformSettling = Duration.seconds(1)
+
+        /// Whether every pixel of 32-bit `pixels` is the same.
+        static func isUniform(_ pixels: Data) -> Bool {
+            pixels.withUnsafeBytes { buffer in
+                let words = buffer.bindMemory(to: UInt32.self)
+                guard let first = words.first else { return true }
+                return words.allSatisfy { $0 == first }
+            }
+        }
+
         private static func stableCapture(
             of window: UIWindow, scale: Double, timeout: Duration, error: (String) -> RenderError
         ) async throws -> CGImage {
-            let deadline = ContinuousClock.now + timeout
+            let start = ContinuousClock.now
+            // A blank capture may come before a presentation, such as a sheet, has drawn.
+            let deadline = start + timeout + uniformSettling
             let format = UIGraphicsImageRendererFormat()
             format.scale = scale
             format.opaque = true
@@ -178,7 +192,12 @@
                 guard let cgImage = image.cgImage, let normalized = try Bitmap(cgImage).image(),
                     let pixels = normalized.dataProvider?.data as Data?
                 else { throw error("capture has no pixels") }
-                if pixels == previous { return normalized }
+                if pixels == previous {
+                    // A capture that's all one color counts as settled only after it has held
+                    // for a while.
+                    guard Self.isUniform(pixels), ContinuousClock.now - start < uniformSettling
+                    else { return normalized }
+                }
                 previous = pixels
                 guard ContinuousClock.now < deadline else {
                     throw error("still changing after \(captures) captures over \(timeout)")

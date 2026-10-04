@@ -1,0 +1,70 @@
+#if os(macOS)
+    import Foundation
+
+    /// A renderer that restarts itself when it crashes or hangs, so one bad story fails alone.
+    ///
+    /// A render that ends the renderer (a crash, or a hang it was stopped for) is tried once more
+    /// on a fresh one: hangs can be transient, such as on a loaded machine. If it fails again,
+    /// the error says so, and the next request still gets a working renderer.
+    public final class RestartingRenderer: @unchecked Sendable {
+        // Unchecked: `lock` guards `process` and `restarts`.
+
+        private let start: @Sendable () throws -> RendererProcess
+        private let lock = NSLock()
+        private var process: RendererProcess
+        /// How many times the renderer has been restarted.
+        public private(set) var restarts = 0
+
+        /// Starts a renderer with `start`, which also starts each replacement.
+        public init(start: @escaping @Sendable () throws -> RendererProcess) throws {
+            self.start = start
+            process = try start()
+        }
+
+        /// What the current renderer said when it started.
+        public var hello: RendererHello { lock.withLock { process.hello } }
+
+        public func stories(check: Bool = false, timeout: Duration = .seconds(120)) throws
+            -> [StoryInfo]
+        {
+            try lock.withLock { try running().stories(check: check, timeout: timeout) }
+        }
+
+        /// Renders `story`, retrying once on a fresh renderer if the first attempt ended the
+        /// renderer.
+        public func render(
+            _ story: StoryID, in environment: RenderEnvironment = RenderEnvironment(),
+            timeout: Duration = .seconds(30)
+        ) throws -> Data {
+            try lock.withLock {
+                let first = try running()
+                do {
+                    return try first.render(story, in: environment, timeout: timeout)
+                } catch {
+                    // An error the renderer reported leaves it running; that's the story's fault.
+                    guard !first.isRunning else { throw error }
+                    do {
+                        return try running().render(story, in: environment, timeout: timeout)
+                    } catch let retry {
+                        throw RendererError(
+                            description:
+                                "\(retry)\nIt failed the same way on a restarted renderer: \(error)"
+                        )
+                    }
+                }
+            }
+        }
+
+        public func shutdown() {
+            lock.withLock { process.shutdown() }
+        }
+
+        /// The renderer, restarted if it has exited.
+        private func running() throws -> RendererProcess {
+            if process.isRunning { return process }
+            process = try start()
+            restarts += 1
+            return process
+        }
+    }
+#endif

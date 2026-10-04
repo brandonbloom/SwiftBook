@@ -25,21 +25,25 @@
     /// Starting renderers for the CLI.
     enum Renderers {
         /// Builds the renderer for `project` and starts it on `device`: as a process for the
-        /// Mac, or as an app in SwiftBook's own simulator for the others.
+        /// Mac, or as an app in SwiftBook's own simulator for the others. It restarts when it
+        /// crashes or hangs.
         static func start(for project: Project, on device: Device = .mac) throws
-            -> RendererProcess
+            -> RestartingRenderer
         {
             let host = RendererHost(package: project.root)
             switch device {
             case .mac:
                 progress("Building the renderer…")
-                return try RendererProcess(executable: host.build())
+                let executable = try host.build()
+                return try RestartingRenderer { try RendererProcess(executable: executable) }
             case .iphone, .ipad, .tv:
                 progress("Building the \(device == .tv ? "tvOS" : "iOS") renderer…")
                 let app = try host.buildApp(for: device == .tv ? .tvOS : .iOS)
                 progress("Starting the simulator…")
                 let simulator = try Simulator.dedicated(for: device)
-                return try RendererProcess(app: app.url, bundleID: app.bundleID, in: simulator)
+                return try RestartingRenderer {
+                    try RendererProcess(app: app.url, bundleID: app.bundleID, in: simulator)
+                }
             case .catalyst:
                 throw Failure(description: "Mac Catalyst rendering isn't supported yet.")
             }

@@ -78,6 +78,51 @@
             }
         }
 
+        /// A renderer that hangs on its first render if `marker` doesn't exist yet, creating it,
+        /// and otherwise answers renders with an error naming its process.
+        func hangsOnce(marker: URL) throws -> URL {
+            try renderer(
+                """
+                echo '\(Self.hello)'
+                while read line; do
+                  id=$(echo "$line" | sed 's/.*"id":\\([0-9]*\\).*/\\1/')
+                  if [ ! -e '\(marker.path)' ]; then touch '\(marker.path)'; sleep 60; fi
+                  echo "{\\"id\\":$id,\\"error\\":\\"served by $$\\"}"
+                done
+                """)
+        }
+
+        @Test func restartsAndRetriesARendererThatHangs() throws {
+            let script = try hangsOnce(marker: directory.appending(path: "hung"))
+            let renderer = try RestartingRenderer { try RendererProcess(executable: script) }
+            // The retry reaches a fresh renderer, which reports its own error: the story's fault,
+            // not a hang.
+            #expect {
+                try renderer.render(
+                    StoryID(module: "M", group: "G", name: "S"), timeout: .milliseconds(500))
+            } throws: { ($0 as? RendererError)?.description.hasPrefix("served by") == true }
+            #expect(renderer.restarts == 1)
+            renderer.shutdown()
+        }
+
+        @Test func reportsAStoryThatCrashesEveryRenderer() throws {
+            let script = try renderer("echo '\(Self.hello)'\nread line\nexit 6")
+            let renderer = try RestartingRenderer { try RendererProcess(executable: script) }
+            #expect {
+                try renderer.render(StoryID(module: "M", group: "G", name: "S"))
+            } throws: {
+                ($0 as? RendererError)?.description.contains(
+                    "failed the same way on a restarted renderer")
+                    == true
+            }
+            #expect(renderer.restarts == 1)
+            // The next request still gets a renderer, and its own retry.
+            #expect(throws: RendererError.self) {
+                try renderer.render(StoryID(module: "M", group: "G", name: "T"))
+            }
+            #expect(renderer.restarts == 3)
+        }
+
         @Test func refusesAnotherProtocolVersion() throws {
             #expect {
                 try RendererProcess(

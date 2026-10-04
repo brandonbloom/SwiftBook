@@ -179,7 +179,7 @@ Fulbloom adopts SwiftBook at the end of this phase.
   - `swiftbook doctor` reports how many previews were discovered and read.
   - Done.
     - **Protocol (`RendererProtocol`, version 1):** newline-delimited JSON on the renderer's stdin and stdout, starting with a hello. `list` returns stories, and with `check` it builds each view and reports failures. `render` returns a PNG with its metadata. Then `shutdown`. The renderer moves its own stdout to stderr, so user code that prints can't corrupt the stream.
-    - **Host (`RendererHost`):** a package at `.build/swiftbook/renderer`. It links every library product of the user's package plus the new `SwiftBookRenderer` library, and depends on SwiftBook the way the user's package resolved it: the same path, or the same URL and revision. It starts from the user's `Package.resolved`. No linker flags were needed: SwiftPM links package targets' object files whole, so conformance records survive. If SwiftBook is in `swift package edit` mode in the user's package, the host still uses the pinned revision.
+    - **Host (`RendererHost`):** a package at `.build/swiftbook/renderer`. It links every library product of the user's package plus the new `SwiftBookRenderer` library, and depends on SwiftBook the way the user's package resolved it: the same path, or the same URL and revision. It starts from the user's `Package.resolved`. No linker flags were needed: SwiftPM links package targets' object files whole, so conformance records survive. If SwiftBook is in `swift package edit` mode in the user's package, the host edits it to the same working copy (since added).
     - **Supervision (`RendererProcess`):** per-request timeouts stop a hung renderer (SIGTERM, then SIGKILL). A crash is reported with its exit status and the tail of its stderr. A renderer speaking another protocol version is refused.
     - **Commands:** `swiftbook list [--check] [--json]`. `swiftbook prune [--dry-run]` deletes story directories that match no current story, only in modules the renderer links, and keeps variants. `doctor` checks discovery unless `--quick`.
     - **Timing on the zoo:** a cold host build and list takes about 14 s; warm, about 4 s, including the no-op build. A renderer's render of the zoo's Card is byte-identical to the reference recorded by `swift test`.
@@ -209,6 +209,10 @@ Fulbloom adopts SwiftBook at the end of this phase.
     - The zoo has iPhone, iPad, and Apple TV references (204), and CI verifies them with `--record never`, in about 100 s.
     - Not yet: variants other than light and dark on simulated devices, and `excluding:`. The CLI can't read `#SwiftBookTests`' arguments.
     - From Fulbloom's iPhone adoption: an indeterminate `ProgressView` spun between captures, because Core Animation runs animations outside the app. Render windows now stop their layer clock (`speed = 0`) before content arrives, so every animation stays on its first frame. The zoo's new Hazards/Progress story is the canary. Renderer build failures now lead with the compiler's errors.
+    - Fulbloom's iPhone adoption, round two (152 references):
+      - Hangs past the 30 s timeout used to fail every remaining story. The CLI now restarts a renderer that crashes or hangs, and retries the story once on the fresh one (`RestartingRenderer` in SwiftBookCore). The test summary counts restarts.
+      - A capture that's all one color must hold for a second before it counts as settled, since a presentation such as an inspector sheet may not have drawn yet.
+      - The hangs didn't reproduce in four runs on Fulbloom's branch, two of them under load.
 - [x] **`tvos-runtime`**
   - Install the tvOS simulator runtime (a human step) and get the zoo rendering on tvOS.
   - Done: Brandon installed tvOS 27, and the zoo renders and verifies on Apple TV 4K.
