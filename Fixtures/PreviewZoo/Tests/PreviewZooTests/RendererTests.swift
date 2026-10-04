@@ -5,7 +5,6 @@
 
     @MainActor @Suite struct RendererTests {
         let stories = Story.all().filter { $0.id.module == "PreviewZoo" }
-        let unsupported: Set<String> = ["Arguments/Badge arguments"]
 
         func story(_ group: String, _ name: String) throws -> Story {
             try #require(stories.first { $0.id.group == group && $0.id.name == name })
@@ -82,7 +81,7 @@
                 filePath: ProcessInfo.processInfo.environment["SWIFTBOOK_ARTIFACTS"]!)
             try FileManager.default.createDirectory(
                 at: directory, withIntermediateDirectories: true)
-            for story in stories where !unsupported.contains("\(story.id.group)/\(story.id.name)") {
+            for story in stories {
                 for appearance in RenderEnvironment.Appearance.allCases {
                     let png = try await MacRenderer.render(story, in: environment(appearance))
                         .pngData()

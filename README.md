@@ -107,7 +107,7 @@ Exit status is 0 for success, 1 when snapshots changed or failed, 2 when somethi
 
 **Discovery.** SwiftBook finds previews at runtime, from the conformance records that `#Preview` and `PreviewProvider` compile into your binary. There's nothing to register. It reads each preview's name, traits, and body through Xcode's preview types, and fails loudly, naming your Xcode version, if those types change shape.
 
-**Stories.** A story's ID is its module, its group (the source file's name), and its preview name. Unnamed previews take the group's name, and repeated names get " 2", " 3", and so on.
+**Stories.** A story's ID is its module, its group (the source file's name), and its preview name. Unnamed previews take the group's name, and repeated names get " 2", " 3", and so on. Each argument of a `#Preview(arguments:)` is its own story, named `<preview> / <argument>` after the argument's description.
 
 **References.** One PNG per variant, at `Snapshots/<Module>/<Group>/<Story>/<device>.<appearance>.png` in the package or Xcode project that contains the test. Each PNG records the rendering environment it was made in.
 
@@ -150,7 +150,6 @@ The macro also takes `variants:` to change which environments each story renders
 
 ## Limitations
 
-- Parameterized `#Preview(arguments:)` previews aren't supported yet; exclude them.
 - Only macOS renders. Tests in iOS and tvOS builds report that those platforms need `swiftbook test`, which doesn't exist yet.
 
 ## Developing SwiftBook

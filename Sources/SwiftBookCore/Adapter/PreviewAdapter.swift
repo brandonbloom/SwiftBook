@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Reads previews into stories. The only code that depends on the private structure of
-/// DeveloperToolsSupport's `Preview`, together with ``PreviewModifiers`` and ``Reflection``.
+/// DeveloperToolsSupport's `Preview`, together with ``PreviewBody``, ``PreviewGroup``,
+/// ``PreviewModifiers`` and ``Reflection``.
 ///
 /// Every assumption about that structure is checked. A preview that doesn't match yields a story
 /// whose `makeView()` throws ``AdapterError``, so an SDK change fails loudly instead of rendering
@@ -61,23 +62,26 @@ import SwiftUI
                 throw AdapterError.unexpectedShape("Preview has no displayName")
             }
             let traits = try Traits(mirror.descendant("traits"))
-            let body = try PreviewBody(mirror.descendant("dataSource"))
-            var draft = Draft(
-                module: module, group: group, displayName: displayName, fileID: fileID, line: line,
-                make: {
-                    do {
-                        var view = try body.makeView()
-                        for modifier in traits.modifiers {
-                            view = try await PreviewModifiers.apply(modifier, to: view)
+            return try PreviewBody.bodies(of: mirror.descendant("dataSource")).map { body in
+                // Each argument of a `#Preview(arguments:)` is its own story, "<preview> / <label>".
+                let name = body.label.map { "\(displayName ?? group) / \($0)" } ?? displayName
+                var draft = Draft(
+                    module: module, group: group, displayName: name, fileID: fileID, line: line,
+                    make: {
+                        do {
+                            var view = try body.makeView()
+                            for modifier in traits.modifiers {
+                                view = try await PreviewModifiers.apply(modifier, to: view)
+                            }
+                            return view
+                        } catch let error as AdapterError {
+                            throw error.at(location)
                         }
-                        return view
-                    } catch let error as AdapterError {
-                        throw error.at(location)
-                    }
-                })
-            draft.layout = traits.layout
-            draft.orientation = traits.orientation
-            return [draft]
+                    })
+                draft.layout = traits.layout
+                draft.orientation = traits.orientation
+                return draft
+            }
         } catch {
             return [failure(error)]
         }

@@ -13,7 +13,8 @@ import Testing
 
     @Test func namesEveryStory() {
         var expected = [
-            "Arguments/Badge arguments",
+            "Arguments/Badge arguments / NEW", "Arguments/Badge arguments / SALE",
+            "Arguments/Badge arguments / SOLD OUT",
             "Card/Card", "Card/Card 2", "Card/Card 3", "Card/Card (statements)",
             "Chrome/Sidebar selection", "Chrome/Accent avatar",
             "EdgeCases/Debug only", "EdgeCases/Slash / colon: and émoji 🌙", "EdgeCases/Duplicate",
@@ -44,11 +45,8 @@ import Testing
         #expect(stories.map { "\($0.id.group)/\($0.id.name)" } == expected)
     }
 
-    /// Parameterized previews, which the adapter doesn't support yet.
-    let unsupported: Set<String> = ["Arguments/Badge arguments"]
-
     @Test func makesEveryStorysView() async throws {
-        for story in stories where !unsupported.contains("\(story.id.group)/\(story.id.name)") {
+        for story in stories {
             // Hosting and laying out the view runs SwiftUI's update graph, where Debug builds' view
             // replacement (DebugReplaceableView) crashed Xcode's own preview agent on legacy previews.
             layOut(try await story.makeView())
@@ -75,15 +73,15 @@ import Testing
         #expect(story.line == 29)
     }
 
-    @Test func reportsParameterizedPreviewsAsUnsupported() async throws {
-        let story = try story("Arguments", "Badge arguments")
-        do {
-            _ = try await story.makeView()
-            Issue.record("expected an AdapterError")
-        } catch let error as AdapterError {
-            #expect(error.problem == "unsupported: parameterized #Preview(arguments:)")
-            #expect(error.location == "PreviewZoo/Arguments.swift:4")
-        }
+    @Test func readsEachArgumentAsItsOwnStory() async throws {
+        let short = try story("Arguments", "Badge arguments / NEW")
+        let long = try story("Arguments", "Badge arguments / SOLD OUT")
+        #expect(short.layout == .sizeThatFits)
+        #expect(short.fileID == "PreviewZoo/Arguments.swift")
+        #expect(short.line == long.line)
+        let shortWidth = hostedSize(try await short.makeView()).width
+        let longWidth = hostedSize(try await long.makeView()).width
+        #expect(longWidth > shortWidth)
     }
 
     @Test func appliesSharedContextModifiers() async throws {

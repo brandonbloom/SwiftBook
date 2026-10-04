@@ -1,11 +1,16 @@
 import SwiftUI
 
-/// The content of a `#Preview`, from its data source.
+/// One body of a `#Preview`, from its data source: the only body of a plain preview, or one
+/// argument's body of a `#Preview(arguments:)`.
 @MainActor struct PreviewBody {
-    /// Builds the preview's view, before preview modifiers.
+    /// What distinguishes this body within its preview: the argument's description for a
+    /// `#Preview(arguments:)`, or `nil` for a preview with a single body.
+    let label: String?
+    /// Builds the body's view, before preview modifiers.
     let makeView: @MainActor () throws -> AnyView
 
-    init(_ dataSource: Any?) throws {
+    /// The bodies of a preview, in the order Xcode shows them.
+    static func bodies(of dataSource: Any?) throws -> [PreviewBody] {
         // DataSource is an enum; `.preview(source)` holds a DefaultPreviewSource<Body>.
         guard let dataSource, let source = Mirror(reflecting: dataSource).children.first else {
             throw AdapterError.unexpectedShape("Preview has no dataSource")
@@ -22,12 +27,20 @@ import SwiftUI
         switch kind.label {
         case "singlePreview":
             let makeBody = Mirror(reflecting: kind.value).descendant("makeBody") ?? kind.value
-            makeView = { try Self.call(makeBody) }
+            return [PreviewBody(label: nil, makeView: { try call(makeBody) })]
         case "previewGroup":
-            // Parameterized `#Preview(arguments:)`. Calling its group closure through `Mirror`
-            // crashes inside DeveloperToolsSupport (see `preview-arguments` in docs/plan.md), so
-            // these fail loudly until it's supported.
-            throw AdapterError.unsupported("parameterized #Preview(arguments:)")
+            // Parameterized `#Preview(arguments:)`: `(metadata, makeBody)`.
+            let payload = Mirror(reflecting: kind.value)
+            guard let metadata = payload.descendant("metadata"),
+                let makeBody = payload.descendant("makeBody")
+            else {
+                throw AdapterError.unexpectedShape(
+                    "preview group payload is \(type(of: kind.value))")
+            }
+            let group = try PreviewGroup(metadata: metadata, makeBody: makeBody)
+            return group.items.map { item in
+                PreviewBody(label: item.label, makeView: { try group.makeView(at: item.index) })
+            }
         default:
             throw AdapterError.unsupported("preview structure \(kind.label ?? "?")")
         }
@@ -38,11 +51,7 @@ import SwiftUI
     // A body closure can't be dynamically cast to a callable type: its result type may be private,
     // and Swift 6 won't cast across global-actor isolation. So, after checking its signature
     // against the runtime metadata, the closure is reinterpreted as a function type with the same
-    // calling convention.
-    //
-    // `Mirror` hands the closure over boxed in `Any`, which stores functions at maximal
-    // abstraction: every parameter and result passed opaquely. The reinterpreted type must match,
-    // so its types are generic parameters, never concrete types. (A concrete type here crashes.)
+    // calling convention. See `Reflection.function(_:as:)` for what that takes.
 
     /// `ViewPreviewBody`'s layout.
     private struct RawViewBody {
@@ -63,7 +72,7 @@ import SwiftUI
     }
 
     /// The view a body holds: a ViewPreviewBody's SwiftUI view, or a platform view or controller.
-    private static func view<Body>(from body: Body) throws -> AnyView {
+    static func view<Body>(from body: Body) throws -> AnyView {
         #if canImport(AppKit) && !targetEnvironment(macCatalyst)
             if let view = body as? NSView { return PlatformViews.wrap(view) }
             if let controller = body as? NSViewController { return PlatformViews.wrap(controller) }
@@ -77,9 +86,7 @@ import SwiftUI
 
     /// Checks that `actual` stores the same fields, by name, offset, and type, as `shadow`, so a
     /// value of one can be reinterpreted as the other.
-    nonisolated private static func checkLayout(of actual: Any.Type, matches shadow: Any.Type)
-        throws
-    {
+    nonisolated static func checkLayout(of actual: Any.Type, matches shadow: Any.Type) throws {
         let actualFields = try Reflection.fields(of: actual)
         let shadowFields = try Reflection.fields(of: shadow)
         let matches =

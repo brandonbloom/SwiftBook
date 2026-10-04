@@ -60,6 +60,12 @@ enum Reflection {
     /// closure of a private type can't be cast to a callable type. Isolation doesn't change a
     /// synchronous closure's representation, so once ``signature(ofFunction:)`` has confirmed the
     /// parameter and result types, the closure can be reinterpreted.
+    ///
+    /// The calling convention must match too. A function held in a generic parameter like `F`
+    /// passes every parameter indirectly and returns its result as one indirect value, so `F`'s
+    /// parameters and result must be generic parameters, never concrete types, and the stored
+    /// closure must return a single value: `() -> Body` works, `(Index) -> (Body, Index)` doesn't.
+    /// `PreviewGroup` shows how to call the latter.
     static func function<F>(_ value: Any, as _: F.Type) throws -> F {
         guard size(of: type(of: value)) == MemoryLayout<F>.size else {
             throw AdapterError.unexpectedShape("\(type(of: value)) isn't a closure like \(F.self)")

@@ -56,7 +56,7 @@ Fulbloom adopts SwiftBook at the end of this phase.
   - Write findings to `docs/research/xcode-previews-ux.md` and propose any vision changes.
 - [x] **`preview-adapter`**
   - The one isolated module that reads private `Preview` internals: display name, traits, body, `PreviewModifier` application, `arguments:`, and `PreviewProvider` variants.
-  - Done, except `arguments:`. Those previews fail loudly as unsupported; see `preview-arguments`.
+  - Done, except `arguments:`, which landed with `preview-arguments`.
   - When it can't read something, it raises a hard error that names the Xcode and SDK versions and the shape it didn't expect.
   - Each `arguments:` value becomes its own story (moved to `preview-arguments`).
   - Tests cover legacy `PreviewProvider`s rendered in Debug builds, where the 26+ SDKs wrap views in `DebugReplaceableView`. Xcode's own preview agent crashed on this case ([tour](research/xcode-previews-ux.md)).
@@ -140,13 +140,9 @@ Fulbloom adopts SwiftBook at the end of this phase.
   - `swiftbook review` writes an HTML page of new and changed references: grouped by file, light and dark side by side, diffs beside failures. Reviewing Fulbloom's 92 new references one at a time was the slowest step of adoption.
   - Done for `swift test`: every recording and failure writes its images and a JSON entry under `.build/swiftbook/`, and rewrites `review/index.html` from them. Each message ends with the page's path. The page copies its images, so it stays accurate after references change and can be uploaded from CI as is.
   - `swiftbook review` itself waits for `cli-skeleton`.
-- [ ] **`preview-arguments`**
+- [x] **`preview-arguments`**
   - Support parameterized `#Preview(arguments:)`: one story per argument, named `<preview> / <argument>`, with the group metadata's item descriptions as labels.
-  - Blocked on calling the group closure `makeBody(PreviewGroupIndex?) -> (Body, PreviewGroupIndex)`. Every way of calling it via `Mirror` reached a crash inside DeveloperToolsSupport: concrete types, generic types, and mixes of the two. Under lldb, calls reach an "Index out of range" inside DeveloperToolsSupport even with a `nil` index, and a disassembled callee takes the index by pointer.
-  - Leads:
-    - Read the closure directly from the `Preview` value's memory instead of through `Mirror`'s `Any` box. The layout is `Preview.dataSource@16`, an existential holding `DefaultPreviewSource<Body>`, whose `structure@32` is a 57-byte enum whose group payload is `(metadata, makeBody)`.
-    - Inspect the `PreviewSource` protocol's requirements.
-    - Watch how XCPreviewAgent drives a group.
+  - The group closure is `makeBody(PreviewGroupIndex?) -> (Body, PreviewGroupIndex)`, and it takes its index and returns both results indirectly, because `PreviewGroupIndex` is resilient. Calling it through `Reflection.function` crashed because a closure held in a generic parameter returns a tuple as one indirect value, not two. `PreviewGroup` calls it instead through a shadow generic struct whose stored closure has the same convention.
 - [ ] **`capture-speed`**
   - Bring window-server capture closer to emulated speed. Options: settle on a damage signal instead of a fixed delay, or capture several windows concurrently.
 
