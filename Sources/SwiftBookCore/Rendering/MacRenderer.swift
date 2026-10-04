@@ -34,7 +34,13 @@
         )
             async throws -> Snapshot
         {
-            _ = NSApplication.shared
+            if NSApplication.shared.activationPolicy() == .regular,
+                Bundle.main.bundleURL.pathExtension != "app"
+            {
+                // A test process isn't an app. Otherwise macOS lists it as one while it renders,
+                // with a Dock tile that can outlive it. (A regular app can't become prohibited.)
+                NSApplication.shared.setActivationPolicy(.accessory)
+            }
 
             // `Date.formatted()` and friends read the process's time zone, not SwiftUI's.
             let processTimeZone = ProcessTimeZone.set(environment.timeZoneIdentifier)
