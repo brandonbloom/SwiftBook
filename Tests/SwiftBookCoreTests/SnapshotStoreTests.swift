@@ -87,7 +87,7 @@ import Testing
 
     @Test func recordsMissingReferencesThenMatchesThem() throws {
         guard
-            case .recorded(let url, previous: nil) = try store.verify(
+            case .recorded(let url, previous: nil, replaced: nil) = try store.verify(
                 snapshot(gray: 100), mode: .missing)
         else {
             Issue.record("expected a recording")
@@ -117,12 +117,14 @@ import Testing
     @Test func rerecordsChangedReferencesInChangedMode() throws {
         _ = try store.verify(snapshot(gray: 100), mode: .missing)
         guard
-            case .recorded(_, let previous) = try store.verify(snapshot(gray: 200), mode: .changed)
+            case .recorded(_, let previous, let replaced) = try store.verify(
+                snapshot(gray: 200), mode: .changed)
         else {
             Issue.record("expected a recording")
             return
         }
         #expect(previous?.changedPixels == 16)
+        #expect(replaced == (try snapshot(gray: 100).pngData()))
         guard case .matched = try store.verify(snapshot(gray: 200), mode: .never) else {
             Issue.record("expected the new reference to match")
             return
@@ -140,13 +142,16 @@ import Testing
     @Test func rerecordsEverythingThatDiffersInAllMode() throws {
         _ = try store.verify(snapshot(gray: 100), mode: .missing)
         // Even a change within tolerance is recorded.
-        guard case .recorded(_, let previous) = try store.verify(snapshot(gray: 101), mode: .all)
+        guard
+            case .recorded(_, let previous, let replaced) = try store.verify(
+                snapshot(gray: 101), mode: .all)
         else {
             Issue.record("expected a recording")
             return
         }
         #expect(previous?.matches == true)
         #expect(previous?.isIdentical == false)
+        #expect(replaced == (try snapshot(gray: 100).pngData()))
     }
 
     @Test func leavesIdenticalReferencesAloneInAllMode() throws {

@@ -136,9 +136,10 @@ Fulbloom adopts SwiftBook at the end of this phase.
     - Injecting fixed times in previews instead of reading `Date.now`.
     - What each `SWIFTBOOK_RECORD` mode does.
   - From Fulbloom's adoption feedback.
-- [ ] **`review-page`**
+- [x] **`review-page`**
   - `swiftbook review` writes an HTML page of new and changed references: grouped by file, light and dark side by side, diffs beside failures. Reviewing Fulbloom's 92 new references one at a time was the slowest step of adoption.
-  - Until `cli-skeleton` lands, `swift test` writes the page to `.build/swiftbook/review/index.html` whenever it records or fails. Reuse the Phase 1 validation packet's layout: a "What to check" box per section and light/dark cards.
+  - Done for `swift test`: every recording and failure writes its images and a JSON entry under `.build/swiftbook/`, and rewrites `review/index.html` from them. Each message ends with the page's path. The page copies its images, so it stays accurate after references change and can be uploaded from CI as is.
+  - `swiftbook review` itself waits for `cli-skeleton`.
 - [ ] **`preview-arguments`**
   - Support parameterized `#Preview(arguments:)`: one story per argument, named `<preview> / <argument>`, with the group metadata's item descriptions as labels.
   - Blocked on calling the group closure `makeBody(PreviewGroupIndex?) -> (Body, PreviewGroupIndex)`. Every way of calling it via `Mirror` reached a crash inside DeveloperToolsSupport: concrete types, generic types, and mixes of the two. Under lldb, calls reach an "Index out of range" inside DeveloperToolsSupport even with a `nil` index, and a disassembled callee takes the index by pointer.

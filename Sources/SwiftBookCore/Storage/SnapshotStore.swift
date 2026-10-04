@@ -38,8 +38,8 @@ public enum Verification: @unchecked Sendable {
     /// The snapshot matches its reference within the tolerance.
     case matched(ImageDiff)
     /// The reference was written. `previous` compares against the reference it replaced, if any
-    /// could be read.
-    case recorded(URL, previous: ImageDiff?)
+    /// could be read, and `replaced` is that reference's PNG.
+    case recorded(URL, previous: ImageDiff?, replaced: Data?)
     /// The snapshot doesn't match its reference.
     case mismatched(ImageDiff, reference: URL, referenceMetadata: SnapshotMetadata?)
     /// There's no reference, and the record mode doesn't allow writing one.
@@ -99,7 +99,7 @@ public struct SnapshotStore: Sendable {
         guard let reference = try? Data(contentsOf: url) else {
             guard mode != .never else { return .missing(url) }
             try write(png, to: url)
-            return .recorded(url, previous: nil)
+            return .recorded(url, previous: nil, replaced: nil)
         }
         if mode == .all {
             // An identical reference needs no rewrite, so it isn't reported as recorded.
@@ -111,14 +111,14 @@ public struct SnapshotStore: Sendable {
             let previous = try? compare(
                 snapshot.image, toReference: reference, at: url, tolerance: tolerance)
             try write(png, to: url)
-            return .recorded(url, previous: previous)
+            return .recorded(url, previous: previous, replaced: reference)
         }
         let diff = try compare(
             snapshot.image, toReference: reference, at: url, tolerance: tolerance)
         if diff.matches { return .matched(diff) }
         if mode == .changed {
             try write(png, to: url)
-            return .recorded(url, previous: diff)
+            return .recorded(url, previous: diff, replaced: reference)
         }
         return .mismatched(
             diff, reference: url, referenceMetadata: try? SnapshotMetadata.read(fromPNG: reference))

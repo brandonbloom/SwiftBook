@@ -113,40 +113,62 @@ public enum SwiftBook {
         let variant = SnapshotStore.variantName(
             device: snapshot.device, environment: snapshot.environment)
         let subject = "\(snapshot.story) (\(variant))"
+        let message: String
+        let kind: ReviewEntry.Kind
+        var images: [ReviewEntry.Image] = []
+        var severity = Issue.Severity.error
+        let artifacts: Artifacts
         switch verification {
         case .matched:
-            break
-        case .recorded(let url, let previous):
+            return
+        case .recorded(let url, let previous, let replaced):
+            artifacts = try Artifacts(for: url, store: store, kind: "recorded")
+            if let replaced {
+                images.append(try artifacts.write(replaced, as: "previous"))
+            }
+            images.append(try artifacts.write(Data(contentsOf: url), as: "new"))
+            let diffImage = try previous?.pngData().map { try artifacts.write($0, as: "diff") }
+            if let diffImage { images.append(diffImage) }
+            message = recordedMessage(
+                subject: subject, reference: relative(url, to: store), previous: previous,
+                diffImage: diffImage.map { URL(filePath: $0.path) })
+            kind = previous == nil ? .new : .changed
             // Recording on request passes with a warning, so the run lists what to review.
             // Recording because nothing existed fails, so a new reference gets reviewed before
             // it's committed.
-            let diffImage = try previous.flatMap { previous in
-                try writeRecordedDiff(previous, reference: url, store: store)
-            }
-            Issue.record(
-                Comment(
-                    rawValue: recordedMessage(
-                        subject: subject, reference: relative(url, to: store), previous: previous,
-                        diffImage: diffImage)),
-                severity: mode == .missing && previous == nil ? .error : .warning,
-                sourceLocation: sourceLocation)
+            if mode != .missing || previous != nil { severity = .warning }
         case .missing(let url):
-            Issue.record(
-                """
+            artifacts = try Artifacts(for: url, store: store, kind: "failures")
+            message = """
                 No reference for \(subject) at \(relative(url, to: store)). Record one with \
                 \(RecordMode.environmentVariable)=missing.
-                """, sourceLocation: sourceLocation)
+                """
+            kind = .missing
         case .mismatched(let diff, let url, let referenceMetadata):
-            let artifacts = try writeFailureArtifacts(
-                of: snapshot, diff: diff, reference: url, store: store)
-            Issue.record(
-                Comment(
-                    rawValue: mismatchMessage(
-                        subject: subject, diff: diff, reference: relative(url, to: store),
-                        referenceMetadata: referenceMetadata, actualMetadata: snapshot.metadata,
-                        artifacts: artifacts)),
-                sourceLocation: sourceLocation)
+            artifacts = try Artifacts(for: url, store: store, kind: "failures")
+            images.append(try artifacts.write(Data(contentsOf: url), as: "reference"))
+            images.append(try artifacts.write(snapshot.pngData(), as: "actual"))
+            if let diffPNG = try diff.pngData() {
+                images.append(try artifacts.write(diffPNG, as: "diff"))
+            }
+            message = mismatchMessage(
+                subject: subject, diff: diff, reference: relative(url, to: store),
+                referenceMetadata: referenceMetadata, actualMetadata: snapshot.metadata,
+                artifacts: artifacts.directory)
+            kind = .failed
         }
+        for image in images {
+            if let data = try? Data(contentsOf: URL(filePath: image.path)) {
+                Attachment.record(data, named: "\(variant).\(image.role).png")
+            }
+        }
+        let page = try artifacts.add(
+            ReviewEntry(
+                story: snapshot.story.description, variant: variant, kind: kind, message: message,
+                images: images))
+        Issue.record(
+            Comment(rawValue: message + "\nReview page: \(page.path)"), severity: severity,
+            sourceLocation: sourceLocation)
     }
 
     static func mismatchMessage(
@@ -225,59 +247,71 @@ public enum SwiftBook {
         return changes
     }
 
-    /// Where images for people to look at go: `$SWIFTBOOK_ARTIFACTS`, or else `.build/swiftbook`
-    /// in the project. Each kind gets a subdirectory mirroring `Snapshots/`, and the result is the
-    /// path for `reference` without its extension.
-    private static func artifactPath(for reference: URL, store: SnapshotStore, kind: String)
-        throws -> URL
-    {
-        let base =
-            ProcessInfo.processInfo.environment["SWIFTBOOK_ARTIFACTS"].map { URL(filePath: $0) }
-            ?? store.root.deletingLastPathComponent().appending(path: ".build/swiftbook")
-        let relativePath = String(reference.path.dropFirst(store.root.path.count))
-        let path = base.appending(path: kind).appending(path: relativePath)
-            .deletingPathExtension()
-        try FileManager.default.createDirectory(
-            at: path.deletingLastPathComponent(), withIntermediateDirectories: true)
-        return path
-    }
-
-    /// Writes and attaches the actual and diff images of a failure, and returns their directory.
-    private static func writeFailureArtifacts(
-        of snapshot: Snapshot, diff: ImageDiff, reference: URL, store: SnapshotStore
-    )
-        throws -> URL
-    {
-        let actual = try artifactPath(for: reference, store: store, kind: "failures")
-        let actualPNG = try snapshot.pngData()
-        try actualPNG.write(to: actual.appendingPathExtension("actual.png"))
-        Attachment.record(actualPNG, named: actual.lastPathComponent + ".actual.png")
-        if let diffPNG = try diff.pngData() {
-            try diffPNG.write(to: actual.appendingPathExtension("diff.png"))
-            Attachment.record(diffPNG, named: actual.lastPathComponent + ".diff.png")
-        }
-        if let referencePNG = try? Data(contentsOf: reference) {
-            Attachment.record(referencePNG, named: actual.lastPathComponent + ".reference.png")
-        }
-        return actual.deletingLastPathComponent()
-    }
-
-    /// Writes and attaches the diff between a re-recorded reference and the one it replaced, and
-    /// returns its path, or `nil` if there's no diff image.
-    private static func writeRecordedDiff(
-        _ diff: ImageDiff, reference: URL, store: SnapshotStore
-    ) throws -> URL? {
-        guard let diffPNG = try diff.pngData() else { return nil }
-        let url = try artifactPath(for: reference, store: store, kind: "recorded")
-            .appendingPathExtension("diff.png")
-        try diffPNG.write(to: url)
-        Attachment.record(diffPNG, named: url.lastPathComponent)
-        return url
-    }
-
     private static func relative(_ url: URL, to store: SnapshotStore) -> String {
         let project = store.root.deletingLastPathComponent().path
         return url.path.hasPrefix(project)
             ? String(url.path.dropFirst(project.count + 1)) : url.path
+    }
+}
+
+/// Images and review entries for people to look at, in `$SWIFTBOOK_ARTIFACTS` or else the
+/// project's `.build/swiftbook`.
+///
+/// Each kind ("failures", "recorded") gets a directory mirroring `Snapshots/`. The first artifact a
+/// process writes clears the previous run's, so the review page shows only the latest run.
+@MainActor struct Artifacts {
+    /// The artifacts root.
+    let base: URL
+    /// The path for this reference's artifacts, without an extension, such as
+    /// `failures/Module/Group/Story/mac.light`.
+    let stem: URL
+
+    var directory: URL { stem.deletingLastPathComponent() }
+
+    /// Artifact roots cleared by this process.
+    private static var cleared: Set<URL> = []
+
+    init(for reference: URL, store: SnapshotStore, kind: String) throws {
+        base =
+            ProcessInfo.processInfo.environment["SWIFTBOOK_ARTIFACTS"].map { URL(filePath: $0) }
+            ?? store.root.deletingLastPathComponent().appending(path: ".build/swiftbook")
+        if Self.cleared.insert(base).inserted {
+            for previous in Self.kinds + ["review"] {
+                try? FileManager.default.removeItem(at: base.appending(path: previous))
+            }
+        }
+        stem = base.appending(path: kind)
+            .appending(path: String(reference.path.dropFirst(store.root.path.count)))
+            .deletingPathExtension()
+        try FileManager.default.createDirectory(
+            at: directory, withIntermediateDirectories: true)
+    }
+
+    private static let kinds = ["failures", "recorded"]
+
+    /// Writes `png` beside the others, named for its `role`.
+    func write(_ png: Data, as role: String) throws -> ReviewEntry.Image {
+        let url = stem.appendingPathExtension("\(role).png")
+        try png.write(to: url)
+        return ReviewEntry.Image(role: role, path: url.path)
+    }
+
+    /// Saves `entry`, rewrites the review page from every saved entry, and returns the page.
+    func add(_ entry: ReviewEntry) throws -> URL {
+        try JSONEncoder().encode(entry).write(to: stem.appendingPathExtension("json"))
+        var entries: [ReviewEntry] = []
+        for kind in Self.kinds {
+            let enumerator = FileManager.default.enumerator(
+                at: base.appending(path: kind), includingPropertiesForKeys: nil)
+            while let url = enumerator?.nextObject() as? URL {
+                guard url.pathExtension == "json", let data = try? Data(contentsOf: url),
+                    let entry = try? JSONDecoder().decode(ReviewEntry.self, from: data)
+                else { continue }
+                entries.append(entry)
+            }
+        }
+        let page = base.appending(path: "review/index.html")
+        try ReviewPage.write(entries, to: page)
+        return page
     }
 }

@@ -64,7 +64,11 @@ Each story is one test case, named by its ID (`Module/Group/Name`), with one com
 | `all` | Recorded | Every reference that differs at all is re-recorded, with a warning | After changing tolerance or the rendering environment |
 | `never` | Fails | Fails | CI |
 
-Re-recordings pass, but each one is reported as a warning, with a diff image showing what changed. Review the images with `git diff` or your Git client before committing.
+Re-recordings pass, but each one is reported as a warning, with a diff image showing what changed.
+
+### Review page
+
+Every run that records or fails writes `.build/swiftbook/review/index.html`: each story's new, re-recorded, failed, and missing references, grouped by file, with variants side by side, and reference, actual and diff images for failures. Open it before committing references. It shows only the latest run, and every test message ends with its path.
 
 ### Failures
 
@@ -77,7 +81,7 @@ Actual and diff images: .build/swiftbook/failures/MyUI/Card/Card
 To accept the change: SWIFTBOOK_RECORD=changed swift test
 ```
 
-The actual, diff and reference images are also attached to the test result. In diff images, changed pixels are red and anti-aliasing differences are yellow. Set `SWIFTBOOK_ARTIFACTS` to put artifacts somewhere other than `.build/swiftbook`, for example a directory your CI uploads.
+The actual, diff and reference images are also attached to the test result. In diff images, changed pixels are red and anti-aliasing differences are yellow. Set `SWIFTBOOK_ARTIFACTS` to put artifacts and the review page somewhere other than `.build/swiftbook`, for example a directory your CI uploads.
 
 ### CI
 
