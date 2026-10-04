@@ -19,3 +19,7 @@ run = "swift test"
 [tasks.ci]
 description = "Run everything that must pass before a change lands"
 run = "scripts/ci"
+
+[tasks.latency]
+description = "Report edit-to-render latency on the zoo, per device"
+run = "scripts/latency mac iphone"

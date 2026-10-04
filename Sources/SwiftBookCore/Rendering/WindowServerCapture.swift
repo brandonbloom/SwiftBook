@@ -33,7 +33,7 @@
         }
 
         /// Whether the console session is locked, when the window server captures nothing.
-        static var screenIsLocked: Bool {
+        public static var screenIsLocked: Bool {
             let session = CGSessionCopyCurrentDictionary() as? [String: Any]
             return session?["CGSSessionScreenIsLocked"] as? Bool ?? false
         }

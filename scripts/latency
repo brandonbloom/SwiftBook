@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Reports how long it takes from editing a story's source to a new render of it, per device: an
+# incremental build of the renderer, starting it, and one render. Uses the zoo.
+set -euo pipefail
+: "${SWIFTBOOK_HOME:?}"
+cd "$SWIFTBOOK_HOME/Fixtures/PreviewZoo"
+swiftbook="$(cd "$SWIFTBOOK_HOME" && swift build --show-bin-path)/swiftbook"
+source=Sources/PreviewZoo/Card.swift
+story=PreviewZoo/Card/Card
+out="$(mktemp -d)"
+now() { perl -MTime::HiRes=time -e 'printf "%.3f\n", time'; }
+
+for device in "$@"; do
+  # Warm up: the first build of a renderer is a full build of the package.
+  "$swiftbook" render --device "$device" -o "$out" "$story" >/dev/null 2>&1
+  # An edit, as far as the build is concerned.
+  touch "$source"
+  start=$(now)
+  "$swiftbook" render --device "$device" -o "$out" "$story" >/dev/null 2>&1
+  end=$(now)
+  printf 'latency: edit → render on %s: %.1f s\n' "$device" "$(echo "$end - $start" | bc)"
+done

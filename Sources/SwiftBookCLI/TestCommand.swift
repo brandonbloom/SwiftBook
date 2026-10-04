@@ -50,6 +50,8 @@
             var results = Results()
             for device in devices {
                 print("Testing on \(device)…")
+                // swift test writes to the same terminal; keep this line ahead of its output.
+                fflush(stdout)
                 do {
                     if device == .mac {
                         try results.add(Self.testMac(project, mode: mode))

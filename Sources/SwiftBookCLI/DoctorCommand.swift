@@ -198,20 +198,43 @@
         }
 
         static func capture() -> Check {
-            let method = try? CaptureMethod.current()
-            if CGPreflightScreenCaptureAccess() {
+            let variable = ProcessInfo.processInfo.environment[CaptureMethod.environmentVariable]
+            if let variable, !variable.isEmpty {
+                guard let method = CaptureMethod(rawValue: variable) else {
+                    return Check(
+                        name: "Capture", status: .failure,
+                        detail:
+                            "\(CaptureMethod.environmentVariable)=\(variable) isn't a capture method.",
+                        fix: "Set it to windowServer or emulated, or unset it.")
+                }
                 return Check(
                     name: "Capture", status: .ok,
                     detail:
-                        "Screen Recording is allowed here, so macOS snapshots capture through the window server\(method == .emulated ? " (SWIFTBOOK_CAPTURE or a locked screen selects emulated capture now)" : "")."
+                        "\(CaptureMethod.environmentVariable) selects \(method == .emulated ? "emulated capture" : "window-server capture") for macOS snapshots."
+                )
+            }
+            guard CGPreflightScreenCaptureAccess() else {
+                return Check(
+                    name: "Capture", status: .warning,
+                    detail:
+                        "Screen Recording isn't allowed for this terminal, so macOS snapshots use emulated capture, which differs slightly from the screen.",
+                    fix:
+                        "Allow your terminal in System Settings › Privacy & Security › Screen & System Audio Recording, or set \(CaptureMethod.environmentVariable)=emulated to make the choice explicit."
+                )
+            }
+            if CaptureMethod.screenIsLocked {
+                return Check(
+                    name: "Capture", status: .warning,
+                    detail:
+                        "The screen is locked, so macOS snapshots use emulated capture until it's unlocked.",
+                    fix:
+                        "Set \(CaptureMethod.environmentVariable) to choose one method, so references don't depend on whether the screen is locked."
                 )
             }
             return Check(
-                name: "Capture", status: .warning,
+                name: "Capture", status: .ok,
                 detail:
-                    "Screen Recording isn't allowed for this terminal, so macOS snapshots use emulated capture, which differs slightly from the screen.",
-                fix:
-                    "Allow your terminal in System Settings › Privacy & Security › Screen & System Audio Recording, or set SWIFTBOOK_CAPTURE=emulated to make the choice explicit."
+                    "Screen Recording is allowed here, so macOS snapshots capture through the window server."
             )
         }
 
