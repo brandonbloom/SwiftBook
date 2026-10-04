@@ -97,11 +97,12 @@ Build it with `swift build --product swiftbook` in a checkout of SwiftBook, or r
 
 | Command | What it does |
 |---|---|
+| `swiftbook diff [<revision>] [--merge-base]` | Lists references added, deleted, or changed in the working tree against a revision (`HEAD` by default), with how many pixels changed. `--format json` or `junit` for machines; `--open` shows before, after and diff images. |
 | `swiftbook init` | Adds the Git LFS rule for references to `.gitattributes`. Safe to run again. |
 | `swiftbook doctor [--json]` | Checks macOS, Xcode, Git, Git LFS, the LFS rule, references that are unpulled LFS pointers, Screen Recording permission, and simulator runtimes. |
 | `swiftbook review [--print]` | Opens the review page from the last test run. |
 
-Exit status is 0 for success, 1 when snapshots changed or failed, 2 when something else went wrong, and 64 for usage errors.
+Exit status is 0 for success, 1 when references or snapshots changed or failed, 2 when something else went wrong, and 64 for usage errors.
 
 ## How it works
 

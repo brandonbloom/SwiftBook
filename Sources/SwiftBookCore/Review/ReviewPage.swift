@@ -11,6 +11,8 @@ public struct ReviewEntry: Codable, Hashable, Sendable {
         case failed
         /// A reference that doesn't exist and wasn't recorded.
         case missing
+        /// A reference that was removed.
+        case deleted
     }
 
     /// An image to show, with what it is.
@@ -46,16 +48,20 @@ public struct ReviewEntry: Codable, Hashable, Sendable {
 /// An HTML page of references to review, grouped by module and group, with each story's variants
 /// side by side.
 public enum ReviewPage {
-    /// Writes the page for `entries` to `url`, linking images relative to it.
-    public static func write(_ entries: [ReviewEntry], to url: URL) throws {
+    /// Writes the page for `entries` to `url`, linking images relative to it. `subtitle` goes
+    /// before the summary of entries.
+    public static func write(_ entries: [ReviewEntry], to url: URL, subtitle: String? = nil)
+        throws
+    {
         try FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try Data(html(entries, directory: url.deletingLastPathComponent()).utf8).write(
-            to: url, options: .atomic)
+        try Data(
+            html(entries, directory: url.deletingLastPathComponent(), subtitle: subtitle).utf8
+        ).write(to: url, options: .atomic)
     }
 
     /// The page for `entries`, with image paths relative to `directory`.
-    static func html(_ entries: [ReviewEntry], directory: URL) -> String {
+    static func html(_ entries: [ReviewEntry], directory: URL, subtitle: String? = nil) -> String {
         var out = [header]
         let counts = ReviewEntry.Kind.allCases.compactMap { kind -> String? in
             let count = entries.filter { $0.kind == kind }.count
@@ -63,6 +69,7 @@ public enum ReviewPage {
         }
         out.append(
             "<h1>SwiftBook review</h1><p class=\"muted\">"
+                + (subtitle.map { escape($0) + ": " } ?? "")
                 + (counts.isEmpty
                     ? "Nothing to review." : escape(counts.joined(separator: " · "))) + "</p>")
         let stories = Dictionary(grouping: entries, by: \.story)
@@ -109,6 +116,7 @@ public enum ReviewPage {
         case .changed: "Re-recorded"
         case .failed: "Failed"
         case .missing: "Missing"
+        case .deleted: "Deleted"
         }
     }
 
@@ -151,7 +159,7 @@ public enum ReviewPage {
         .title{font-weight:600;margin-bottom:4px}
         .badge{display:inline-block;font-size:11px;font-weight:600;padding:1px 6px;border-radius:4px;
         color:#fff}.badge.new{background:var(--new)}.badge.changed{background:var(--changed)}
-        .badge.failed{background:var(--failed)}.badge.missing{background:var(--missing)}
+        .badge.failed{background:var(--failed)}.badge.missing,.badge.deleted{background:var(--missing)}
         pre{white-space:pre-wrap;font-size:12px;color:var(--muted);margin:4px 0 8px}
         .images{display:flex;gap:8px;align-items:flex-start}
         figure{margin:0;flex:1;min-width:0}figcaption{font-size:11px;color:var(--muted)}

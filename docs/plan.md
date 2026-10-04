@@ -164,11 +164,19 @@ Fulbloom adopts SwiftBook at the end of this phase.
     - Changes cover staged and untracked files, and show renames as a deletion and an addition.
     - An LFS pointer that can't become its image is an error naming Git LFS.
   - Tested against scratch repositories: revisions, branches across a rebase, staged and untracked changes, LFS round trips, and missing LFS objects.
-- [ ] **`cli-diff-prune`**
+- [x] **`cli-diff-prune`**
   - `diff [<basis>]` and `prune`, with human-readable, JSON and JUnit output.
+  - `swiftbook diff [<revision>] [--merge-base] [--format human|json|junit] [--open]` is done.
+    - It compares the working tree's references, staged and untracked included, with those at a revision: HEAD by default, or the merge base with `--merge-base`.
+    - It reports each one added, deleted, or modified, with pixel stats. Modified references within tolerance are listed, but don't count as changes.
+    - `--open` writes a page of before, after and diff images.
+    - It exits 1 when something changed. The comparison lives in SwiftBookCore (`SnapshotStore.changes(since:in:)`) for the viewer to reuse.
+  - `prune` moved to `renderer-protocol`. Deciding what's orphaned needs every current story and variant, and only a process that loads the user's code knows them. Guessing from a partial test run could delete live references.
 - [ ] **`renderer-protocol`**
   - A versioned IPC protocol (list, render, shutdown), shared by the CLI, the viewer and every renderer.
   - A macOS renderer process that implements it.
+  - `swiftbook prune`: delete references whose story or variant no longer exists, using the renderer's list.
+  - `swiftbook doctor` reports how many previews were discovered and read.
 - [ ] **`ios-host-app`**
   - A generated hidden `.swiftpm` host with an `.iOSApplication` product, built with `xcodebuild`.
   - The fallback is `swift build` plus our own `.app` wrapper; see the [spike](spikes/ios-renderer.md).

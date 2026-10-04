@@ -12,7 +12,9 @@
                 failed, \(Exit.broken.rawValue) when something else went wrong, and 64 for usage \
                 errors.
                 """,
-            subcommands: [InitCommand.self, DoctorCommand.self, ReviewCommand.self])
+            subcommands: [
+                DiffCommand.self, ReviewCommand.self, InitCommand.self, DoctorCommand.self,
+            ])
 
         public init() {}
     }
