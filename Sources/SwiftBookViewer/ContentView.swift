@@ -134,27 +134,29 @@
                         "No stories", systemImage: "exclamationmark.triangle",
                         description: Text("The renderer couldn't start."))
                 case .ready:
-                    List(selection: $model.selectedNode) {
-                        ForEach(model.sidebarRows) { row in
-                            SidebarRowView(row: row, model: model).tag(row.id)
-                        }
-                    }
-                    // Arrow keys work as in Finder's outline: left collapses or goes up,
-                    // right expands or goes in.
-                    .onKeyPress(.leftArrow) {
-                        model.moveLeft()
-                        return .handled
-                    }
-                    .onKeyPress(.rightArrow) {
-                        model.moveRight()
-                        return .handled
-                    }
-                    .searchable(text: $model.searchText, placement: .sidebar, prompt: "Stories")
-                    .safeAreaInset(edge: .top, spacing: 0) {
+                    // The basis bar sits above the list rather than inset over it, so rows never
+                    // scroll under it.
+                    VStack(spacing: 0) {
                         if model.basis != nil {
                             BasisBar(model: model)
                         }
+                        List(selection: $model.selectedNode) {
+                            ForEach(model.sidebarRows) { row in
+                                SidebarRowView(row: row, model: model).tag(row.id)
+                            }
+                        }
+                        // Arrow keys work as in Finder's outline: left collapses or goes up,
+                        // right expands or goes in.
+                        .onKeyPress(.leftArrow) {
+                            model.moveLeft()
+                            return .handled
+                        }
+                        .onKeyPress(.rightArrow) {
+                            model.moveRight()
+                            return .handled
+                        }
                     }
+                    .searchable(text: $model.searchText, placement: .sidebar, prompt: "Stories")
                 }
             }
         }
