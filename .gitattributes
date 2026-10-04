@@ -1,2 +1,4 @@
 # Reference snapshots live in Git LFS.
 **/Snapshots/**/*.png filter=lfs diff=lfs merge=lfs -text
+# So are the website's figures.
+site/**/*.png filter=lfs diff=lfs merge=lfs -text

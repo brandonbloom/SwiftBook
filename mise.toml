@@ -23,3 +23,16 @@ run = "scripts/ci"
 [tasks.latency]
 description = "Report edit-to-render latency on the zoo, per device"
 run = "scripts/latency mac iphone"
+
+[tasks.site-assets]
+description = "Copy the website's figures from the zoo's references"
+run = "scripts/site-assets"
+
+[tasks.site-build]
+description = "Build the website and documentation into .build/site"
+run = "scripts/site-build"
+
+[tasks.site-preview]
+description = "Build the website and serve it at http://localhost:8000"
+depends = ["site-build"]
+run = "python3 -m http.server --directory .build/site 8000"

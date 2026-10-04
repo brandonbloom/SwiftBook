@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Builds the website into .build/site: the landing page at the root, and the documentation, from
+# site/SwiftBookTesting.docc and SwiftBookTesting's symbols, under docs/.
+#
+# SWIFTBOOK_SITE_BASE is the path the site is served under, such as "SwiftBook" for a GitHub
+# Pages project site. It's empty for a site served at the root, as by `mise run site-preview`.
+set -euo pipefail
+: "${SWIFTBOOK_HOME:?}"
+cd "$SWIFTBOOK_HOME"
+base="${SWIFTBOOK_SITE_BASE:-}"
+out=.build/site
+symbols=.build/site-symbols
+rm -rf "$out" "$symbols"
+mkdir -p "$out" "$symbols"
+
+graphs="$(swift package dump-symbol-graph --minimum-access-level public | sed -n 's/^Files written to //p')"
+cp "$graphs"/SwiftBookTesting.symbols.json "$symbols/"
+
+xcrun docc convert site/SwiftBookTesting.docc \
+  --additional-symbol-graph-dir "$symbols" \
+  --output-path "$out/docs" \
+  --transform-for-static-hosting \
+  --hosting-base-path "${base:+$base/}docs"
+cp site/index.html site/style.css "$out/"
+cp site/SwiftBookTesting.docc/Resources/card@2x.png site/SwiftBookTesting.docc/Resources/card~dark@2x.png "$out/"

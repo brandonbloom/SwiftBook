@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SwiftBook</title>
+  <meta name="description" content="Snapshot tests and a story viewer for SwiftUI, made from the previews you already have.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <span class="wordmark">SwiftBook</span>
+    <nav>
+      <a href="docs/documentation/swiftbooktesting/">Documentation</a>
+      <a href="https://github.com/brandonbloom/SwiftBook">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>Your previews are already tests.</h1>
+      <p class="lede">SwiftBook snapshot-tests every <code>#Preview</code> in light and dark, on Mac, iPhone, iPad and Apple TV, and diffs them against references in git. No stories to write, no service to sign up for.</p>
+      <p class="actions">
+        <a class="button" href="docs/documentation/swiftbooktesting/gettingstarted">Get started</a>
+        <a href="docs/documentation/swiftbooktesting/">Read the docs</a>
+      </p>
+      <picture>
+        <source srcset="card~dark@2x.png 2x" media="(prefers-color-scheme: dark)">
+        <img src="card@2x.png" srcset="card@2x.png 2x" alt="A card preview, rendered by SwiftBook." width="800" height="600">
+      </picture>
+    </section>
+
+    <section class="pillars">
+      <div>
+        <h2>Stories are your previews</h2>
+        <p>Every <code>#Preview</code> is a story. Nothing to register, wrap or configure. If it works in Xcode's canvas, it works in SwiftBook.</p>
+      </div>
+      <div>
+        <h2>The same stories are your tests</h2>
+        <p>One macro line runs every story under <code>swift test</code>. Perceptual diffs, readable failures, and a review page for every run.</p>
+      </div>
+      <div>
+        <h2>One app to leave open</h2>
+        <p>A Mac viewer shows every story and redraws as your code compiles. Crashes, hangs and build errors never take it down.</p>
+      </div>
+    </section>
+
+    <section class="setup">
+      <h2>One file of setup</h2>
+<pre><code>import SwiftBookTesting
+import Testing
+
+#SwiftBookTests</code></pre>
+      <p>Then run <code>swift test</code>. <a href="docs/documentation/swiftbooktesting/gettingstarted">The full guide</a> takes five minutes.</p>
+    </section>
+  </main>
+
+  <footer>
+    <p>SwiftBook is early and private. Interfaces may change, and there are no tagged releases yet.</p>
+  </footer>
+</body>
+</html>

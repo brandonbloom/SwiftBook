@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Copies the website's figures into the documentation catalog. Story figures are the zoo's
+# references, so they show exactly what SwiftBook renders. Each figure keeps its scale suffix
+# (@2x, @3x), and dark appearances get DocC's ~dark suffix, which DocC shows in dark mode.
+set -euo pipefail
+: "${SWIFTBOOK_HOME:?}"
+cd "$SWIFTBOOK_HOME"
+zoo=Fixtures/PreviewZoo/Snapshots/PreviewZoo
+out=site/SwiftBookTesting.docc/Resources
+mkdir -p "$out"
+
+scale() {
+  case "$1" in
+    iphone) echo 3 ;;
+    *) echo 2 ;;
+  esac
+}
+
+# figure <name> <story directory> <device>: both appearances of one reference.
+figure() {
+  local name="$1" story="$2" device="$3" s
+  s="$(scale "$device")"
+  cp "$zoo/$story/$device.light.png" "$out/$name@${s}x.png"
+  cp "$zoo/$story/$device.dark.png" "$out/$name~dark@${s}x.png"
+}
+
+figure card "Card/Card" mac
+for device in mac iphone ipad tv; do
+  figure "material-$device" "Hazards/Material and blur" "$device"
+done
+figure arguments-new "Arguments/Badge arguments _ NEW" mac
+figure arguments-sale "Arguments/Badge arguments _ SALE" mac
