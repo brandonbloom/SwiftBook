@@ -100,14 +100,20 @@
     /// viewer does.
     final class ViewerDelegate: NSObject, NSApplicationDelegate {
 
+        /// Whether this is a snapshot: a scripted session that nobody sees.
+        private var isSnapshot: Bool {
+            ProcessInfo.processInfo.environment["SWIFTBOOK_VIEWER_SNAPSHOT"] != nil
+        }
+
         func applicationWillFinishLaunching(_ notification: Notification) {
             // Launched from a terminal rather than as a bundle, the app would otherwise have no
-            // Dock icon or menu bar.
-            NSApplication.shared.setActivationPolicy(.regular)
+            // Dock icon or menu bar. A snapshot stays out of the Dock: macOS can leave its tile
+            // behind after it quits.
+            NSApplication.shared.setActivationPolicy(isSnapshot ? .accessory : .regular)
         }
 
         func applicationDidFinishLaunching(_ notification: Notification) {
-            NSApplication.shared.activate()
+            if !isSnapshot { NSApplication.shared.activate() }
         }
 
         func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
