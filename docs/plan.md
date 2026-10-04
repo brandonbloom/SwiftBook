@@ -267,8 +267,14 @@ _(fill in on completion)_
     - **Failures:** a failed build shows its compiler errors in the banner over the last good renders.
     - **Measured:** `LiveReloadTests` takes an edit to an updated canvas, through a real watcher, build, and renderer on FaultZoo, in about 4.4 s.
     - `xcodebuild` waits for `ios-in-viewer`, since the viewer renders only the Mac so far.
-- [ ] **`render-cache`**
+- [x] **`render-cache`**
   - Caches renders by (generation, story, variant) and renders what's visible first.
+  - Done in the model.
+    - **Caching:** renders are kept by story and appearance, with their generation.
+    - **Order:** one render runs at a time. The selection comes first, then every other story in sidebar order from after the selection, so switching stories is instant once they've rendered. After a reload, the next generation renders the same way.
+    - **Background timeout:** background renders get 5 s, so a slow story can't hold up the one someone is waiting for. A background failure isn't cached; the story renders with the full timeout when selected.
+    - **Cost:** a story that really hangs can delay a reload by up to that 5 s, once per build. On FaultZoo, edit to canvas takes 3.8 s normally and 9.7 s when the hanging story is mid-render.
+    - What's visible becomes more than the selection once `toolbar-compare` adds cells. Then the queue should take every visible cell first.
 - [ ] **`sidebar-history`**
   - Search and grouping.
   - Basis filters: uncommitted changes, last commit, branch, any revision.

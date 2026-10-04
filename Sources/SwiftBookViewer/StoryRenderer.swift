@@ -8,7 +8,10 @@
         /// Which build the renderer is serving, counting from 1.
         func generation() async -> Int
         func stories() async throws -> [StoryInfo]
-        func render(_ story: StoryID, in environment: RenderEnvironment) async throws -> Data
+        /// Renders `story`. A `background` render gets a short timeout, so a slow story can't
+        /// hold up one someone is waiting for.
+        func render(_ story: StoryID, in environment: RenderEnvironment, background: Bool)
+            async throws -> Data
         /// Builds the package again and swaps to a renderer of the new build, returning its
         /// generation. Until then, the current renderer keeps serving.
         func rebuild() async throws -> Int
@@ -62,11 +65,17 @@
             try await run { try self.running().stories() }
         }
 
-        func render(_ story: StoryID, in environment: RenderEnvironment) async throws -> Data {
+        /// How long a background render may take.
+        static let backgroundTimeout = Duration.seconds(5)
+
+        func render(_ story: StoryID, in environment: RenderEnvironment, background: Bool)
+            async throws -> Data
+        {
             try await run {
                 let process = try self.running()
+                let timeout = background ? Self.backgroundTimeout : self.renderTimeout
                 do {
-                    return try process.render(story, in: environment, timeout: self.renderTimeout)
+                    return try process.render(story, in: environment, timeout: timeout)
                 } catch {
                     // A crash or a hang ends the process. Start another from the same build, so
                     // one bad story doesn't take the rest down with it.

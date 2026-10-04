@@ -168,6 +168,7 @@
             log("rebuilding")
             do {
                 generation = try await renderer.rebuild()
+                skippedAhead = []
                 try await listStories()
                 buildError = nil
                 log("generation \(generation)")
@@ -203,11 +204,43 @@
             currentKey.map(pending.contains) ?? false
         }
 
+        /// Whether stories render ahead of the selection, so switching to them is instant.
+        var rendersAhead = true
+        /// The render in progress. One at a time: the renderer answers in order anyway, so a
+        /// new selection waits at most for the render ahead of it, which has a short timeout.
+        private var inFlight: RenderKey?
+        /// Background renders that failed this generation. They render again only when
+        /// selected, with the full timeout.
+        private var skippedAhead: Set<RenderKey> = []
+
         private func renderSelection() {
-            guard let key = currentKey, let renderer else { return }
-            // Each story renders once per generation and appearance.
-            if let rendered = renders[key], rendered.generation >= generation { return }
-            guard !pending.contains(key) else { return }
+            renderNext()
+        }
+
+        /// Whether `key` has no render from the current generation.
+        private func needsRender(_ key: RenderKey) -> Bool {
+            (renders[key]?.generation ?? 0) < generation
+        }
+
+        /// The next render to do: the selection, then the other stories in the sidebar's order
+        /// from just after it, in the same appearance.
+        private func nextKey() -> RenderKey? {
+            if let key = currentKey, needsRender(key) { return key }
+            guard rendersAhead, !stories.isEmpty else { return nil }
+            let ids = stories.map(\.id)
+            let start = selection.flatMap { ids.firstIndex(of: $0) }.map { $0 + 1 } ?? 0
+            for offset in 0..<ids.count {
+                let key = RenderKey(
+                    story: ids[(start + offset) % ids.count], appearance: appearance)
+                if needsRender(key), !skippedAhead.contains(key) { return key }
+            }
+            return nil
+        }
+
+        private func renderNext() {
+            guard inFlight == nil, let renderer, let key = nextKey() else { return }
+            inFlight = key
+            let background = key != currentKey
             pending.insert(key)
             var environment = RenderEnvironment()
             environment.appearance = key.appearance
@@ -215,12 +248,13 @@
             Task {
                 defer {
                     pending.remove(key)
-                    // A rebuild may have finished while this rendered.
-                    if key == currentKey { renderSelection() }
+                    inFlight = nil
+                    renderNext()
                 }
                 let render: Render
                 do {
-                    let png = try await renderer.render(key.story, in: environment)
+                    let png = try await renderer.render(
+                        key.story, in: environment, background: background)
                     if let image = NSImage(data: png) {
                         // The bitmap is at the render's scale; show it at its size in points.
                         if let representation = image.representations.first {
@@ -234,6 +268,12 @@
                         render = .failed("the renderer sent an unreadable image")
                     }
                 } catch {
+                    // A background render that fails may only have been slow; try it properly
+                    // if someone selects it.
+                    if background {
+                        skippedAhead.insert(key)
+                        return
+                    }
                     render = .failed(String(describing: error))
                 }
                 // Keep a newer render if one already arrived.

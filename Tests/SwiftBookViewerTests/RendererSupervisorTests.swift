@@ -24,40 +24,50 @@
             #expect(await supervisor.generation() == 1)
             let stories = try await supervisor.stories().map(\.name)
             #expect(stories == ["Fine", "Crashes", "Hangs", "Slow"])
-            let fine = try await supervisor.render(Self.story("Fine"), in: RenderEnvironment())
+            let fine = try await supervisor.render(
+                Self.story("Fine"), in: RenderEnvironment(), background: false)
 
             // A crash fails only its own render.
             await #expect {
-                try await supervisor.render(Self.story("Crashes"), in: RenderEnvironment())
+                try await supervisor.render(
+                    Self.story("Crashes"), in: RenderEnvironment(), background: false)
             } throws: { error in
                 let description = String(describing: error)
                 return description.contains("exited") && description.contains("restarted")
             }
             #expect(
-                try await supervisor.render(Self.story("Fine"), in: RenderEnvironment()) == fine)
+                try await supervisor.render(
+                    Self.story("Fine"), in: RenderEnvironment(), background: false) == fine)
 
             // So does a hang, after the timeout.
             let start = ContinuousClock.now
             await #expect {
-                try await supervisor.render(Self.story("Hangs"), in: RenderEnvironment())
+                try await supervisor.render(
+                    Self.story("Hangs"), in: RenderEnvironment(), background: false)
             } throws: { String(describing: $0).contains("took longer than") }
             #expect(ContinuousClock.now - start < .seconds(20))
             #expect(
-                try await supervisor.render(Self.story("Fine"), in: RenderEnvironment()) == fine)
+                try await supervisor.render(
+                    Self.story("Fine"), in: RenderEnvironment(), background: false) == fine)
 
             // A slow story within the timeout is just slow.
-            _ = try await supervisor.render(Self.story("Slow"), in: RenderEnvironment())
+            _ = try await supervisor.render(
+                Self.story("Slow"), in: RenderEnvironment(), background: false)
 
             // A rebuild swaps to a fresh renderer of the new build.
             #expect(try await supervisor.rebuild() == 2)
             #expect(
-                try await supervisor.render(Self.story("Fine"), in: RenderEnvironment()) == fine)
+                try await supervisor.render(
+                    Self.story("Fine"), in: RenderEnvironment(), background: false) == fine)
         }
 
         /// An edit reaching the canvas, through a real file watcher, build, and renderer.
         @Test func anEditRerendersTheSelection() async throws {
             let package = Self.faultZoo
             let model = ViewerModel(package: package)
+            // FaultZoo hangs on purpose: rendering ahead would reach that story, and a reload
+            // would wait out its background timeout. This measures an ordinary edit.
+            model.rendersAhead = false
             await model.start()
             #expect(model.status == .ready)
             model.selection = Self.story("Fine")

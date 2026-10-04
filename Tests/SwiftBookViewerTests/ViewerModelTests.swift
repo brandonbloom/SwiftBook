@@ -35,7 +35,8 @@
             }
         }
 
-        /// Every render request, as "<story> <appearance> g<generation>".
+        /// Every render request, as "<story> <appearance> g<generation>", with " ahead" for a
+        /// background render.
         var requests: [String] { lock.withLock { _requests } }
 
         /// Replaces the stories the next build will list.
@@ -61,9 +62,13 @@
             }
         }
 
-        func render(_ story: StoryID, in environment: RenderEnvironment) async throws -> Data {
+        func render(_ story: StoryID, in environment: RenderEnvironment, background: Bool)
+            async throws -> Data
+        {
             lock.withLock {
-                _requests.append("\(story) \(environment.appearance) g\(_generation)")
+                _requests.append(
+                    "\(story) \(environment.appearance) g\(_generation)\(background ? " ahead" : "")"
+                )
             }
             if failing.contains(story.description) {
                 throw RendererError(description: "boom")
@@ -79,8 +84,12 @@
     }
 
     @MainActor @Suite struct ViewerModelTests {
-        func model(_ renderer: FakeRenderer) -> ViewerModel {
-            ViewerModel(package: URL(filePath: "/tmp/Package")) { _ in renderer }
+        /// A model of `renderer`'s stories. Rendering ahead is off unless asked for, so tests can
+        /// check exactly what renders.
+        func model(_ renderer: FakeRenderer, rendersAhead: Bool = false) -> ViewerModel {
+            let model = ViewerModel(package: URL(filePath: "/tmp/Package")) { _ in renderer }
+            model.rendersAhead = rendersAhead
+            return model
         }
 
         /// Waits until no render is in progress.
@@ -211,6 +220,55 @@
             #expect(renderer.builds == 2)
             #expect(model.generation == 3)
             #expect(!model.isRebuilding)
+        }
+
+        @Test func rendersAheadOfTheSelectionInSidebarOrder() async {
+            let renderer = FakeRenderer(["M/A/One", "M/A/Two", "M/B/Three", "M/B/Four"])
+            let model = model(renderer, rendersAhead: true)
+            await model.start()
+            model.selection = Self.story("M/A/Two")
+            await settle(model)
+            // The first story was selected at start; then the selection, then the rest after it.
+            #expect(
+                renderer.requests == [
+                    "M/A/One light g1", "M/A/Two light g1", "M/B/Three light g1 ahead",
+                    "M/B/Four light g1 ahead",
+                ])
+            // Everything is cached, so switching renders nothing.
+            model.selection = Self.story("M/B/Four")
+            await settle(model)
+            #expect(renderer.requests.count == 4)
+            #expect(model.summary.render == "image 20×10")
+        }
+
+        @Test func rendersAheadAgainAfterAReload() async {
+            let renderer = FakeRenderer(["M/A/One", "M/A/Two"])
+            let model = model(renderer, rendersAhead: true)
+            await model.start()
+            await settle(model)
+            await model.reload()
+            await settle(model)
+            #expect(
+                renderer.requests == [
+                    "M/A/One light g1", "M/A/Two light g1 ahead", "M/A/One light g2",
+                    "M/A/Two light g2 ahead",
+                ])
+        }
+
+        @Test func rendersFailedBackgroundRendersOnlyWhenSelected() async {
+            let renderer = FakeRenderer(["M/A/One", "M/A/Slow"], failing: ["M/A/Slow"])
+            let model = model(renderer, rendersAhead: true)
+            await model.start()
+            await settle(model)
+            // A background failure isn't shown or retried in the background.
+            #expect(model.renders[.init(story: Self.story("M/A/Slow"), appearance: .light)] == nil)
+            model.selection = Self.story("M/A/Slow")
+            await settle(model)
+            #expect(
+                renderer.requests == [
+                    "M/A/One light g1", "M/A/Slow light g1 ahead", "M/A/Slow light g1",
+                ])
+            #expect(model.summary.render == "failed: boom")
         }
 
         @Test func reportsARendererThatWontStart() async {
