@@ -48,4 +48,4 @@ screens. Views that fill the space they're given, such as a `List`, get the devi
 - <doc:Capture>
 
 <!-- sources: Sources/SwiftBookCore/Rendering Sources/SwiftBookTesting -->
-<!-- checked: 0b491d7 -->
+<!-- checked: 5656084 -->

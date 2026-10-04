@@ -45,6 +45,13 @@ running the tests, or record and verify with `SWIFTBOOK_CAPTURE=emulated` everyw
 Something in the preview animates, polls, or loads asynchronously. See
 <doc:PreviewsThatSnapshotWell>.
 
+### A story hangs or crashes the renderer
+
+Stories render in a separate renderer process. One that takes longer than 30 seconds is stopped,
+and SwiftBook samples its threads first: the error names the sample file, which shows where the
+renderer was stuck. `swiftbook test` restarts the renderer and retries the story once, and its
+summary lists the stories that caused restarts.
+
 ### A reference fails with a few faint pixels
 
 Materials such as Liquid Glass can settle slightly differently from run to run. Small amounts of
@@ -60,5 +67,5 @@ format unrecognized". Rename the directory your package copies as a resource to 
 
 - <doc:CommandLine>
 
-<!-- sources: Sources/SwiftBookCLI/DoctorCommand.swift Sources/SwiftBookCore/Renderer/RendererHost.swift -->
-<!-- checked: 492b657 -->
+<!-- sources: Sources/SwiftBookCLI/DoctorCommand.swift Sources/SwiftBookCore/Renderer/RendererHost.swift Sources/SwiftBookCore/Renderer/RendererProcess.swift Sources/SwiftBookCore/Renderer/RestartingRenderer.swift -->
+<!-- checked: 5656084 -->

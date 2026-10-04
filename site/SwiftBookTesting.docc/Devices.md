@@ -62,4 +62,4 @@ swift run swiftbook render Wander/Welcome/Welcome --device iphone -o /tmp/render
 - <doc:ContinuousIntegration>
 
 <!-- sources: Sources/SwiftBookCLI/TestCommand.swift Sources/SwiftBookCLI/RenderCommand.swift Sources/SwiftBookCore/Renderer Sources/SwiftBookCore/Rendering/Device.swift Sources/SwiftBookCore/Rendering/UIKitRenderer.swift -->
-<!-- checked: 492b657 -->
+<!-- checked: 5656084 -->

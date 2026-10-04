@@ -47,4 +47,4 @@ Every `swiftbook` command exits with:
 - <doc:CommandLine>
 
 <!-- sources: Sources/SwiftBookCLI Sources/SwiftBookCore/Storage -->
-<!-- checked: 0b491d7 -->
+<!-- checked: 5656084 -->
