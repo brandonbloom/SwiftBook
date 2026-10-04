@@ -135,7 +135,7 @@ Exit status is 0 for success, 1 when references or snapshots changed or failed, 
 
 Layout traits work as in Xcode: `.sizeThatFits` measures the view, `.fixedLayout` sets the canvas, and `PreviewModifier`s are applied.
 
-**Comparison.** Images are compared perceptually: a pixel counts as changed if its color differs by more than ΔE 1 (CIEDE2000, about the smallest difference people notice). Anti-aliasing shifts along edges are ignored. Any changed pixel fails, by default.
+**Comparison.** Images are compared perceptually: a pixel counts as changed if its color differs by more than ΔE 1 (CIEDE2000, about the smallest difference people notice). Anti-aliasing shifts along edges are ignored. By default, any changed pixel fails, except for noise: at most 10 changed pixels, none differing by more than ΔE 3, still match, because GPU-rendered materials such as Liquid Glass can settle a pixel differently from run to run. `#SwiftBookTests(tolerance:)` and `swiftbook test`'s `--delta-e`, `--changed-ratio`, `--noise-pixels` and `--noise-delta-e` adjust all of this.
 
 ### Capture
 

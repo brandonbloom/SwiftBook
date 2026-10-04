@@ -29,6 +29,33 @@
         @Option(help: "Write a JUnit report of every snapshot to this file.")
         var junit: String?
 
+        @Option(help: "The largest CIEDE2000 difference a pixel may have and still match.")
+        var deltaE = ImageDiff.Tolerance().deltaE
+
+        @Option(help: "The fraction of pixels allowed to change.")
+        var changedRatio = ImageDiff.Tolerance().changedPixelRatio
+
+        @Option(
+            help: ArgumentHelp(
+                "How many faint changed pixels count as noise rather than a change.",
+                discussion:
+                    "Liquid Glass and other GPU-rendered materials can settle a pixel differently from run to run."
+            ))
+        var noisePixels = ImageDiff.Tolerance().noisePixels
+
+        @Option(help: "The largest CIEDE2000 difference a pixel may have and still count as noise.")
+        var noiseDeltaE = ImageDiff.Tolerance().noiseDeltaE
+
+        /// The tolerance the options describe. On the Mac, #SwiftBookTests sets its own.
+        var tolerance: ImageDiff.Tolerance {
+            var tolerance = ImageDiff.Tolerance()
+            tolerance.deltaE = deltaE
+            tolerance.changedPixelRatio = changedRatio
+            tolerance.noisePixels = noisePixels
+            tolerance.noiseDeltaE = noiseDeltaE
+            return tolerance
+        }
+
         func run() throws {
             let project: Project
             let mode: RecordMode
@@ -56,7 +83,8 @@
                     if device == .mac {
                         try results.add(Self.testMac(project, mode: mode))
                     } else {
-                        try results.add(Self.test(project, on: device, mode: mode))
+                        try results.add(
+                            Self.test(project, on: device, mode: mode, tolerance: tolerance))
                     }
                 } catch {
                     warn("swiftbook: \(device): \(error)")
@@ -147,7 +175,10 @@
 
         /// Renders every story on `device`, light and dark, and verifies each against its
         /// reference.
-        static func test(_ project: Project, on device: Device, mode: RecordMode) throws
+        static func test(
+            _ project: Project, on device: Device, mode: RecordMode,
+            tolerance: ImageDiff.Tolerance = ImageDiff.Tolerance()
+        ) throws
             -> (results: [Result], failed: Bool)
         {
             let renderer = try Renderers.start(for: project, on: device)
@@ -166,7 +197,8 @@
                         let png = try renderer.render(story.id, in: environment)
                         let snapshot = try Snapshot(
                             png: png, story: story.id, device: device, environment: environment)
-                        let verification = try project.store.verify(snapshot, mode: mode)
+                        let verification = try project.store.verify(
+                            snapshot, mode: mode, tolerance: tolerance)
                         guard
                             let report = try SnapshotReport(
                                 verification, of: snapshot, mode: mode, store: project.store,

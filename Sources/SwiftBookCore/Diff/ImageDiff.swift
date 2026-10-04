@@ -13,6 +13,11 @@ public struct ImageDiff: @unchecked Sendable {
         public var changedPixelRatio: Double = 0
         /// Whether pixels that look like shifted anti-aliasing are ignored.
         public var ignoresAntialiasing = true
+        /// A few faint changed pixels are noise, not a change: GPU-rendered materials such as
+        /// Liquid Glass can settle a pixel or two differently from run to run. A diff with at most
+        /// `noisePixels` changed pixels, none differing by more than `noiseDeltaE`, matches.
+        public var noisePixels = 10
+        public var noiseDeltaE: Double = 3
 
         public init() {}
     }
@@ -25,6 +30,8 @@ public struct ImageDiff: @unchecked Sendable {
     public let antialiasedPixels: Int
     /// The largest CIEDE2000 difference of any pixel, whether or not it counted as changed.
     public let maxDeltaE: Double
+    /// The largest CIEDE2000 difference of a changed pixel.
+    public let maxChangedDeltaE: Double
     /// The smallest rectangle, in pixels, containing every changed pixel.
     public let changedBounds: CGRect?
     /// Expected faded to gray, with changed pixels red and anti-aliased pixels yellow. `nil` when
@@ -43,7 +50,16 @@ public struct ImageDiff: @unchecked Sendable {
     }
 
     /// Whether the actual image matches the expected one within the tolerance.
-    public var matches: Bool { sizesMatch && changedPixelRatio <= tolerance.changedPixelRatio }
+    public var matches: Bool {
+        sizesMatch
+            && (changedPixelRatio <= tolerance.changedPixelRatio || isNoise)
+    }
+
+    /// Whether the only changes are a few faint pixels, within the tolerance's noise floor.
+    public var isNoise: Bool {
+        sizesMatch && changedPixels <= tolerance.noisePixels
+            && maxChangedDeltaE <= tolerance.noiseDeltaE
+    }
 
     /// ``image`` as PNG data.
     public func pngData() throws -> Data? {
@@ -62,7 +78,8 @@ public struct ImageDiff: @unchecked Sendable {
             return ImageDiff(
                 expectedSize: expectedSize, actualSize: actualSize, changedPixels: 0,
                 antialiasedPixels: 0,
-                maxDeltaE: .infinity, changedBounds: nil, image: nil, tolerance: tolerance)
+                maxDeltaE: .infinity, maxChangedDeltaE: .infinity, changedBounds: nil, image: nil,
+                tolerance: tolerance)
         }
         let a = try Bitmap(expected)
         let b = try Bitmap(actual)
@@ -71,13 +88,15 @@ public struct ImageDiff: @unchecked Sendable {
             return ImageDiff(
                 expectedSize: expectedSize, actualSize: actualSize, changedPixels: 0,
                 antialiasedPixels: 0,
-                maxDeltaE: 0, changedBounds: nil, image: nil, tolerance: tolerance)
+                maxDeltaE: 0, maxChangedDeltaE: 0, changedBounds: nil, image: nil,
+                tolerance: tolerance)
         }
         var output = Bitmap(width: width, height: a.height, pixels: faded(a))
 
         var changed = 0
         var antialiased = 0
         var maxDeltaE = 0.0
+        var maxChangedDeltaE = 0.0
         var deltaEs: [UInt64: Double] = [:]
         var bounds = (minX: Int.max, minY: Int.max, maxX: Int.min, maxY: Int.min)
         a.pixels.withUnsafeBufferPointer { pa in
@@ -107,6 +126,7 @@ public struct ImageDiff: @unchecked Sendable {
                         output.paint(index, red: 255, green: 220, blue: 0)
                     } else {
                         changed += 1
+                        maxChangedDeltaE = max(maxChangedDeltaE, deltaE)
                         output.paint(index, red: 255, green: 0, blue: 0)
                         bounds = (
                             min(bounds.minX, x), min(bounds.minY, y), max(bounds.maxX, x),
@@ -125,7 +145,8 @@ public struct ImageDiff: @unchecked Sendable {
         return ImageDiff(
             expectedSize: expectedSize, actualSize: actualSize, changedPixels: changed,
             antialiasedPixels: antialiased,
-            maxDeltaE: maxDeltaE, changedBounds: changedBounds, image: output.image(),
+            maxDeltaE: maxDeltaE, maxChangedDeltaE: maxChangedDeltaE, changedBounds: changedBounds,
+            image: output.image(),
             tolerance: tolerance)
     }
 

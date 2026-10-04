@@ -213,6 +213,7 @@ Fulbloom adopts SwiftBook at the end of this phase.
       - Hangs past the 30 s timeout used to fail every remaining story. The CLI now restarts a renderer that crashes or hangs, and retries the story once on the fresh one (`RestartingRenderer` in SwiftBookCore). The test summary counts restarts.
       - A capture that's all one color must hold for a second before it counts as settled, since a presentation such as an inspector sheet may not have drawn yet.
       - The hangs didn't reproduce in four runs on Fulbloom's branch, two of them under load.
+      - One story's Liquid Glass tab bar settles one pixel in one of two states (ΔE about 2), so its reference failed every other run. The diff engine now has a noise floor: at most 10 changed pixels, none past ΔE 3, still match. `swiftbook test` takes tolerance options, since it can't read `#SwiftBookTests(tolerance:)`.
 - [x] **`tvos-runtime`**
   - Install the tvOS simulator runtime (a human step) and get the zoo rendering on tvOS.
   - Done: Brandon installed tvOS 27, and the zoo renders and verifies on Apple TV 4K.

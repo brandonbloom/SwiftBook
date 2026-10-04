@@ -91,6 +91,34 @@ import Testing
             .changedPixels > 0)
     }
 
+    @Test func treatsAFewFaintPixelsAsNoise() throws {
+        // A gray a little off: past the perceptual threshold, under the noise threshold.
+        let faint: [UInt8] = [128, 128, 133]
+        let few = try ImageDiff.compare(
+            expected: image(gray: 128), actual: image(gray: 128, paint: [(3, 3, faint)]))
+        #expect(few.changedPixels == 1)
+        #expect(few.maxChangedDeltaE > 1 && few.maxChangedDeltaE <= 3)
+        #expect(few.isNoise)
+        #expect(few.matches)
+
+        // Many faint pixels are a change, and so is one strong one.
+        let many = try ImageDiff.compare(
+            expected: image(gray: 128),
+            actual: image(gray: 128, paint: (0..<11).map { ($0, 0, faint) }))
+        #expect(!many.matches)
+        let strong = try ImageDiff.compare(
+            expected: image(gray: 128), actual: image(gray: 128, paint: [(3, 3, [255, 0, 0])]))
+        #expect(!strong.matches)
+
+        var strict = ImageDiff.Tolerance()
+        strict.noisePixels = 0
+        #expect(
+            try !ImageDiff.compare(
+                expected: image(gray: 128), actual: image(gray: 128, paint: [(3, 3, faint)]),
+                tolerance: strict
+            ).matches)
+    }
+
     @Test func allowsAToleratedRatioOfChangedPixels() throws {
         var tolerance = ImageDiff.Tolerance()
         tolerance.changedPixelRatio = 0.01
