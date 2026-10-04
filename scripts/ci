@@ -29,6 +29,9 @@ grep -q '"status":"ready"' "${snapshot%.png}.json" && grep -q '"render":"image' 
   echo "ci: the viewer didn't render the zoo: $(cat "${snapshot%.png}.json" 2>/dev/null)" >&2
   exit 1
 }
+# The main thread never stalls for long: the viewer keeps responding while it builds and renders.
+stall="$(grep -o '"longestStall":[0-9]*' "${snapshot%.png}.json" | cut -d: -f2)"
+[ "$stall" -lt 500 ] || { echo "ci: the viewer's main thread stalled for $stall ms" >&2; exit 1; }
 # How long an edit takes to reach a new render, for the record.
 scripts/latency mac iphone
 # Everything must also build for the simulator platforms, warning-free. SWIFTBOOK_STRICT makes our

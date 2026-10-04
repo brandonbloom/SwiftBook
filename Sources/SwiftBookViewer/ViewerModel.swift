@@ -853,6 +853,8 @@
             var changes: [String: Int]
             /// The canvas's cells, by title.
             var cells: [String]
+            /// The main thread's longest stall so far, in milliseconds, if it's watched.
+            var longestStall: Int
         }
 
         var summary: Summary {
@@ -869,7 +871,8 @@
                 } ?? (isRenderingSelection ? "rendering" : nil),
                 buildError: buildError, basis: basis?.title,
                 changes: Dictionary(grouping: statuses.values, by: { "\($0)" }).mapValues(\.count),
-                cells: cells.map(\.title))
+                cells: cells.map(\.title),
+                longestStall: Int(MainThreadWatchdog.shared.longest / .milliseconds(1)))
         }
 
         /// Writes a line to standard error, which `swiftbook view` sends to the viewer's log.

@@ -324,6 +324,11 @@ Fulbloom adopts SwiftBook at the end of this phase.
 - The edit-to-updated-cell latency stays within budget.
 - Main-thread hang detection during scripted sessions.
 - View-model tests for the A, B and C toolbar state.
+- Done, in `mise run ci`:
+  - `RendererSupervisorTests` runs FaultZoo's crash, hang and slow previews through real renderers, and writes a real compile error into FaultZoo (`CompileError.swift`, which Git ignores) to check the banner and recovery.
+  - `anEditRerendersTheSelection` holds an edit to an updated canvas under 20 s (about 4 s). `scripts/latency` reports edit to render per device.
+  - `MainThreadWatchdog` times the viewer's main thread every 50 ms from a background thread, and logs stalls over 250 ms. The smoke test fails above 500 ms; it measures about 100 ms, even comparing revisions.
+  - `ViewerModelTests` and `HistoryTests` cover A, B and C.
 
 **Human validation packet:**
 - The agent drives the viewer through a scripted session (computer use), records screenshots and a short screen recording, and reports timings.

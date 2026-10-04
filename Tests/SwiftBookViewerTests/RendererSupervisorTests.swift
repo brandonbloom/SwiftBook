@@ -100,6 +100,37 @@
             } throws: { String(describing: $0).contains("no story") }
         }
 
+        /// A real compile error: the banner shows it over the last good renders, and fixing it
+        /// recovers.
+        @Test func aCompileErrorKeepsTheLastGoodRenders() async throws {
+            let package = Self.faultZoo
+            // Git ignores it, and a crashed run's leftover is removed first.
+            let broken = package.appending(path: "Sources/FaultZoo/CompileError.swift")
+            try? FileManager.default.removeItem(at: broken)
+            defer { try? FileManager.default.removeItem(at: broken) }
+            let model = ViewerModel(package: package)
+            model.rendersAhead = false
+            await model.start()
+            model.selection = Self.story("Fine")
+            while model.isRenderingSelection { try await Task.sleep(for: .milliseconds(20)) }
+            let generation = model.generation
+
+            try "let broken: Int = \"not a number\"\n".write(
+                to: broken, atomically: true, encoding: .utf8)
+            await model.reload()
+            #expect(model.buildError?.contains("CompileError.swift") == true)
+            #expect(model.generation == generation)
+            guard case .image = model.currentRender else {
+                Issue.record("the last good render didn't stay up")
+                return
+            }
+
+            try FileManager.default.removeItem(at: broken)
+            await model.reload()
+            #expect(model.buildError == nil)
+            #expect(model.generation == generation + 1)
+        }
+
         /// An edit reaching the canvas, through a real file watcher, build, and renderer.
         @Test func anEditRerendersTheSelection() async throws {
             let package = Self.faultZoo
