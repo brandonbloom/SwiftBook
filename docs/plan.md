@@ -208,6 +208,7 @@ Fulbloom adopts SwiftBook at the end of this phase.
     - `--device` repeats, and accepts platform names (`--platform ios`). `--record` takes a record mode. `--junit` writes one test case per snapshot. With no device, it tests every device that has references.
     - The zoo has iPhone, iPad, and Apple TV references (204), and CI verifies them with `--record never`, in about 100 s.
     - Not yet: variants other than light and dark on simulated devices, and `excluding:`. The CLI can't read `#SwiftBookTests`' arguments.
+    - From Fulbloom's iPhone adoption: an indeterminate `ProgressView` spun between captures, because Core Animation runs animations outside the app. Render windows now stop their layer clock (`speed = 0`) before content arrives, so every animation stays on its first frame. The zoo's new Hazards/Progress story is the canary. Renderer build failures now lead with the compiler's errors.
 - [x] **`tvos-runtime`**
   - Install the tvOS simulator runtime (a human step) and get the zoo rendering on tvOS.
   - Done: Brandon installed tvOS 27, and the zoo renders and verifies on Apple TV 4K.

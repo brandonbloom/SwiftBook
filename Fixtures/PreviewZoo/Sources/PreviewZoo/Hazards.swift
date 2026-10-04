@@ -61,3 +61,19 @@ import SwiftUI
     Text(Date(timeIntervalSince1970: 1_790_000_000).formatted(.dateTime.hour().minute()))
         .padding()
 }
+
+// Indeterminate progress animates forever, and must still render the same frame every time.
+#Preview("Progress", traits: .sizeThatFitsLayout) {
+    VStack(spacing: 12) {
+        ProgressView()
+        ProgressView().controlSize(.small)
+        ScrollView {
+            HStack {
+                ProgressView().controlSize(.small)
+                Text("Checking…")
+            }
+        }
+        .frame(height: 40)
+    }
+    .padding()
+}

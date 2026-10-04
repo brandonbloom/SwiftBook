@@ -145,11 +145,16 @@ import Testing
     @Test func comparesAFullCanvasChangeQuickly() throws {
         let expected = image(width: 1600, height: 1200, gray: 100)
         let actual = image(width: 1600, height: 1200, gray: 200)
-        var diff: ImageDiff?
-        let elapsed = try ContinuousClock().measure {
-            diff = try ImageDiff.compare(expected: expected, actual: actual)
+        // CPU time on this thread, so tests running in parallel can't slow the measurement.
+        func cpuTime() -> Duration {
+            var time = timespec()
+            clock_gettime(CLOCK_THREAD_CPUTIME_ID, &time)
+            return .seconds(time.tv_sec) + .nanoseconds(time.tv_nsec)
         }
-        #expect(diff?.changedPixelRatio == 1)
+        let start = cpuTime()
+        let diff = try ImageDiff.compare(expected: expected, actual: actual)
+        let elapsed = cpuTime() - start
+        #expect(diff.changedPixelRatio == 1)
         // About 50 ms optimized; unoptimized builds are around 80 times slower.
         #if DEBUG
             #expect(elapsed < .seconds(10))

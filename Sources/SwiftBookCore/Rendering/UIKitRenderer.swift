@@ -64,6 +64,11 @@
                 environment.dynamicTypeSize)
             window.traitOverrides.layoutDirection =
                 environment.layoutDirection == .rightToLeft ? .rightToLeft : .leftToRight
+            // Stop the window's clock before any content arrives, so every animation, such as an
+            // indeterminate ProgressView's spin, stays on its first frame. Core Animation runs
+            // animations out of process, so disabling UIKit's animations isn't enough.
+            window.layer.speed = 0
+            window.layer.timeOffset = 0
             defer {
                 window.isHidden = true
                 window.rootViewController = nil

@@ -35,7 +35,8 @@
                 let output = result.output + "\n" + result.error
                 throw RendererError(
                     description:
-                        "couldn't build the renderer for \(package.path):\n\(output.suffix(4000))")
+                        "couldn't build the renderer for \(package.path):\n\(Self.diagnostics(in: output))"
+                )
             }
             guard
                 let binPath = Shell.run(
@@ -122,7 +123,7 @@
             guard result.succeeded else {
                 throw RendererError(
                     description:
-                        "couldn't build the \(platform) renderer for \(package.path):\n\((result.output + "\n" + result.error).suffix(4000))"
+                        "couldn't build the \(platform) renderer for \(package.path):\n\(Self.diagnostics(in: result.output + "\n" + result.error))"
                 )
             }
             guard let binPath = Shell.run(["swift", "build", "--show-bin-path"] + target),
@@ -191,6 +192,17 @@
                     description: "couldn't sign the renderer app: \(signed?.error ?? "")")
             }
             return App(url: app, bundleID: bundleID)
+        }
+
+        /// The compiler's errors in a failed build's output, or its end if there are none.
+        /// Build logs bury them under long command lines.
+        static func diagnostics(in output: String) -> String {
+            let errors = output.split(separator: "\n")
+                .filter { $0.contains("error:") && !$0.hasPrefix("error: Build failed") }
+            var seen = Set<Substring>()
+            let unique = errors.filter { seen.insert($0).inserted }
+            return unique.isEmpty
+                ? String(output.suffix(4000)) : unique.prefix(20).joined(separator: "\n")
         }
 
         /// `name` with only the characters a bundle identifier allows.
