@@ -37,3 +37,6 @@ Your previews run in a separate renderer process, so nothing they do can take th
 ## See Also
 
 - <doc:CommandLine>
+
+<!-- sources: Sources/SwiftBookViewer Sources/SwiftBookCLI/ViewCommand.swift -->
+<!-- checked: 492b657 -->

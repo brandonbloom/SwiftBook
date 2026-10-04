@@ -17,7 +17,16 @@ swift run swiftbook diff --merge-base  # against where this branch left the defa
 Modified references within tolerance are listed, but don't count as changes. The command exits
 with status 1 when something changed.
 
-<!-- TODO(site): sample `swiftbook diff` output. -->
+After accepting a change to Wander's weather card:
+
+<!-- transcript: diff -->
+```
+$ swift run swiftbook diff
+2 references changed against HEAD (cbd04c0c7):
+  modified  Wander/WeatherCard/Weather card  mac.dark  5281 pixels (2.11%), max ΔE 44
+  modified  Wander/WeatherCard/Weather card  mac.light  5281 pixels (2.11%), max ΔE 44
+```
+<!-- /transcript -->
 
 ### Seeing the images
 
@@ -31,3 +40,6 @@ with status 1 when something changed.
 
 - <doc:StoringReferences>
 - <doc:ContinuousIntegration>
+
+<!-- sources: Sources/SwiftBookCLI/DiffCommand.swift Sources/SwiftBookCore/Git Sources/SwiftBookCore/Storage/ReferenceChanges.swift -->
+<!-- checked: 0b491d7 -->

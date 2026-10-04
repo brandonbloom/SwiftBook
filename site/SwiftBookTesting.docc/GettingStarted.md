@@ -72,3 +72,6 @@ that SwiftBook can read every preview. See <doc:Troubleshooting>.
 
 - <doc:Stories>
 - <doc:Devices>
+
+<!-- sources: README.md Sources/SwiftBookTesting Sources/SwiftBookCLI/InitCommand.swift Sources/SwiftBookCLI/ReviewCommand.swift -->
+<!-- checked: 0b491d7 -->

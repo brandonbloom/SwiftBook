@@ -16,16 +16,16 @@ With no `--device`, it tests every device that has references. `--device` takes 
 
 @TabNavigator {
     @Tab("iPhone") {
-        @Image(source: material-iphone, alt: "A material panel over a gradient, on iPhone.")
+        @Image(source: welcome-iphone, alt: "Wander's welcome screen on iPhone.")
     }
     @Tab("iPad") {
-        @Image(source: material-ipad, alt: "A material panel over a gradient, on iPad.")
+        @Image(source: welcome-ipad, alt: "Wander's welcome screen on iPad.")
     }
     @Tab("Mac") {
-        @Image(source: material-mac, alt: "A material panel over a gradient, on the Mac.")
+        @Image(source: welcome-mac, alt: "Wander's welcome screen on the Mac.")
     }
     @Tab("Apple TV") {
-        @Image(source: material-tv, alt: "A material panel over a gradient, on Apple TV.")
+        @Image(source: welcome-tv, alt: "Wander's welcome screen on Apple TV.")
     }
 }
 
@@ -48,7 +48,7 @@ story's resources come along.
 `swiftbook render` writes PNGs laid out like references, without comparing them:
 
 ```sh
-swift run swiftbook render MyUI/Card/Card --device iphone -o /tmp/renders
+swift run swiftbook render Wander/Welcome/Welcome --device iphone -o /tmp/renders
 ```
 
 ### Limitations
@@ -60,3 +60,6 @@ swift run swiftbook render MyUI/Card/Card --device iphone -o /tmp/renders
 
 - <doc:CommandLine>
 - <doc:ContinuousIntegration>
+
+<!-- sources: Sources/SwiftBookCLI/TestCommand.swift Sources/SwiftBookCLI/RenderCommand.swift Sources/SwiftBookCore/Renderer Sources/SwiftBookCore/Rendering/Device.swift Sources/SwiftBookCore/Rendering/UIKitRenderer.swift -->
+<!-- checked: 492b657 -->

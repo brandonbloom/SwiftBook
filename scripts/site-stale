@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Lists the documentation's articles whose sources changed since the article was last checked,
+# with the commits that changed them. Exits 1 if any are stale.
+#
+# An article names its sources and the commit it was checked against in two comments at its end:
+#
+#   <!-- sources: Sources/SwiftBookCLI/DiffCommand.swift Sources/SwiftBookCore/Git -->
+#   <!-- checked: 0b491d7 -->
+#
+# After rechecking an article against the code, set `checked` to the commit you checked.
+set -euo pipefail
+: "${SWIFTBOOK_HOME:?}"
+cd "$SWIFTBOOK_HOME"
+stale=0
+for article in site/SwiftBookTesting.docc/*.md; do
+  sources="$(sed -n 's/^<!-- sources: \(.*\) -->$/\1/p' "$article")"
+  checked="$(sed -n 's/^<!-- checked: \(.*\) -->$/\1/p' "$article")"
+  if [ -z "$sources" ] || [ -z "$checked" ]; then
+    echo "$article: no sources or checked comment" >&2
+    stale=1
+    continue
+  fi
+  # shellcheck disable=SC2086 # Sources are space-separated paths.
+  changes="$(git log --oneline "$checked..HEAD" -- $sources)"
+  if [ -n "$changes" ]; then
+    echo "$article (checked at $checked):"
+    sed 's/^/  /' <<<"$changes"
+    stale=1
+  fi
+done
+exit "$stale"

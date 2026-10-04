@@ -37,3 +37,6 @@ package; later ones are incremental.
 ## See Also
 
 - <doc:ContinuousIntegration>
+
+<!-- sources: Sources/SwiftBookCLI -->
+<!-- checked: 0b491d7 -->

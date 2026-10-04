@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+"""Fills transcript blocks in the documentation's articles.
+
+Usage: site-splice <transcripts dir> <catalog dir>
+
+A block is a code block between `<!-- transcript: NAME -->` and `<!-- /transcript -->`. Its
+contents are replaced with <transcripts dir>/NAME.txt.
+"""
+
+import pathlib
+import re
+import sys
+
+transcripts = pathlib.Path(sys.argv[1])
+block = re.compile(r"<!-- transcript: (\S+) -->\n.*?<!-- /transcript -->", re.S)
+
+
+def fill(match: re.Match) -> str:
+    name = match[1]
+    body = (transcripts / f"{name}.txt").read_text().rstrip("\n")
+    return f"<!-- transcript: {name} -->\n```\n{body}\n```\n<!-- /transcript -->"
+
+
+for article in sorted(pathlib.Path(sys.argv[2]).glob("*.md")):
+    text = article.read_text()
+    filled = block.sub(fill, text)
+    if filled != text:
+        article.write_text(filled)

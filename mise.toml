@@ -25,7 +25,7 @@ description = "Report edit-to-render latency on the zoo, per device"
 run = "scripts/latency mac iphone"
 
 [tasks.site-assets]
-description = "Copy the website's figures from the zoo's references"
+description = "Regenerate the website's figures and transcripts from the sample app"
 run = "scripts/site-assets"
 
 [tasks.site-build]
@@ -36,3 +36,7 @@ run = "scripts/site-build"
 description = "Build the website and serve it at http://localhost:8000"
 depends = ["site-build"]
 run = "python3 -m http.server --directory .build/site 8000"
+
+[tasks.site-stale]
+description = "List documentation articles whose sources changed since they were checked"
+run = "scripts/site-stale"

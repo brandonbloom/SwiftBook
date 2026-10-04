@@ -40,7 +40,7 @@ swift run swiftbook review
 The page shows only the latest run, and every test message ends with its path. It copies its
 images, so it stays accurate after references change, and CI can upload it as is.
 
-<!-- TODO(site): screenshot of the review page. -->
+@Image(source: review-page.png, alt: "The review page, showing reference, actual, and diff images for a failed weather card in light and dark.")
 
 ### Where artifacts go
 
@@ -51,3 +51,6 @@ Actual images, diffs, and the review page go under `.build/swiftbook`. Set
 
 - <doc:UnderstandingFailures>
 - <doc:ComparingHistory>
+
+<!-- sources: Sources/SwiftBookCore/Storage Sources/SwiftBookCore/Review Sources/SwiftBookCLI/ReviewCommand.swift -->
+<!-- checked: 0b491d7 -->

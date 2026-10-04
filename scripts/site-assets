@@ -1,32 +1,111 @@
 #!/usr/bin/env bash
-# Copies the website's figures into the documentation catalog. Story figures are the zoo's
-# references, so they show exactly what SwiftBook renders. Each figure keeps its scale suffix
-# (@2x, @3x), and dark appearances get DocC's ~dark suffix, which DocC shows in dark mode.
+# Regenerates the website's figures and transcripts from site/Wander, the sample app, with
+# SwiftBook itself:
+#
+# 1. Records Wander's references on every device (`changed` mode), and copies them back to
+#    site/Wander/Snapshots, so a rendering change shows up in `git diff`.
+# 2. Copies references into the documentation catalog as figures. Each keeps its scale suffix
+#    (@2x, @3x), and dark appearances get DocC's ~dark suffix.
+# 3. Breaks a story on purpose, and captures the real failure: its message, its reference, actual
+#    and diff images, the review page, and `swiftbook diff`.
+# 4. Captures `swiftbook list` and `doctor`, and splices every transcript into the articles.
+#
+# The work happens in a copy of the package under .build/site-work, so breaking a story never
+# touches the repository.
 set -euo pipefail
 : "${SWIFTBOOK_HOME:?}"
 cd "$SWIFTBOOK_HOME"
-zoo=Fixtures/PreviewZoo/Snapshots/PreviewZoo
-out=site/SwiftBookTesting.docc/Resources
-mkdir -p "$out"
+work="$SWIFTBOOK_HOME/.build/site-work/SwiftBook"
+app="$work/site/Wander"
+transcripts="$work/transcripts"
+resources="$SWIFTBOOK_HOME/site/SwiftBookTesting.docc/Resources"
 
+mkdir -p "$work/site" "$transcripts" "$resources"
+rsync -a --delete --exclude .build --exclude .swiftpm \
+  Package.swift Package.resolved Sources Tests "$work/"
+rsync -a --delete --exclude .build site/Wander "$work/site/"
+swift build --package-path "$work" --product swiftbook --quiet
+swiftbook="$(swift build --package-path "$work" --show-bin-path)/swiftbook"
+cd "$app"
+
+# Commands that report changes exit 1; anything worse fails the script.
+changes_ok() { "$@" || [ $? -eq 1 ]; }
+
+# 1. References.
+SWIFTBOOK_RECORD=changed swift test --quiet
+changes_ok "$swiftbook" test --device iphone --device ipad --device tv --record changed >/dev/null
+rsync -a --delete Snapshots/ "$SWIFTBOOK_HOME/site/Wander/Snapshots/"
+
+# 2. Figures.
+rm -f "$resources"/*.png
 scale() {
   case "$1" in
     iphone) echo 3 ;;
     *) echo 2 ;;
   esac
 }
-
 # figure <name> <story directory> <device>: both appearances of one reference.
 figure() {
-  local name="$1" story="$2" device="$3" s
-  s="$(scale "$device")"
-  cp "$zoo/$story/$device.light.png" "$out/$name@${s}x.png"
-  cp "$zoo/$story/$device.dark.png" "$out/$name~dark@${s}x.png"
+  local s
+  s="$(scale "$3")"
+  cp "Snapshots/Wander/$2/$3.light.png" "$resources/$1@${s}x.png"
+  cp "Snapshots/Wander/$2/$3.dark.png" "$resources/$1~dark@${s}x.png"
+}
+figure weather-card "WeatherCard/Weather card" mac
+for device in iphone ipad tv mac; do
+  figure "welcome-$device" "Welcome/Welcome" "$device"
+done
+figure trips-iphone "Trips/Upcoming trips" iphone
+for status in Confirmed Waitlisted Cancelled; do
+  figure "status-$(tr '[:upper:]' '[:lower:]' <<<"$status")" "Status/Status _ $status" mac
+done
+
+# Transcripts read as if run in the app's directory.
+tidy() { sed -e "s|$app/||g" -e "s|$app|.|g"; }
+# transcript <name> <shown command> <command…>: output, as `swiftbook` would print it.
+transcript() {
+  local name="$1" shown="$2"
+  shift 2
+  { echo "\$ $shown"; "$@" 2>&1 || true; } | grep -v '^Building the renderer' | tidy >"$transcripts/$name.txt"
 }
 
-figure card "Card/Card" mac
-for device in mac iphone ipad tv; do
-  figure "material-$device" "Hazards/Material and blur" "$device"
+# A repository like a user's, with references committed through LFS.
+git init -q
+echo ".build/" >.gitignore
+git lfs install --local >/dev/null
+"$swiftbook" init >/dev/null
+git add -A
+# A fixed author and date keep the commit's hash, which `swiftbook diff` prints, the same.
+GIT_AUTHOR_DATE=2026-01-01T00:00:00Z GIT_COMMITTER_DATE=2026-01-01T00:00:00Z \
+  git -c user.name=SwiftBook -c user.email=site@swiftbook.invalid commit -qm "Record references"
+
+# 3. A failure: the weather changes.
+sed -i '' 's/temperature: 72, condition: "Mostly Sunny"/temperature: 68, condition: "Partly Cloudy"/' \
+  Sources/Wander/WeatherCard.swift
+grep -q 'temperature: 68' Sources/Wander/WeatherCard.swift
+rm -rf .build/swiftbook
+SWIFTBOOK_RECORD=never swift test >"$transcripts/failing-run.txt" 2>&1 || true
+# The issue's message, without Swift Testing's decoration or the review page's path.
+sed -n '/^↳ Wander\/WeatherCard\/Weather card (mac.light)/,/^  To accept/p' "$transcripts/failing-run.txt" |
+  sed -e 's/^↳ //' -e 's/^  //' | tidy >"$transcripts/failure.txt"
+grep -q "doesn't match" "$transcripts/failure.txt"
+failures=".build/swiftbook/failures/Wander/WeatherCard/Weather card"
+for role in reference actual diff; do
+  cp "$failures/mac.light.$role.png" "$resources/failure-$role@2x.png"
+  cp "$failures/mac.dark.$role.png" "$resources/failure-$role~dark@2x.png"
 done
-figure arguments-new "Arguments/Badge arguments _ NEW" mac
-figure arguments-sale "Arguments/Badge arguments _ SALE" mac
+# The review page, as Quick Look draws it, without the workspace's paths. The copy stays beside
+# the page, whose images are relative to it.
+review=.build/swiftbook/review
+tidy <"$review/index.html" >"$review/page.html"
+qlmanage -t -s 1600 -o "$review" "$review/page.html" >/dev/null
+cp "$review/page.html.png" "$resources/review-page.png"
+
+# Accepting the change, then comparing with the last commit.
+SWIFTBOOK_RECORD=changed swift test --quiet
+transcript diff "swift run swiftbook diff" "$swiftbook" diff
+
+# 4. More transcripts, then into the articles.
+transcript list "swift run swiftbook list" "$swiftbook" list
+transcript doctor "swift run swiftbook doctor" "$swiftbook" doctor
+"$SWIFTBOOK_HOME/scripts/site-splice" "$transcripts" "$SWIFTBOOK_HOME/site/SwiftBookTesting.docc"

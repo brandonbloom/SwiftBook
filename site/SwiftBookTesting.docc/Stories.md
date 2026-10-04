@@ -26,11 +26,19 @@ So in `MyUI/Card.swift`:
 #Preview("Card") { Card(title: "Hello") }     // MyUI/Card/Card 3
 ```
 
-List them with:
+List them with `swiftbook list`. Here it is on Wander, the sample app these docs use:
 
-```sh
-swift run swiftbook list
+<!-- transcript: list -->
 ```
+$ swift run swiftbook list
+Wander/Status/Status / Confirmed
+Wander/Status/Status / Waitlisted
+Wander/Status/Status / Cancelled
+Wander/Trips/Upcoming trips
+Wander/WeatherCard/Weather card
+Wander/Welcome/Welcome
+```
+<!-- /transcript -->
 
 `--check` also builds each story and reports any SwiftBook can't read.
 
@@ -40,22 +48,26 @@ Each argument of a `#Preview(arguments:)` is its own story, named `<preview> / <
 after the argument's description:
 
 ```swift
-#Preview("Badge arguments", traits: .sizeThatFitsLayout, arguments: ["NEW", "SALE", "SOLD OUT"]) {
-    text in
-    Badge(text)
+#Preview("Status", traits: .sizeThatFitsLayout, arguments: StatusBadge.Status.allCases) { status in
+    StatusBadge(status).padding()
 }
 ```
 
 @Row {
     @Column {
-        @Image(source: arguments-new, alt: "The NEW badge.")
+        @Image(source: status-confirmed, alt: "The Confirmed badge.")
 
-        `Badge arguments / NEW`
+        `Status / Confirmed`
     }
     @Column {
-        @Image(source: arguments-sale, alt: "The SALE badge.")
+        @Image(source: status-waitlisted, alt: "The Waitlisted badge.")
 
-        `Badge arguments / SALE`
+        `Status / Waitlisted`
+    }
+    @Column {
+        @Image(source: status-cancelled, alt: "The Cancelled badge.")
+
+        `Status / Cancelled`
     }
 }
 
@@ -74,3 +86,6 @@ rendering something wrong.
 ## See Also
 
 - <doc:PreviewsThatSnapshotWell>
+
+<!-- sources: Sources/SwiftBookCore/Discovery Sources/SwiftBookCore/Adapter Sources/SwiftBookCLI/ListCommand.swift -->
+<!-- checked: 0b491d7 -->

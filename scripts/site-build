@@ -22,4 +22,6 @@ xcrun docc convert site/SwiftBookTesting.docc \
   --transform-for-static-hosting \
   --hosting-base-path "${base:+$base/}docs"
 cp site/index.html site/style.css "$out/"
-cp site/SwiftBookTesting.docc/Resources/card@2x.png site/SwiftBookTesting.docc/Resources/card~dark@2x.png "$out/"
+for figure in welcome-iphone@3x weather-card@2x weather-card~dark@2x trips-iphone~dark@3x; do
+  cp "site/SwiftBookTesting.docc/Resources/$figure.png" "$out/"
+done

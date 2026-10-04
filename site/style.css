@@ -50,7 +50,12 @@ header nav a { margin-left: 20px; color: var(--fg); font-size: 14px; }
 .actions a { margin: 0 12px; }
 .button { display: inline-block; background: var(--accent); color: var(--on-accent); padding: 10px 22px; border-radius: 980px; }
 .button:hover { text-decoration: none; opacity: 0.9; }
-.hero img { display: block; width: 100%; max-width: 800px; height: auto; margin: 40px auto 0; border-radius: 18px; background: var(--surface); }
+.figures { display: flex; justify-content: center; align-items: center; gap: 24px; margin-top: 48px; }
+.figures img { display: block; height: auto; }
+.figures .phone { width: 30%; max-width: 260px; border-radius: 28px; box-shadow: 0 8px 32px rgb(0 0 0 / 0.18); }
+.figures .cards { display: flex; flex-direction: column; gap: 16px; width: 30%; max-width: 312px; }
+.figures .cards img { width: 100%; border-radius: 16px; }
+@media (max-width: 600px) { .figures .phone:last-child { display: none; } .figures .phone, .figures .cards { width: 45%; } }
 
 .pillars { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; padding: 48px 0; }
 .pillars div { background: var(--surface); border-radius: 18px; padding: 24px; }

@@ -13,12 +13,16 @@ on the Mac, iPhone, iPad, and Apple TV, and compares the result with a reference
 to your repository. There's nothing to register and no story format to learn.
 
 ```swift
-#Preview("Card") {
-    Card(title: "Hello", subtitle: "A named preview")
+#Preview("Weather card", traits: .sizeThatFitsLayout) {
+    WeatherCard(
+        city: "Cupertino", temperature: 72, condition: "Mostly Sunny", symbol: "cloud.sun.fill",
+        high: 78, low: 58
+    )
+    .padding()
 }
 ```
 
-@Image(source: card, alt: "The Card preview, rendered by SwiftBook on the Mac.")
+@Image(source: weather-card, alt: "The weather card preview, rendered by SwiftBook on the Mac.")
 
 One line in a test target turns every preview into a test:
 
@@ -70,3 +74,6 @@ code compiles.
 
 - ``SwiftBookTests(variants:tolerance:excluding:)``
 - ``Variants``
+
+<!-- sources: README.md Sources/SwiftBookTesting -->
+<!-- checked: 0b491d7 -->

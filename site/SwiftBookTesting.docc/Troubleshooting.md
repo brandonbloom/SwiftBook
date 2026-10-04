@@ -18,7 +18,20 @@ It checks:
 
 It exits with status 2 if any check fails. `--json` writes the results for scripts.
 
-<!-- TODO(site): sample `swiftbook doctor` output. -->
+<!-- transcript: doctor -->
+```
+$ swift run swiftbook doctor
+✓ macOS: 27.2
+✓ Xcode: Xcode 27.0, Build version 27A266a
+✓ Git: git version 2.51.2
+✓ Git LFS: git-lfs/3.8.0 (GitHub; darwin arm64; go 1.27.1)
+✓ LFS rule: References in Snapshots go to Git LFS.
+✓ References: 48 in Snapshots.
+✓ Capture: Screen Recording is allowed here, so macOS snapshots capture through the window server.
+✓ Simulators: iOS and tvOS runtimes installed.
+✓ Discovery: 6 stories discovered, and every one can be read.
+```
+<!-- /transcript -->
 
 ### Mac renders differ from what I see on screen
 
@@ -46,3 +59,6 @@ format unrecognized". Rename the directory your package copies as a resource to 
 ## See Also
 
 - <doc:CommandLine>
+
+<!-- sources: Sources/SwiftBookCLI/DoctorCommand.swift Sources/SwiftBookCore/Renderer/RendererHost.swift -->
+<!-- checked: 492b657 -->
