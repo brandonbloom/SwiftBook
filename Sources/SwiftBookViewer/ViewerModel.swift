@@ -55,12 +55,12 @@
             /// Asking the renderer for its stories.
             case listing
             case ready
+            /// The first build failed, so there's nothing to show.
             case failed(String)
         }
 
-        /// A render of one story in one environment.
+        /// The result of rendering one story in one environment.
         enum Render: Equatable {
-            case rendering
             case image(NSImage)
             case failed(String)
         }
@@ -70,10 +70,22 @@
             let appearance: RenderEnvironment.Appearance
         }
 
+        /// A render, and the build generation it came from.
+        struct Rendered: Equatable {
+            let render: Render
+            let generation: Int
+        }
+
         let package: URL
         private(set) var status = Status.building {
             didSet { log("\(status)") }
         }
+        /// The build generation being shown.
+        private(set) var generation = 0
+        /// Whether a rebuild is under way. The current renders stay up meanwhile.
+        private(set) var isRebuilding = false
+        /// Why the last rebuild failed, until one succeeds. The last good renders stay up.
+        private(set) var buildError: String?
         private(set) var stories: [StoryInfo] = []
         private(set) var tree: [StoryNode] = []
         var selection: StoryID? {
@@ -82,7 +94,9 @@
         var appearance = RenderEnvironment.Appearance.light {
             didSet { renderSelection() }
         }
-        private(set) var renders: [RenderKey: Render] = [:]
+        private(set) var renders: [RenderKey: Rendered] = [:]
+        /// Renders requested and not yet back.
+        private(set) var pending: Set<RenderKey> = []
 
         private var renderer: (any StoryRenderer)?
         private let startRenderer: @Sendable (URL) async throws -> any StoryRenderer
@@ -90,7 +104,7 @@
         init(
             package: URL,
             startRenderer: @escaping @Sendable (URL) async throws -> any StoryRenderer = {
-                try await ProcessStoryRenderer.start(for: $0)
+                try await RendererSupervisor.start(for: $0)
             }
         ) {
             self.package = package
@@ -104,9 +118,9 @@
             do {
                 let renderer = try await startRenderer(package)
                 self.renderer = renderer
+                generation = await renderer.generation()
                 status = .listing
-                stories = try await renderer.stories()
-                tree = StoryNode.tree(stories)
+                try await listStories()
                 status = .ready
                 if selection == nil { selection = stories.first?.id }
             } catch {
@@ -114,35 +128,86 @@
             }
         }
 
-        /// The render the canvas shows: the selection in the chosen appearance.
+        /// Builds the package again and shows the new build's stories. Until then, and if the
+        /// build fails, the current renders stay up.
+        func reload() async {
+            guard let renderer, !isRebuilding else { return }
+            isRebuilding = true
+            defer { isRebuilding = false }
+            log("rebuilding")
+            do {
+                generation = try await renderer.rebuild()
+                try await listStories()
+                buildError = nil
+                log("generation \(generation)")
+                if let selection, !stories.contains(where: { $0.id == selection }) {
+                    self.selection = stories.first?.id
+                } else {
+                    renderSelection()
+                }
+            } catch {
+                buildError = String(describing: error)
+                log("rebuild failed")
+            }
+        }
+
+        private func listStories() async throws {
+            guard let renderer else { return }
+            stories = try await renderer.stories()
+            tree = StoryNode.tree(stories)
+        }
+
+        private var currentKey: RenderKey? {
+            selection.map { RenderKey(story: $0, appearance: appearance) }
+        }
+
+        /// The render the canvas shows: the selection in the chosen appearance, possibly from an
+        /// earlier generation while the current one renders.
         var currentRender: Render? {
-            selection.flatMap { renders[RenderKey(story: $0, appearance: appearance)] }
+            currentKey.flatMap { renders[$0]?.render }
+        }
+
+        /// Whether the canvas is waiting on a render of the selection.
+        var isRenderingSelection: Bool {
+            currentKey.map(pending.contains) ?? false
         }
 
         private func renderSelection() {
-            guard let story = selection, let renderer else { return }
-            let key = RenderKey(story: story, appearance: appearance)
-            guard renders[key] == nil else { return }
-            renders[key] = .rendering
+            guard let key = currentKey, let renderer else { return }
+            // Each story renders once per generation and appearance.
+            if let rendered = renders[key], rendered.generation >= generation { return }
+            guard !pending.contains(key) else { return }
+            pending.insert(key)
             var environment = RenderEnvironment()
-            environment.appearance = appearance
+            environment.appearance = key.appearance
+            let generation = generation
             Task {
+                defer {
+                    pending.remove(key)
+                    // A rebuild may have finished while this rendered.
+                    if key == currentKey { renderSelection() }
+                }
+                let render: Render
                 do {
-                    let png = try await renderer.render(story, in: environment)
-                    guard let image = NSImage(data: png) else {
-                        renders[key] = .failed("the renderer sent an unreadable image")
-                        return
+                    let png = try await renderer.render(key.story, in: environment)
+                    if let image = NSImage(data: png) {
+                        // The bitmap is at the render's scale; show it at its size in points.
+                        if let representation = image.representations.first {
+                            image.size = CGSize(
+                                width: Double(representation.pixelsWide) / environment.scale,
+                                height: Double(representation.pixelsHigh) / environment.scale)
+                        }
+                        render = .image(image)
+                        log("rendered \(key.story) (\(key.appearance))")
+                    } else {
+                        render = .failed("the renderer sent an unreadable image")
                     }
-                    // The bitmap is at the render's scale; show it at its size in points.
-                    if let representation = image.representations.first {
-                        image.size = CGSize(
-                            width: Double(representation.pixelsWide) / environment.scale,
-                            height: Double(representation.pixelsHigh) / environment.scale)
-                    }
-                    renders[key] = .image(image)
-                    log("rendered \(story) (\(appearance))")
                 } catch {
-                    renders[key] = .failed(String(describing: error))
+                    render = .failed(String(describing: error))
+                }
+                // Keep a newer render if one already arrived.
+                if (renders[key]?.generation ?? 0) <= generation {
+                    renders[key] = Rendered(render: render, generation: generation)
                 }
             }
         }
@@ -150,25 +215,27 @@
         /// What the viewer is showing, for checks that can't see the window.
         struct Summary: Codable, Equatable {
             var status: String
+            var generation: Int
             var stories: Int
             var groups: [String]
             var selection: String?
             var render: String?
+            var buildError: String?
         }
 
         var summary: Summary {
             Summary(
-                status: "\(status)", stories: stories.count,
+                status: "\(status)", generation: generation, stories: stories.count,
                 groups: tree.flatMap { $0.children ?? [] }.map(\.id),
                 selection: selection?.description,
                 render: currentRender.map {
                     switch $0 {
-                    case .rendering: "rendering"
                     case .image(let image):
                         "image \(Int(image.size.width))×\(Int(image.size.height))"
                     case .failed(let message): "failed: \(message)"
                     }
-                })
+                } ?? (isRenderingSelection ? "rendering" : nil),
+                buildError: buildError)
         }
 
         /// Writes a line to standard error, which `swiftbook view` sends to the viewer's log.

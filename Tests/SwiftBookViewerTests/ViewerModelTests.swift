@@ -8,24 +8,54 @@
 
     /// A renderer that lists fixed stories and renders a solid image, recording what it's asked.
     final class FakeRenderer: StoryRenderer, @unchecked Sendable {
-        let stories: [StoryInfo]
-        let failing: Set<String>
+        // Unchecked: `lock` guards the mutable state.
         private let lock = NSLock()
+        private var _stories: [StoryInfo]
+        private var _generation = 1
+        private var _failNextBuild: String?
         private var _requests: [String] = []
-        var requests: [String] { lock.withLock { _requests } }
+        let failing: Set<String>
 
         init(_ ids: [String], failing: Set<String> = []) {
-            stories = ids.map {
-                let parts = $0.split(separator: "/").map(String.init)
-                return StoryInfo(id: StoryID(module: parts[0], group: parts[1], name: parts[2]))
-            }
+            _stories = Self.infos(ids)
             self.failing = failing
         }
 
-        func stories() async throws -> [StoryInfo] { stories }
+        static func infos(_ ids: [String]) -> [StoryInfo] {
+            ids.map {
+                let parts = $0.split(separator: "/").map(String.init)
+                return StoryInfo(id: StoryID(module: parts[0], group: parts[1], name: parts[2]))
+            }
+        }
+
+        /// Every render request, as "<story> <appearance> g<generation>".
+        var requests: [String] { lock.withLock { _requests } }
+
+        /// Replaces the stories the next build will list.
+        func setStories(_ ids: [String]) { lock.withLock { _stories = Self.infos(ids) } }
+
+        /// Makes the next rebuild fail with `message`.
+        func failNextBuild(_ message: String) { lock.withLock { _failNextBuild = message } }
+
+        func generation() async -> Int { lock.withLock { _generation } }
+
+        func stories() async throws -> [StoryInfo] { lock.withLock { _stories } }
+
+        func rebuild() async throws -> Int {
+            try lock.withLock {
+                if let message = _failNextBuild {
+                    _failNextBuild = nil
+                    throw RendererError(description: message)
+                }
+                _generation += 1
+                return _generation
+            }
+        }
 
         func render(_ story: StoryID, in environment: RenderEnvironment) async throws -> Data {
-            lock.withLock { _requests.append("\(story) \(environment.appearance)") }
+            lock.withLock {
+                _requests.append("\(story) \(environment.appearance) g\(_generation)")
+            }
             if failing.contains(story.description) {
                 throw RendererError(description: "boom")
             }
@@ -37,8 +67,6 @@
             let bitmap = NSBitmapImageRep(data: image.tiffRepresentation!)!
             return bitmap.representation(using: .png, properties: [:])!
         }
-
-        func shutdown() async {}
     }
 
     @MainActor @Suite struct ViewerModelTests {
@@ -49,14 +77,18 @@
         /// Waits until no render is in progress.
         func settle(_ model: ViewerModel) async {
             for _ in 0..<200 {
-                guard model.renders.values.contains(.rendering) else { return }
+                guard !model.pending.isEmpty else { return }
                 try? await Task.sleep(for: .milliseconds(10))
             }
         }
 
+        static func story(_ id: String) -> StoryID {
+            FakeRenderer.infos([id])[0].id
+        }
+
         @Test func groupsStoriesByModuleAndFile() {
             let tree = StoryNode.tree(
-                FakeRenderer(["M/A/One", "M/B/Two", "M/A/Three", "N/C/Four"]).stories)
+                FakeRenderer.infos(["M/A/One", "M/B/Two", "M/A/Three", "N/C/Four"]))
             #expect(tree.map(\.id) == ["M", "N"])
             #expect(tree[0].children?.map(\.title) == ["A", "B"])
             #expect(tree[0].children?[0].children?.map(\.title) == ["One", "Three"])
@@ -68,27 +100,28 @@
             let model = model(renderer)
             await model.start()
             #expect(model.status == .ready)
+            #expect(model.generation == 1)
             #expect(model.selection?.description == "M/A/One")
             await settle(model)
             #expect(model.summary.render == "image 20×10")
-            #expect(renderer.requests == ["M/A/One light"])
+            #expect(renderer.requests == ["M/A/One light g1"])
         }
 
-        @Test func rendersEachSelectionAndAppearanceOnce() async {
+        @Test func rendersEachSelectionAndAppearanceOncePerGeneration() async {
             let renderer = FakeRenderer(["M/A/One", "M/A/Two"])
             let model = model(renderer)
             await model.start()
             await settle(model)
             model.appearance = .dark
             await settle(model)
-            model.selection = StoryID(module: "M", group: "A", name: "Two")
+            model.selection = Self.story("M/A/Two")
             await settle(model)
             model.appearance = .light
-            model.selection = StoryID(module: "M", group: "A", name: "One")
+            model.selection = Self.story("M/A/One")
             await settle(model)
             #expect(
                 renderer.requests == [
-                    "M/A/One light", "M/A/One dark", "M/A/Two dark", "M/A/Two light",
+                    "M/A/One light g1", "M/A/One dark g1", "M/A/Two dark g1", "M/A/Two light g1",
                 ])
         }
 
@@ -97,6 +130,49 @@
             await model.start()
             await settle(model)
             #expect(model.summary.render == "failed: boom")
+        }
+
+        @Test func reloadsWithTheNewBuildsStories() async {
+            let renderer = FakeRenderer(["M/A/One", "M/A/Two"])
+            let model = model(renderer)
+            await model.start()
+            await settle(model)
+            renderer.setStories(["M/A/Two", "M/A/Three"])
+            await model.reload()
+            // The selection is gone from the new build, so the first story takes its place.
+            #expect(model.generation == 2)
+            #expect(model.selection?.description == "M/A/Two")
+            #expect(model.tree[0].children?[0].children?.map(\.title) == ["Two", "Three"])
+            await settle(model)
+            #expect(renderer.requests == ["M/A/One light g1", "M/A/Two light g2"])
+        }
+
+        @Test func rerendersTheSelectionAfterAReloadWithoutBlanking() async {
+            let renderer = FakeRenderer(["M/A/One"])
+            let model = model(renderer)
+            await model.start()
+            await settle(model)
+            await model.reload()
+            // The old render stays up while the new generation's renders.
+            #expect(model.summary.render == "image 20×10")
+            await settle(model)
+            #expect(model.renders.values.first?.generation == 2)
+            #expect(renderer.requests == ["M/A/One light g1", "M/A/One light g2"])
+        }
+
+        @Test func keepsTheLastGoodRendersWhenABuildFails() async {
+            let renderer = FakeRenderer(["M/A/One"])
+            let model = model(renderer)
+            await model.start()
+            await settle(model)
+            renderer.failNextBuild("error: expected '}'")
+            await model.reload()
+            #expect(model.buildError == "error: expected '}'")
+            #expect(model.generation == 1)
+            #expect(model.summary.render == "image 20×10")
+            await model.reload()
+            #expect(model.buildError == nil)
+            #expect(model.generation == 2)
         }
 
         @Test func reportsARendererThatWontStart() async {

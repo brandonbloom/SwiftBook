@@ -240,10 +240,15 @@ _(fill in on completion)_
     - **Smoke test:** with `SWIFTBOOK_VIEWER_SNAPSHOT`, it draws its window to a PNG and its model's state to JSON beside it, then quits. CI checks that it reaches "ready" with a rendered image. The drawing misses the sidebar's vibrant text, which is why the JSON exists.
     - **Tests:** `ViewerModelTests` covers the tree, start-up, one render per story and appearance, render failures, and a renderer that won't start, using a fake renderer.
     - **Quitting:** the viewer needs no shutdown step, because a renderer exits when its input closes. Deferring termination until the renderer stopped hung, because the main-actor task never ran while AppKit waited.
-- [ ] **`renderer-supervisor`**
+- [x] **`renderer-supervisor`**
   - Starts, warms up and swaps renderers for each build generation.
   - Enforces render timeouts and restarts crashed or hung renderers.
   - Never blocks the main thread.
+  - Done as `RendererSupervisor` in the viewer.
+    - **Rebuilds:** they run on a build queue while the current renderer keeps serving. The new renderer is warmed by listing its stories (discovery), then swapped in, and the old one shuts down. Requests run on a queue of their own.
+    - **Recovery:** a render that crashes the renderer, or outlives the timeout (30 s; the viewer shows it), fails with the reason, and the renderer restarts from the same build for the next request.
+    - **In the model:** renders remember their generation. After a reload, the old image stays up, with a spinner, until its replacement arrives. A failed rebuild keeps the last good renders under a banner with the diagnostics. Reload is a toolbar button (⌘R) until `build-orchestrator` watches files.
+    - **Fault fixture:** `Fixtures/FaultZoo` has previews that crash, hang, and are slow. `RendererSupervisorTests` renders them through real renderers, in about 20 s.
 - [ ] **`build-orchestrator`**
   - Watches files, runs incremental `swift build` and `xcodebuild`, and shows diagnostics in a banner.
   - When a build fails, the viewer keeps showing the last good renders.

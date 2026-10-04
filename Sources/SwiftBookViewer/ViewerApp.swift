@@ -28,7 +28,7 @@
 
         /// Waits for the canvas to settle, draws the window to `url`, and quits.
         @MainActor static func snapshot(_ model: ViewerModel, to url: URL) async {
-            while case .rendering? = model.currentRender {
+            while model.isRenderingSelection {
                 try? await Task.sleep(for: .milliseconds(50))
             }
             try? await Task.sleep(for: .milliseconds(500))

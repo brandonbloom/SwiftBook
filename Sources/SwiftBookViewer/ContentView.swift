@@ -22,6 +22,16 @@
                     .help("Color scheme")
                 }
                 ToolbarItem {
+                    Button {
+                        Task { await model.reload() }
+                    } label: {
+                        Label("Reload", systemImage: "arrow.clockwise")
+                    }
+                    .keyboardShortcut("r")
+                    .disabled(model.status != .ready || model.isRebuilding)
+                    .help("Build the package again and re-render")
+                }
+                ToolbarItem {
                     // Comparison mode and dimension come with toolbar-compare.
                     Menu("Compare", systemImage: "rectangle.split.2x1") {
                         Text("Single")
@@ -78,30 +88,73 @@
         let model: ViewerModel
 
         var body: some View {
-            Group {
-                if case .failed(let message) = model.status {
-                    ErrorText(title: "The renderer couldn't start", message: message)
-                } else if let story = model.selection {
-                    switch model.currentRender {
-                    case .image(let image)?:
-                        ScrollView([.horizontal, .vertical]) {
-                            Image(nsImage: image)
-                                .border(.separator)
-                                .padding(24)
+            VStack(spacing: 0) {
+                if let error = model.buildError {
+                    BuildErrorBanner(message: error)
+                }
+                Group {
+                    if case .failed(let message) = model.status {
+                        ErrorText(title: "The renderer couldn't start", message: message)
+                    } else if let story = model.selection {
+                        switch model.currentRender {
+                        case .image(let image)?:
+                            ScrollView([.horizontal, .vertical]) {
+                                Image(nsImage: image)
+                                    .border(.separator)
+                                    .padding(24)
+                            }
+                            .defaultScrollAnchor(.center)
+                        case .failed(let message)?:
+                            ErrorText(title: "Couldn't render \(story.name)", message: message)
+                        case nil:
+                            ProgressStatus(text: "Rendering \(story.name)…")
                         }
-                        .defaultScrollAnchor(.center)
-                    case .failed(let message)?:
-                        ErrorText(title: "Couldn't render \(story.name)", message: message)
-                    case .rendering?, nil:
-                        ProgressStatus(text: "Rendering \(story.name)…")
+                    } else {
+                        ContentUnavailableView(
+                            "Select a story", systemImage: "rectangle.on.rectangle")
                     }
-                } else {
-                    ContentUnavailableView("Select a story", systemImage: "rectangle.on.rectangle")
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .topTrailing) {
+                    // An earlier render stays up while its replacement renders.
+                    if model.currentRender != nil, model.isRenderingSelection || model.isRebuilding
+                    {
+                        ProgressView().controlSize(.small).padding(12)
+                    }
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationTitle(model.selection?.name ?? model.package.lastPathComponent)
             .navigationSubtitle(model.selection.map { "\($0.module) › \($0.group)" } ?? "")
+        }
+    }
+
+    /// The last rebuild's failure, above the last good renders.
+    struct BuildErrorBanner: View {
+        let message: String
+        @State private var expanded = false
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 6) {
+                Button {
+                    expanded.toggle()
+                } label: {
+                    Label(
+                        "The build failed. Showing the last good renders.",
+                        systemImage: "exclamationmark.triangle.fill")
+                }
+                .buttonStyle(.plain)
+                if expanded {
+                    ScrollView {
+                        Text(message).font(.system(.caption, design: .monospaced))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(maxHeight: 160)
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.yellow.opacity(0.2))
         }
     }
 
