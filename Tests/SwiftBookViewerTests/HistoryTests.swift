@@ -108,12 +108,16 @@
             }
             await model.start()
             await settle(model)
-            model.compareMode = .grid
+            model.compareMode = .twoUp
             model.compareDimension = .revision
+            #expect(model.cells.map(\.title) == ["Uncommitted changes · abc123", "Working tree"])
+            model.compareMode = .grid
             #expect(
-                model.cells.map(\.title) == [
-                    "Uncommitted changes · abc123", "Working tree", "Difference",
+                model.cellRows.first?.map(\.title) == [
+                    "Light · Uncommitted changes · abc123", "Light · Working tree",
+                    "Light · Difference",
                 ])
+            #expect(model.cellRows.count == 2)
 
             /// The selection's comparison, once it's in.
             func comparison() async -> ViewerModel.Comparison? {

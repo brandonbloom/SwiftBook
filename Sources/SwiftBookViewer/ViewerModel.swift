@@ -82,8 +82,9 @@
             case single
             /// Two values of the comparison dimension, side by side.
             case twoUp
-            /// Every value of the comparison dimension, plus the difference when comparing
-            /// revisions.
+            /// Every value of the comparison dimension across, plus the difference when comparing
+            /// revisions, and every value of a second dimension down: color scheme, or layout
+            /// direction when comparing color schemes.
             case grid
         }
 
@@ -281,14 +282,32 @@
             if collapsed.remove(node) == nil { collapsed.insert(node) }
         }
 
-        /// Whether `node` is expanded, as a binding for a disclosure group.
-        func isExpanded(_ node: String) -> Binding<Bool> {
-            Binding(
-                get: { !self.collapsed.contains(node) },
-                set: { expanded in
-                    if expanded { self.collapsed.remove(node) } else { self.collapsed.insert(node) }
-                })
+        /// A row of the sidebar: a node, indented by its depth in the tree.
+        struct SidebarRow: Identifiable, Hashable {
+            let node: StoryNode
+            let depth: Int
+            var id: String { node.id }
         }
+
+        /// The sidebar's rows: the filtered tree, flattened, without the children of collapsed
+        /// modules and groups. A flat list keeps the sidebar's rows in step with the tree; nested
+        /// disclosure groups in a selectable list left stale rows behind when the filters
+        /// changed.
+        var sidebarRows: [SidebarRow] {
+            var rows: [SidebarRow] = []
+            func add(_ nodes: [StoryNode], depth: Int) {
+                for node in nodes {
+                    rows.append(SidebarRow(node: node, depth: depth))
+                    if let children = node.children, !collapsed.contains(node.id) {
+                        add(children, depth: depth + 1)
+                    }
+                }
+            }
+            add(visibleTree, depth: 0)
+            return rows
+        }
+
+        func isExpanded(_ node: String) -> Bool { !collapsed.contains(node) }
 
         /// The sidebar's tree, with the filters applied.
         var visibleTree: [StoryNode] {
@@ -526,38 +545,59 @@
         // MARK: Canvas
 
         /// The canvas's cells, per the toolbar.
-        var cells: [Cell] {
+        var cells: [Cell] { cellRows.flatMap { $0 } }
+
+        /// The canvas's cells by row. Single and 2-up have one row; the grid has a row for each
+        /// value of its second dimension.
+        var cellRows: [[Cell]] {
             guard let selection else { return [] }
-            let key = RenderKey(story: selection, variant: variant)
-            func cell(_ title: String, _ change: (inout Variant) -> Void) -> Cell {
-                var variant = variant
-                change(&variant)
-                return Cell(
-                    title: title, content: .render(RenderKey(story: selection, variant: variant)))
+            guard compareMode != .single else {
+                return [
+                    [
+                        Cell(
+                            title: "",
+                            content: .render(RenderKey(story: selection, variant: variant)))
+                    ]
+                ]
             }
-            guard compareMode != .single else { return [Cell(title: "", content: .render(key))] }
-            switch compareDimension {
-            case .appearance:
-                return [
-                    cell("Light") { $0.appearance = .light },
-                    cell("Dark") { $0.appearance = .dark },
-                ]
-            case .layoutDirection:
-                return [
-                    cell("Left to right") { $0.layoutDirection = .leftToRight },
-                    cell("Right to left") { $0.layoutDirection = .rightToLeft },
-                ]
-            case .revision:
-                let basisTitle = [
-                    basis?.title ?? "Basis", basisRevision.map { String($0.prefix(7)) },
-                ]
+            typealias Value = (title: String, change: (inout Variant) -> Void)
+            let appearances: [Value] = [
+                ("Light", { $0.appearance = .light }), ("Dark", { $0.appearance = .dark }),
+            ]
+            let directions: [Value] = [
+                ("Left to right", { $0.layoutDirection = .leftToRight }),
+                ("Right to left", { $0.layoutDirection = .rightToLeft }),
+            ]
+            let rows: [Value] =
+                compareMode != .grid
+                ? [("", { _ in })] : compareDimension == .appearance ? directions : appearances
+            let basisTitle = [basis?.title ?? "Basis", basisRevision.map { String($0.prefix(7)) }]
                 .compactMap { $0 }.joined(separator: " · ")
-                let cells = [
-                    Cell(title: basisTitle, content: .reference(key)),
-                    Cell(title: "Working tree", content: .render(key)),
-                ]
-                return compareMode == .grid
-                    ? cells + [Cell(title: "Difference", content: .diff(key))] : cells
+            return rows.map { row in
+                var rowVariant = variant
+                row.change(&rowVariant)
+                let key = RenderKey(story: selection, variant: rowVariant)
+                func title(_ column: String) -> String {
+                    [row.title, column].filter { !$0.isEmpty }.joined(separator: " · ")
+                }
+                func cell(_ column: Value) -> Cell {
+                    var variant = rowVariant
+                    column.change(&variant)
+                    return Cell(
+                        title: title(column.title),
+                        content: .render(RenderKey(story: selection, variant: variant)))
+                }
+                switch compareDimension {
+                case .appearance: return appearances.map(cell)
+                case .layoutDirection: return directions.map(cell)
+                case .revision:
+                    let cells = [
+                        Cell(title: title(basisTitle), content: .reference(key)),
+                        Cell(title: title("Working tree"), content: .render(key)),
+                    ]
+                    return compareMode == .grid
+                        ? cells + [Cell(title: title("Difference"), content: .diff(key))] : cells
+                }
             }
         }
 

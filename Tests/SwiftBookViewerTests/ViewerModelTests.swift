@@ -280,14 +280,22 @@
             #expect(model.summary.render == "failed: boom")
         }
 
-        @Test func togglesGroupsOpenAndClosed() {
-            let model = model(FakeRenderer(["M/A/One"]))
-            #expect(model.isExpanded("M/A").wrappedValue)
+        @Test func togglesGroupsOpenAndClosed() async {
+            let model = model(FakeRenderer(["M/A/One", "M/B/Two"]))
+            await model.start()
+            #expect(model.sidebarRows.map(\.id) == ["M", "M/A", "M/A/One", "M/B", "M/B/Two"])
+            #expect(model.sidebarRows.map(\.depth) == [0, 1, 2, 1, 2])
             model.toggleExpanded("M/A")
-            #expect(!model.isExpanded("M/A").wrappedValue)
-            #expect(model.isExpanded("M").wrappedValue)
-            model.isExpanded("M/A").wrappedValue = true
+            #expect(!model.isExpanded("M/A"))
+            #expect(model.sidebarRows.map(\.id) == ["M", "M/A", "M/B", "M/B/Two"])
+            model.toggleExpanded("M")
+            #expect(model.sidebarRows.map(\.id) == ["M"])
+            model.toggleExpanded("M")
+            model.toggleExpanded("M/A")
             #expect(model.collapsed.isEmpty)
+            // Filtering removes rows rather than leaving them behind.
+            model.searchText = "two"
+            #expect(model.sidebarRows.map(\.id) == ["M", "M/B", "M/B/Two"])
         }
 
         @Test func arrowKeysCollapseExpandAndMoveThroughTheOutline() async {
@@ -333,9 +341,22 @@
             #expect(model.cells.map(\.title) == ["Left to right", "Right to left"])
             await settle(model)
             #expect(renderer.requests.last == "M/A/One dark g1 rtl")
-            // The grid has nothing more to show for two values.
+            // The grid adds color scheme down.
             model.compareMode = .grid
-            #expect(model.cells.count == 2)
+            #expect(
+                model.cellRows.map { $0.map(\.title) } == [
+                    ["Light · Left to right", "Light · Right to left"],
+                    ["Dark · Left to right", "Dark · Right to left"],
+                ])
+            // Comparing color schemes, it adds layout direction down.
+            model.compareDimension = .appearance
+            #expect(
+                model.cellRows.map { $0.map(\.title) } == [
+                    ["Left to right · Light", "Left to right · Dark"],
+                    ["Right to left · Light", "Right to left · Dark"],
+                ])
+            await settle(model)
+            #expect(Set(renderer.requests).count == 4)
         }
 
         @Test func zoomsInSteps() {

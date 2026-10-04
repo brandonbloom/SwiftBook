@@ -16,26 +16,31 @@
                 ToolbarItemGroup(placement: .principal) {
                     CompareControls(model: model)
                 }
-                ToolbarItemGroup {
-                    Button {
-                        model.zoomOut()
+                ToolbarItem {
+                    ControlGroup {
+                        Button {
+                            model.zoomOut()
+                        } label: {
+                            Label("Zoom Out", systemImage: "minus.magnifyingglass")
+                        }
+                        .keyboardShortcut("-")
+                        .help("Zoom out")
+                        Button("\(Int((model.zoom * 100).rounded()))%") { model.zoom = 1 }
+                            .keyboardShortcut("0")
+                            .monospacedDigit()
+                            .help("Actual size")
+                        Button {
+                            model.zoomIn()
+                        } label: {
+                            Label("Zoom In", systemImage: "plus.magnifyingglass")
+                        }
+                        .keyboardShortcut("=")
+                        .help("Zoom in")
                     } label: {
-                        Label("Zoom Out", systemImage: "minus.magnifyingglass")
+                        Label("Zoom", systemImage: "magnifyingglass")
                     }
-                    .keyboardShortcut("-")
-                    .help("Zoom out")
-                    Button("\(Int((model.zoom * 100).rounded()))%") { model.zoom = 1 }
-                        .keyboardShortcut("0")
-                        .monospacedDigit()
-                        .help("Actual size")
-                    Button {
-                        model.zoomIn()
-                    } label: {
-                        Label("Zoom In", systemImage: "plus.magnifyingglass")
-                    }
-                    .keyboardShortcut("=")
-                    .help("Zoom in")
                 }
+                ToolbarSpacer(.fixed)
                 ToolbarItem {
                     Button {
                         Task { await model.reload() }
@@ -111,24 +116,8 @@
                         description: Text("The renderer couldn't start."))
                 case .ready:
                     List(selection: $model.selectedNode) {
-                        // Modules, then groups, then stories. Clicking anywhere on a module or
-                        // group's row expands or collapses it, not just its disclosure arrow.
-                        ForEach(model.visibleTree) { module in
-                            GroupRow(node: module, model: model) {
-                                ForEach(module.children ?? []) { group in
-                                    GroupRow(node: group, model: model) {
-                                        ForEach(group.children ?? []) { story in
-                                            if let id = story.story {
-                                                StoryRow(
-                                                    title: story.title,
-                                                    status: model.statuses[id] ?? .pending
-                                                )
-                                                .tag(id.description)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                        ForEach(model.sidebarRows) { row in
+                            SidebarRowView(row: row, model: model).tag(row.id)
                         }
                     }
                     // Arrow keys work as in Finder's outline: left collapses or goes up,
@@ -152,38 +141,40 @@
         }
     }
 
-    /// A module or group in the sidebar, which expands or collapses when its row is clicked.
-    struct GroupRow<Content: View>: View {
-        let node: StoryNode
+    /// A row of the sidebar. Clicking anywhere on a module or group's row expands or collapses
+    /// it, not just its disclosure arrow.
+    struct SidebarRowView: View {
+        let row: ViewerModel.SidebarRow
         @Bindable var model: ViewerModel
-        @ViewBuilder let content: () -> Content
 
         var body: some View {
-            DisclosureGroup(isExpanded: model.isExpanded(node.id)) {
-                content()
-            } label: {
-                Text(node.title)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        model.selectedNode = node.id
-                        model.toggleExpanded(node.id)
+            HStack(spacing: 4) {
+                if row.node.children != nil {
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .rotationEffect(.degrees(model.isExpanded(row.id) ? 90 : 0))
+                        .frame(width: 12)
+                    Text(row.node.title).foregroundStyle(.secondary)
+                    Spacer()
+                } else {
+                    Color.clear.frame(width: 12, height: 1)
+                    Text(row.node.title)
+                    Spacer()
+                    if let story = row.node.story {
+                        StatusBadge(status: model.statuses[story] ?? .pending)
                     }
+                }
             }
-            .tag(node.id)
-        }
-    }
-
-    struct StoryRow: View {
-        let title: String
-        let status: ChangeStatus
-
-        var body: some View {
-            HStack {
-                Text(title)
-                Spacer()
-                StatusBadge(status: status)
+            .padding(.leading, Double(row.depth) * 14)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if row.node.children != nil {
+                    model.selectedNode = row.id
+                    model.toggleExpanded(row.id)
+                } else {
+                    model.selectedNode = row.id
+                }
             }
         }
     }
@@ -310,17 +301,14 @@
         @State private var pinchStart: Double?
 
         var body: some View {
-            let cells = model.cells
-            // Up to three cells fit in a row; more wrap into a square grid.
-            let columns =
-                cells.count <= 3 ? cells.count : Int(Double(cells.count).squareRoot().rounded(.up))
+            let rows = model.cellRows
+            let showsTitles = rows.count > 1 || (rows.first?.count ?? 0) > 1
             Grid(horizontalSpacing: 1, verticalSpacing: 1) {
-                ForEach(Array(stride(from: 0, to: cells.count, by: max(columns, 1))), id: \.self) {
-                    start in
+                ForEach(rows, id: \.first?.id) { row in
                     GridRow {
-                        ForEach(cells[start..<min(start + columns, cells.count)]) { cell in
+                        ForEach(row) { cell in
                             CellView(
-                                cell: cell, model: model, story: story, showsTitle: cells.count > 1)
+                                cell: cell, model: model, story: story, showsTitle: showsTitles)
                         }
                     }
                 }
