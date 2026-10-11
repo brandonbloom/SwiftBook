@@ -80,9 +80,14 @@ public enum SwiftBook {
     /// for every variant that fails.
     ///
     /// - Parameters:
+    ///   - story: The story to snapshot.
     ///   - filePath: A file in the project, which locates its `Snapshots/` directory.
+    ///   - variants: The variants to render and verify.
+    ///   - tolerance: What counts as a change.
+    ///   - excluding: Ignored here; `#SwiftBookTests` passes it to ``stories(excluding:)``.
     ///   - store: Overrides where references live.
     ///   - mode: Overrides `SWIFTBOOK_RECORD`.
+    ///   - sourceLocation: Where to report failures.
     @MainActor public static func verify(
         _ story: TestStory, filePath: String, variants: Variants = .lightAndDark,
         tolerance: ImageDiff.Tolerance = ImageDiff.Tolerance(), excluding _: Set<String> = [],

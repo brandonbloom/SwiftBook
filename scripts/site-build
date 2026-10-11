@@ -19,6 +19,7 @@ cp "$graphs"/SwiftBookTesting.symbols.json "$symbols/"
 xcrun docc convert site/SwiftBookTesting.docc \
   --additional-symbol-graph-dir "$symbols" \
   --output-path "$out/docs" \
+  --warnings-as-errors \
   --transform-for-static-hosting \
   --hosting-base-path "${base:+$base/}docs"
 cp site/index.html site/style.css "$out/"
