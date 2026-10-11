@@ -1,4 +1,5 @@
 #if os(macOS)
+    import CoreGraphics
     import Foundation
     import SwiftBookCore
 
@@ -44,12 +45,22 @@
         case new
         /// It didn't render.
         case failed
+        /// Its reference at the basis couldn't be read, and why: a Git LFS pointer, for example.
+        case unreadableReference(String)
 
         /// Whether the story belongs under a "changed only" filter.
         var isChange: Bool {
             switch self {
-            case .sourceChanged, .changed, .new, .failed: true
+            case .sourceChanged, .changed, .new, .failed, .unreadableReference: true
             case .pending, .unchanged: false
+            }
+        }
+
+        /// The status's name, without details.
+        var name: String {
+            switch self {
+            case .unreadableReference: "unreadableReference"
+            default: "\(self)"
             }
         }
     }
@@ -119,12 +130,33 @@
         /// How `render` compares with `reference`, the PNG at the basis.
         static func imageStatus(render: Data, reference: Data?) -> ChangeStatus {
             guard let reference else { return .new }
+            let expected: CGImage
+            do {
+                expected = try SnapshotStore.image(reference, at: "The reference")
+            } catch {
+                return .unreadableReference(String(describing: error))
+            }
             guard
-                let expected = try? SnapshotStore.image(reference, at: "reference"),
                 let actual = try? SnapshotStore.image(render, at: "render"),
                 let diff = try? ImageDiff.compare(expected: expected, actual: actual)
             else { return .changed }
             return diff.matches ? .unchanged : .changed
+        }
+
+        /// How `story`'s render compares with its reference in `history` as of `revision`.
+        static func status(
+            of story: StoryID, render: Data, appearance: RenderEnvironment.Appearance,
+            in history: any HistorySource, at revision: String
+        ) -> ChangeStatus {
+            do {
+                return imageStatus(
+                    render: render,
+                    reference: try history.reference(
+                        for: story, appearance: appearance, at: revision))
+            } catch {
+                // Not "new": a reference exists, but can't be read.
+                return .unreadableReference(String(describing: error))
+            }
         }
     }
 #endif

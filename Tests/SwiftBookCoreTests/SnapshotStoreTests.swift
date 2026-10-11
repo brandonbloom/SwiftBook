@@ -185,11 +185,18 @@ import Testing
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data("version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 12\n".utf8)
             .write(to: url)
-        do {
-            _ = try store.verify(snapshot(gray: 100), mode: .missing)
-            Issue.record("expected an error")
-        } catch let error as StorageError {
-            #expect(error.description.contains("Git LFS pointer"))
+        let pointer = try Data(contentsOf: url)
+        // Every mode refuses; recording would replace a reference nobody has seen.
+        for mode in RecordMode.allCases {
+            do {
+                _ = try store.verify(snapshot(gray: 100), mode: mode)
+                Issue.record("expected an error in \(mode) mode")
+            } catch let error as StorageError {
+                #expect(error.description.contains("Git LFS pointer"))
+                #expect(error.description.contains("git lfs pull"))
+            }
+            #expect(try Data(contentsOf: url) == pointer)
         }
+        #expect(throws: StorageError.self) { try SnapshotStore.image(pointer, at: "x.png") }
     }
 }

@@ -55,6 +55,36 @@
             #expect(History.imageStatus(render: blue, reference: nil) == .new)
         }
 
+        @Test func reportsReferencesThatCantBeRead() {
+            let pointer = Data("version https://git-lfs.github.com/spec/v1\noid sha256:0\n".utf8)
+            guard
+                case .unreadableReference(let reason) = History.imageStatus(
+                    render: Self.png(.systemBlue), reference: pointer)
+            else {
+                Issue.record("expected an unreadable reference")
+                return
+            }
+            #expect(reason.contains("Git LFS pointer"))
+
+            // A reference that fails to load isn't new.
+            struct Unreadable: HistorySource {
+                func defaultBasis() -> ViewerBasis { .uncommitted }
+                func changes(against basis: ViewerBasis) throws -> (
+                    revision: String, paths: [String]
+                ) { ("abc123", []) }
+                func reference(
+                    for story: StoryID, appearance: RenderEnvironment.Appearance,
+                    at revision: String
+                ) throws -> Data? {
+                    throw RendererError(description: "the LFS object wasn't pushed")
+                }
+            }
+            let status = History.status(
+                of: ViewerModelTests.story("M/A/One"), render: Self.png(.systemBlue),
+                appearance: .light, in: Unreadable(), at: "abc123")
+            #expect(status == .unreadableReference("the LFS object wasn't pushed"))
+        }
+
         /// Waits until nothing is rendering and statuses have settled.
         func settle(_ model: ViewerModel) async {
             for _ in 0..<300 {

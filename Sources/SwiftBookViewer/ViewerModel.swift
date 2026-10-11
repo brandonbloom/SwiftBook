@@ -828,10 +828,9 @@
             }
             Task {
                 let status = await Task.detached {
-                    History.imageStatus(
-                        render: png,
-                        reference: try? history.reference(
-                            for: key.story, appearance: key.variant.appearance, at: revision))
+                    History.status(
+                        of: key.story, render: png, appearance: key.variant.appearance,
+                        in: history, at: revision)
                 }.value
                 // Only if nothing has moved on meanwhile.
                 guard revision == basisRevision, renders[key] == rendered else { return }
@@ -870,7 +869,7 @@
                     }
                 } ?? (isRenderingSelection ? "rendering" : nil),
                 buildError: buildError, basis: basis?.title,
-                changes: Dictionary(grouping: statuses.values, by: { "\($0)" }).mapValues(\.count),
+                changes: Dictionary(grouping: statuses.values, by: \.name).mapValues(\.count),
                 cells: cells.map(\.title),
                 longestStall: Int(MainThreadWatchdog.shared.longest / .milliseconds(1)))
         }

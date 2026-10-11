@@ -99,7 +99,7 @@
                         "can't read \(path) as of \(revision); if it's in Git LFS, check that its object was pushed: \(error.description)"
                 )
             }
-            if data.starts(with: Data("version https://git-lfs.github.com/spec/".utf8)) {
+            if GitLFS.isPointer(data) {
                 throw GitError(
                     description:
                         "\(path) as of \(revision) is a Git LFS pointer; install Git LFS and run: git lfs install"

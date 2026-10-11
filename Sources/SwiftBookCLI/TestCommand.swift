@@ -66,6 +66,11 @@
                 warn("swiftbook: \(error)")
                 throw Exit.broken.code
             }
+            // One message up front, rather than a failure for every snapshot.
+            if let problem = Self.lfsProblem(project) {
+                warn("swiftbook: \(problem)")
+                throw Exit.broken.code
+            }
             var devices = self.devices
             if devices.isEmpty {
                 devices = Self.devicesWithReferences(in: project.store)
@@ -100,6 +105,14 @@
                 }
             }
             if results.failed { throw Exit.changed.code }
+        }
+
+        /// Why testing can't start, if any of `project`'s references are Git LFS pointers.
+        static func lfsProblem(_ project: Project) -> String? {
+            let (all, pointers) = project.references()
+            guard let first = pointers.first else { return nil }
+            return
+                "\(pointers.count) of \(all.count) references are Git LFS pointers, not images, such as \(first.path). Run: \(GitLFS.fix)"
         }
 
         /// The devices with at least one reference in `store`, in a fixed order.

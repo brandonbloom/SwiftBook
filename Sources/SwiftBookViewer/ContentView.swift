@@ -267,6 +267,9 @@
             case .failed:
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
                     .help("Didn't render")
+            case .unreadableReference(let reason):
+                Image(systemName: "questionmark.circle.fill").foregroundStyle(.orange)
+                    .help(reason)
             }
         }
     }

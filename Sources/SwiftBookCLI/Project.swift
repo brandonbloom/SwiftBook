@@ -58,13 +58,12 @@
             else { return ([], []) }
             var all: [URL] = []
             var pointers: [URL] = []
-            let pointerPrefix = Data("version https://git-lfs.github.com/spec/".utf8)
             while let url = enumerator.nextObject() as? URL {
                 guard url.pathExtension == "png" else { continue }
                 all.append(url)
                 if let handle = try? FileHandle(forReadingFrom: url),
-                    let start = try? handle.read(upToCount: pointerPrefix.count),
-                    start == pointerPrefix
+                    let start = try? handle.read(upToCount: GitLFS.pointerPrefix.count),
+                    GitLFS.isPointer(start)
                 {
                     pointers.append(url)
                 }

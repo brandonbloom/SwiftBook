@@ -78,6 +78,10 @@
             #expect(check.status == .failure)
             #expect(check.detail.hasPrefix("1 of 2 are Git LFS pointers"))
             #expect(check.fix == "Run: git lfs pull")
+            // swiftbook test stops before rendering anything.
+            #expect(
+                TestCommand.lfsProblem(project)?.hasPrefix(
+                    "1 of 2 references are Git LFS pointers") == true)
         }
 
         @Test func doctorAsksForTheLFSRule() throws {

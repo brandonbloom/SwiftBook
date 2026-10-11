@@ -116,6 +116,10 @@ public struct SnapshotStore: Sendable {
             try write(png, to: url)
             return .recorded(url, previous: nil, replaced: nil)
         }
+        // In every mode: recording over a pointer would replace a reference nobody has seen.
+        if GitLFS.isPointer(reference) {
+            throw StorageError(description: GitLFS.pointerProblem(at: url.path))
+        }
         if mode == .all {
             // An identical reference needs no rewrite, so it isn't reported as recorded.
             if reference == png {
@@ -144,12 +148,6 @@ public struct SnapshotStore: Sendable {
     )
         throws -> ImageDiff
     {
-        if reference.starts(with: Data("version https://git-lfs.github.com/spec/".utf8)) {
-            throw StorageError(
-                description:
-                    "\(url.path) is a Git LFS pointer, not an image; run `git lfs install && git lfs pull`"
-            )
-        }
         guard let source = CGImageSourceCreateWithData(reference as CFData, nil),
             let expected = CGImageSourceCreateImageAtIndex(source, 0, nil)
         else { throw StorageError(description: "\(url.path) isn't a readable image") }
@@ -158,6 +156,9 @@ public struct SnapshotStore: Sendable {
 
     /// Decodes `png`, naming `path` if it can't.
     public static func image(_ png: Data, at path: String) throws -> CGImage {
+        if GitLFS.isPointer(png) {
+            throw StorageError(description: GitLFS.pointerProblem(at: path))
+        }
         guard let source = CGImageSourceCreateWithData(png as CFData, nil),
             let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
         else { throw StorageError(description: "\(path) isn't a readable image") }
