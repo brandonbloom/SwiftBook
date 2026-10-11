@@ -43,6 +43,18 @@ for that device, which it creates on first use and reuses after:
 Your own simulators are left alone. The app is built from your package's library products, so a
 story's resources come along.
 
+### Running several at once
+
+A simulator shows one app at a time and suspends the rest, so two runs can't share one. Each run
+leases a simulator of its own from a pool, such as `SwiftBook iPhone 17 Pro #2` beside the first.
+Runs beyond the pool's size wait their turn, and say so; waiting never counts as a timeout.
+
+- **Size.** As many simulators per device as fit in half the Mac's memory, at 4 GB each, but at
+  most one per two performance cores. Set `SWIFTBOOK_SIMULATORS` to choose.
+- **Memory.** The first simulator stays booted. An extra one shuts down once it has been idle for
+  5 minutes, so overlapping runs reuse it while it's warm.
+- **Leases end with their run**, even one that crashes.
+
 ### Rendering stories to files
 
 `swiftbook render` writes PNGs laid out like references, without comparing them:
@@ -62,4 +74,4 @@ swift run swiftbook render Wander/Welcome/Welcome --device iphone -o /tmp/render
 - <doc:ContinuousIntegration>
 
 <!-- sources: Sources/SwiftBookCLI/TestCommand.swift Sources/SwiftBookCLI/RenderCommand.swift Sources/SwiftBookCore/Renderer Sources/SwiftBookCore/Rendering/Device.swift Sources/SwiftBookCore/Rendering/UIKitRenderer.swift -->
-<!-- checked: 5656084 -->
+<!-- checked: c60ae75 -->

@@ -41,7 +41,9 @@
                 let app = try host.buildApp(for: device == .tv ? .tvOS : .iOS)
                 progress("Starting the simulator…")
                 // A simulator of this run's own: runs sharing one suspend each other's renderers.
-                let lease = try SimulatorPool.lease(for: device, waiting: progress)
+                // Extra simulators stay booted for a few minutes after the run, for the next one.
+                let lease = try SimulatorPool.lease(
+                    for: device, waiting: progress, keepWarm: SimulatorIdleCommand.start)
                 do {
                     return try RestartingRenderer {
                         try RendererProcess(

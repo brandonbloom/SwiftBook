@@ -40,5 +40,32 @@
             first.lock.release()
             #expect(try SimulatorPool.claim(.iphone, size: 2, in: directory)?.number == 1)
         }
+
+        @Test func shutsAnExtraSimulatorDownOnceIdle() throws {
+            try FileManager.default.createDirectory(
+                at: directory, withIntermediateDirectories: true)
+            var shutdowns = 0
+            func shutDownWhenIdle() throws -> Bool {
+                try SimulatorPool.shutDownWhenIdle(
+                    .iphone, number: 2, idle: .milliseconds(300), in: directory
+                ) { shutdowns += 1 }
+            }
+
+            // Released just now: it waits out the idle time first.
+            SimulatorPool.markReleased(.iphone, number: 2, in: directory)
+            let start = ContinuousClock.now
+            #expect(try shutDownWhenIdle())
+            #expect(ContinuousClock.now - start >= .milliseconds(300))
+            #expect(shutdowns == 1)
+
+            // Leased again: the run holding it arranges the next shutdown.
+            let held = try #require(try SimulatorPool.claim(.iphone, size: 2, in: directory))
+            let again = try #require(try SimulatorPool.claim(.iphone, size: 2, in: directory))
+            #expect(again.number == 2)
+            #expect(try !shutDownWhenIdle())
+            #expect(shutdowns == 1)
+            held.lock.release()
+            again.lock.release()
+        }
     }
 #endif

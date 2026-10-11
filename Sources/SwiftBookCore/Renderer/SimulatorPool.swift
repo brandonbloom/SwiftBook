@@ -42,22 +42,29 @@
         }
 
         /// Where the pool's lock files live.
-        static var lockDirectory: URL {
+        public static var lockDirectory: URL {
             FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
                 .appending(path: "SwiftBook/Simulators", directoryHint: .isDirectory)
         }
 
         /// Leases a simulator for `device`, booted. While every one in the pool is in use, it
         /// tells `waiting` once and waits: waiting for a simulator is never a timeout.
+        ///
+        /// `keepWarm` is called when an extra simulator is released, instead of shutting it down.
+        /// It should arrange for ``shutDownWhenIdle(_:number:idle:in:)`` to run, in a process
+        /// that outlives this one.
         public static func lease(
-            for device: Device, size: Int = size(), waiting: (String) -> Void = { _ in }
+            for device: Device, size: Int = size(), waiting: (String) -> Void = { _ in },
+            keepWarm: (@Sendable (Device, Int) -> Void)? = nil
         ) throws -> SimulatorLease {
             var announced = false
             while true {
                 if let (number, lock) = try claim(device, size: size) {
                     do {
                         let simulator = try Simulator.dedicated(for: device, number: number)
-                        return SimulatorLease(simulator: simulator, number: number, lock: lock)
+                        return SimulatorLease(
+                            simulator: simulator, device: device, number: number, lock: lock,
+                            keepWarm: keepWarm)
                     } catch {
                         lock.release()
                         throw error
@@ -74,6 +81,59 @@
                     announced = true
                 }
                 Thread.sleep(forTimeInterval: 0.5)
+            }
+        }
+
+        /// How long an extra simulator stays booted after its last run, for the next one. Runs
+        /// often overlap in bursts, and booting and installing on a cold simulator costs about
+        /// 15 s.
+        public static let idleTime = Duration.seconds(300)
+
+        /// Records that `device`'s simulator `number` was just released.
+        static func markReleased(_ device: Device, number: Int, in directory: URL = lockDirectory) {
+            try? Data(String(Date().timeIntervalSince1970).utf8).write(
+                to: directory.appending(path: "\(device)-\(number).released"))
+        }
+
+        /// When `device`'s simulator `number` was last released, if it's recorded.
+        static func lastReleased(_ device: Device, number: Int, in directory: URL) -> Date? {
+            (try? String(
+                contentsOf: directory.appending(path: "\(device)-\(number).released"),
+                encoding: .utf8))
+                .flatMap(TimeInterval.init).map(Date.init(timeIntervalSince1970:))
+        }
+
+        /// Shuts `device`'s simulator `number` down once it has been idle for `idle`: released,
+        /// and not leased since. If another run holds it, this returns without waiting; that run's
+        /// release arranges the next shutdown. Returns whether it shut the simulator down.
+        @discardableResult
+        public static func shutDownWhenIdle(
+            _ device: Device, number: Int, idle: Duration = idleTime,
+            in directory: URL = lockDirectory, shutdown: (() throws -> Void)? = nil
+        ) throws -> Bool {
+            let idleSeconds = idle / .seconds(1)
+            while true {
+                let released = lastReleased(device, number: number, in: directory) ?? .distantPast
+                let remaining = idleSeconds - Date().timeIntervalSince(released)
+                if remaining > 0 {
+                    Thread.sleep(forTimeInterval: remaining)
+                    continue
+                }
+                guard let lock = FileLock(directory.appending(path: "\(device)-\(number).lock"))
+                else { return false }
+                defer { lock.release() }
+                // Released again while this waited for the lock: start over.
+                if let again = lastReleased(device, number: number, in: directory),
+                    Date().timeIntervalSince(again) < idleSeconds
+                {
+                    continue
+                }
+                if let shutdown {
+                    try shutdown()
+                } else {
+                    try Simulator.dedicated(for: device, number: number, boot: false).shutdown()
+                }
+                return true
             }
         }
 
@@ -96,21 +156,36 @@
     /// A simulator held for one run, until it's released or the run's process exits.
     public final class SimulatorLease: Sendable {
         public let simulator: Simulator
+        public let device: Device
         /// Its place in the pool, from 1.
         public let number: Int
         private let lock: FileLock
+        private let keepWarm: (@Sendable (Device, Int) -> Void)?
 
-        init(simulator: Simulator, number: Int, lock: FileLock) {
+        init(
+            simulator: Simulator, device: Device, number: Int, lock: FileLock,
+            keepWarm: (@Sendable (Device, Int) -> Void)?
+        ) {
             self.simulator = simulator
+            self.device = device
             self.number = number
             self.lock = lock
+            self.keepWarm = keepWarm
         }
 
-        /// Gives the simulator back. Extra simulators shut down, so they don't hold memory while
-        /// idle; the first stays booted for the next run.
+        /// Gives the simulator back. The first stays booted for the next run. An extra one shuts
+        /// down, so it doesn't hold memory while idle, unless the lease keeps it warm: then it
+        /// stays booted until it has been idle for ``SimulatorPool/idleTime``.
         public func release() {
             guard !lock.isReleased else { return }
-            if number > 1 { simulator.shutdown() }
+            if number > 1 {
+                if let keepWarm {
+                    SimulatorPool.markReleased(device, number: number)
+                    keepWarm(device, number)
+                } else {
+                    simulator.shutdown()
+                }
+            }
             lock.release()
         }
     }

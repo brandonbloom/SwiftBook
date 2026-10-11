@@ -19,6 +19,7 @@
                 PruneCommand.self,
                 InitCommand.self,
                 DoctorCommand.self,
+                SimulatorIdleCommand.self,
             ])
 
         public init() {}

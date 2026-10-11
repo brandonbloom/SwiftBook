@@ -33,7 +33,9 @@
         /// (27 or later), created if it doesn't exist yet and booted. `number` picks one from
         /// ``SimulatorPool``: the first is named for its device, and the others add `#2`, `#3`,
         /// and so on.
-        public static func dedicated(for device: Device, number: Int = 1) throws -> Simulator {
+        public static func dedicated(for device: Device, number: Int = 1, boot: Bool = true)
+            throws -> Simulator
+        {
             let type = try deviceType(for: device)
             let runtimes =
                 try simctlJSON(["list", "runtimes", "--json"])["runtimes"] as? [[String: Any]] ?? []
@@ -67,7 +69,7 @@
                 udid = try simctl(["create", name, type.id, runtimeID]).output
             }
             let simulator = Simulator(udid: udid, name: name)
-            try simulator.boot()
+            if boot { try simulator.boot() }
             return simulator
         }
 
