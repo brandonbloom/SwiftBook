@@ -15,7 +15,4 @@ Fulbloom has 632 references (about 300 on iPhone), checked by many agents runnin
   - Render only previews whose source files (or their dependencies) changed since their references were recorded, with a full run nightly. The viewer's source-changed pass is a start.
   - Shard across the simulator pool.
 - **Date-dependent previews.** A compact `DatePicker`'s width changed at midnight. Ideas: a fixed clock in snapshot mode, or a lint for `Date.now` in previews.
-- **The app's accent color.** Previews render outside the app, so an app's global accent color (`ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME` in its asset catalog) never applies: controls render blue where the app is green. Fulbloom works around it with `.tint(.brand)` at screen roots, but previews of single views still render blue. Ideas:
-  - A project setting for the accent color, applied as `.tint` around every preview on every renderer. It could name an asset catalog and color, or give light and dark values.
-  - Or read it from the app target that uses the package.
-  - Either way, record the accent in snapshot metadata, so a reference recorded before an accent change reads as stale rather than as a mystery diff. Fulbloom re-recorded 86 Mac and 52 iPhone references for the change.
+- **Read the accent color from the app target.** `SwiftBookConfiguration.tint` (`project-tint`) sets it by hand. SwiftBook could instead find the app target that uses the package and read its `ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME` color.

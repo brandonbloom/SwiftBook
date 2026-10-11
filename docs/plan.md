@@ -351,6 +351,13 @@ _(fill in on completion)_
 - [x] **`lfs-diagnostics`**
   - From Fulbloom's feedback: fresh worktrees had Git LFS pointers instead of references.
   - Done. Every path that reads a reference recognizes pointers, with one message (`git lfs pull`, after `git lfs install`). Recording in any mode refuses to overwrite a pointer; `all` mode used to. `swiftbook test` stops up front with a count instead of failing every snapshot. The viewer badges an unreadable reference with its reason instead of calling the story new.
+- [x] **`project-tint`**
+  - From Fulbloom's feedback: previews render outside the app, so they don't get its global accent color, and controls rendered blue where the app is green.
+  - Done. A new `SwiftBook` library, with no dependencies besides SwiftUI, declares `SwiftBookConfiguration`. A library conforms one type, and the conformance scan finds it like previews. Every renderer applies its `tint` around every story, and snapshot metadata records it per appearance (`#RRGGBB`, resolved through AppKit or UIKit, since asset colors ignore SwiftUI's environment). A tint change shows in failure messages.
+  - **Why a library:** renderers link library products, not test targets, so a `#SwiftBookTests` argument would have reached only Mac `swift test`. The vision now puts rendering settings in library code.
+  - **Renamed:** the `swiftbook` executable target is now `SwiftBookMain`, because its module clashed with `SwiftBook`'s on case-insensitive disks. The product and binary are still `swiftbook`.
+  - **Tested:** `Fixtures/TintZoo` takes its tint from an asset-catalog `AccentColor`. `tintsEveryStoryWithTheProjectsColor` checks the metadata and a tinted swatch in light and dark. On the Mac, inactive render windows draw prominent buttons without the accent.
+  - Not yet: reading the accent from the app target that uses the package.
 - [ ] **`diff-modes`**
   - Swipe, onion skin, blink, and a diff highlight with an adjustable ΔE threshold.
 - [ ] **`ios-in-viewer`**

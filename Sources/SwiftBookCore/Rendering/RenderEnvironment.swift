@@ -47,8 +47,8 @@ public struct RenderEnvironment: Hashable, Sendable {
 }
 
 extension View {
-    /// Applies the environment's SwiftUI values and disables animations.
-    func pinned(to environment: RenderEnvironment) -> some View {
+    /// Applies the environment's SwiftUI values and the package's tint, and disables animations.
+    @MainActor func pinned(to environment: RenderEnvironment) -> some View {
         live(in: environment)
             .transaction { transaction in
                 transaction.disablesAnimations = true
@@ -56,9 +56,11 @@ extension View {
             }
     }
 
-    /// Applies the environment's SwiftUI values, leaving animations on, for interacting with.
-    func live(in environment: RenderEnvironment) -> some View {
+    /// Applies the environment's SwiftUI values and the package's tint, leaving animations on,
+    /// for interacting with.
+    @MainActor func live(in environment: RenderEnvironment) -> some View {
         self
+            .tint(ProjectConfiguration.tint)
             .environment(\.colorScheme, environment.appearance == .dark ? .dark : .light)
             .environment(\.locale, Locale(identifier: environment.localeIdentifier))
             .environment(\.timeZone, TimeZone(identifier: environment.timeZoneIdentifier) ?? .gmt)

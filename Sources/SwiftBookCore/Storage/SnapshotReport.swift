@@ -175,6 +175,9 @@ public struct SnapshotReport: Sendable {
         if reference.scale != actual.scale {
             changes.append("scale \(reference.scale) → \(actual.scale)")
         }
+        if reference.tint != actual.tint {
+            changes.append("tint \(reference.tint ?? "none") → \(actual.tint ?? "none")")
+        }
         return changes
     }
 

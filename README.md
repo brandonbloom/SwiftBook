@@ -154,6 +154,17 @@ Windows render in their inactive style, as when another app is in front. For exa
 - **Wait for nothing.** A render must settle within 2 seconds, and two captures in a row must match. Previews that animate forever, poll, or load asynchronously fail as "still changing".
 - **Size deliberately.** Use `.sizeThatFits` for components and `.fixedLayout(width:height:)` for windows and screens. Views that fill the space they're given, such as a `List`, get the 800×600 device canvas under `.sizeThatFits`.
 - **Leave a preview out** with `#SwiftBookTests(excluding: ["MyUI/Group/Name"])`.
+- **Match your app's tint.** Previews render outside your app, so they don't get its accent color (the asset catalog's `AccentColor`). Add the `SwiftBook` library to your UI target and declare the color once; SwiftBook applies it as `.tint` around every story, on every device:
+
+  ```swift
+  import SwiftBook
+
+  struct Snapshots: SwiftBookConfiguration {
+      static var tint: Color? { Color("AccentColor", bundle: .module) }
+  }
+  ```
+
+  The library can't see the app's asset catalog, so keep the color in the library's catalog and tint the app from it too.
 
 The macro also takes `variants:` to change which environments each story renders in, and `tolerance:` to loosen comparisons.
 

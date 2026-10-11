@@ -179,7 +179,10 @@
 
         @Test(.enabled(if: iOSRuntimeInstalled)) func rendersTheZooInTheSimulator() throws {
             let app = try RendererHost(package: Self.zoo).buildApp(for: .iOS)
-            let simulator = try Simulator.dedicated(for: .iphone)
+            // Leased, like the CLI's, so it can't suspend another run's renderer.
+            let lease = try SimulatorPool.lease(for: .iphone)
+            defer { lease.release() }
+            let simulator = lease.simulator
             #expect(simulator.name.hasPrefix("SwiftBook iPhone 17 Pro"))
             let renderer = try RendererProcess(app: app.url, bundleID: app.bundleID, in: simulator)
             defer { renderer.shutdown() }
@@ -200,6 +203,39 @@
             // The device layout fills the pinned iPhone's screen, at its scale.
             #expect(image.width == 402 * 3 && image.height == 874 * 3)
             #expect(try renderer.render(card, in: environment) == png)
+        }
+
+        static let tintZoo = zoo.deletingLastPathComponent()
+            .appending(path: "TintZoo", directoryHint: .isDirectory)
+
+        /// How many of `png`'s pixels are within a few levels of `hex` (`#RRGGBB`).
+        static func pixels(in png: Data, matching hex: String) throws -> Int {
+            let target = stride(from: 1, to: 7, by: 2).map {
+                Int(hex[hex.index(hex.startIndex, offsetBy: $0)...].prefix(2), radix: 16)!
+            }
+            let bitmap = try Bitmap(SnapshotStore.image(png, at: "render"))
+            return stride(from: 0, to: bitmap.pixels.count, by: 4).filter { offset in
+                (0..<3).allSatisfy { abs(Int(bitmap.pixels[offset + $0]) - target[$0]) <= 3 }
+            }.count
+        }
+
+        @Test func tintsEveryStoryWithTheProjectsColor() throws {
+            let executable = try RendererHost(package: Self.tintZoo).build()
+            let renderer = try RendererProcess(
+                executable: executable, environment: ["SWIFTBOOK_CAPTURE": "emulated"])
+            defer { renderer.shutdown() }
+            let story = StoryID(module: "TintZoo", group: "Tint", name: "Tinted")
+            // The asset catalog's AccentColor, light and dark.
+            for (appearance, tint) in [
+                (RenderEnvironment.Appearance.light, "#0D8D6D"), (.dark, "#189973"),
+            ] {
+                var environment = RenderEnvironment()
+                environment.appearance = appearance
+                let png = try renderer.render(story, in: environment)
+                #expect(try SnapshotMetadata.read(fromPNG: png)?.tint == tint)
+                // The 48-point swatch, at 2x.
+                #expect(try Self.pixels(in: png, matching: tint) >= 48 * 48 * 4 * 8 / 10)
+            }
         }
     }
 #endif

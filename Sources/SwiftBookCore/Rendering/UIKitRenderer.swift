@@ -126,7 +126,8 @@
                     locale: environment.localeIdentifier, timeZone: environment.timeZoneIdentifier,
                     dynamicTypeSize: String(describing: environment.dynamicTypeSize),
                     layoutDirection: String(describing: environment.layoutDirection),
-                    swiftBookVersion: SwiftBookInfo.version))
+                    swiftBookVersion: SwiftBookInfo.version,
+                    tint: ProjectConfiguration.tintDescription(in: environment.appearance)))
         }
 
         #if os(iOS)

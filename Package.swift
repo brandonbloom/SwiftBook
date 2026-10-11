@@ -11,11 +11,14 @@ let package = Package(
     name: "SwiftBook",
     platforms: [.macOS("27.0"), .iOS("27.0"), .tvOS("27.0")],
     products: [
+        // Declarations for a package's own code, such as `SwiftBookConfiguration`. Safe to link
+        // into apps: it depends only on SwiftUI.
+        .library(name: "SwiftBook", targets: ["SwiftBook"]),
         .library(name: "SwiftBookCore", targets: ["SwiftBookCore"]),
         .library(name: "SwiftBookTesting", targets: ["SwiftBookTesting"]),
         // Linked by the hidden host package that renders a user's stories in its own process.
         .library(name: "SwiftBookRenderer", targets: ["SwiftBookRenderer"]),
-        .executable(name: "swiftbook", targets: ["swiftbook"]),
+        .executable(name: "swiftbook", targets: ["SwiftBookMain"]),
         // The macOS viewer, which `swiftbook view` builds and launches.
         .executable(name: "swiftbook-viewer", targets: ["SwiftBookViewer"]),
     ],
@@ -25,7 +28,8 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.5.0"),
     ],
     targets: [
-        .target(name: "SwiftBookCore", swiftSettings: strict),
+        .target(name: "SwiftBook", swiftSettings: strict),
+        .target(name: "SwiftBookCore", dependencies: ["SwiftBook"], swiftSettings: strict),
         .target(
             name: "SwiftBookTesting", dependencies: ["SwiftBookCore", "SwiftBookMacros"],
             swiftSettings: strict),
@@ -46,8 +50,9 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],
             swiftSettings: strict),
+        // Not named swiftbook: its module would clash with SwiftBook's on case-insensitive disks.
         .executableTarget(
-            name: "swiftbook", dependencies: ["SwiftBookCLI"], swiftSettings: strict),
+            name: "SwiftBookMain", dependencies: ["SwiftBookCLI"], swiftSettings: strict),
         .executableTarget(
             name: "SwiftBookViewer", dependencies: ["SwiftBookCore"], swiftSettings: strict),
         .testTarget(

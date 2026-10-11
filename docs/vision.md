@@ -96,7 +96,7 @@ A static, in-process build of the same viewer UI for running on a device or simu
 
 ### Opting in and configuring
 
-Swift has no way to enable this with zero code, so a test target opts in with **a single declaration**. It is the only project-level configuration point:
+Swift has no way to enable this with zero code, so a test target opts in with **a single declaration**. It configures testing:
 
 ```swift
 import SwiftBookTesting
@@ -109,7 +109,18 @@ import Testing  // the expansion uses Swift Testing's macros, which can't be re-
 - The macro expands to an ordinary Swift Testing parameterized test over every discovered story. It runs the **macOS** snapshots under `swift test` or `xcodebuild`.
 - **iOS and tvOS snapshots run through `swiftbook test`**, using the same generated renderer app as the viewer. Package test targets on those platforms have no host app, and without one, test rendering loses fidelity ([spike](spikes/ios-renderer.md)). As a result, CI references always match what the viewer shows. Those snapshots don't appear in Xcode's test navigator.
 - Its arguments set the package-wide defaults: which variants are **recorded** and the diff thresholds.
-- Nothing else is read: no config files and no environment-specific setup. The CLI and viewer find settings by looking for this declaration.
+- No config files and no environment-specific setup. The CLI and viewer find settings by looking for this declaration.
+
+**Rendering settings** that every renderer must agree on live in the package's library code, because renderers link libraries, not test targets. A library that depends on the lightweight `SwiftBook` library declares one `SwiftBookConfiguration`, found like previews are:
+
+```swift
+struct Snapshots: SwiftBookConfiguration {
+  static var tint: Color? { Color("AccentColor", bundle: .module) }
+}
+```
+
+- It holds the tint: an app's accent color, which previews don't get because they render outside the app.
+- `#SwiftBookTests`' variants and tolerance could move here too, so `swiftbook test` reads them (`cli-test-config`).
 - The viewer can render any variant on demand, whatever is recorded.
 
 **Story metadata** goes on the preview itself through SwiftBook modifiers. Xcode's canvas ignores them, and SwiftBook reads them through SwiftUI preferences during rendering:

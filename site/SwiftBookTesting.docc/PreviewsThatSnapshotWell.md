@@ -17,6 +17,7 @@ another:
 | Layout direction | Left to right |
 | Animations | Off; every animation stays on its first frame |
 | Canvas for the device layout | 800×600 points on the Mac |
+| Tint | The system's, unless your package sets one (<doc:MatchingYourAppsTint>) |
 
 The rest is up to your previews.
 

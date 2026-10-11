@@ -56,6 +56,9 @@ public struct SnapshotMetadata: Codable, Hashable, Sendable {
     public var swiftBookVersion: String
     /// The ``CaptureMethod``, `nil` in references recorded before capture methods existed.
     public var capture: String?
+    /// The package's tint (``ProjectConfiguration``) as rendered, as `#RRGGBB`, or `nil` for the
+    /// system's.
+    public var tint: String?
 
     func json() throws -> String {
         let encoder = JSONEncoder()

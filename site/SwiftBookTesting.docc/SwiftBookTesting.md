@@ -53,6 +53,7 @@ code compiles.
 - <doc:UnderstandingFailures>
 - <doc:Devices>
 - <doc:PreviewsThatSnapshotWell>
+- <doc:MatchingYourAppsTint>
 - <doc:Capture>
 
 ### References in git
