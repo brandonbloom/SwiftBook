@@ -40,9 +40,18 @@
                 progress("Building the \(device == .tv ? "tvOS" : "iOS") renderer…")
                 let app = try host.buildApp(for: device == .tv ? .tvOS : .iOS)
                 progress("Starting the simulator…")
-                let simulator = try Simulator.dedicated(for: device)
-                return try RestartingRenderer {
-                    try RendererProcess(app: app.url, bundleID: app.bundleID, in: simulator)
+                // A simulator of this run's own: runs sharing one suspend each other's renderers.
+                let lease = try SimulatorPool.lease(for: device, waiting: progress)
+                do {
+                    return try RestartingRenderer {
+                        try RendererProcess(
+                            app: app.url, bundleID: app.bundleID, in: lease.simulator)
+                    } onShutdown: {
+                        lease.release()
+                    }
+                } catch {
+                    lease.release()
+                    throw error
                 }
             case .catalyst:
                 throw Failure(description: "Mac Catalyst rendering isn't supported yet.")

@@ -30,8 +30,10 @@
         }
 
         /// SwiftBook's own simulator for `device` on the newest installed runtime of its platform
-        /// (27 or later), created if it doesn't exist yet and booted.
-        public static func dedicated(for device: Device) throws -> Simulator {
+        /// (27 or later), created if it doesn't exist yet and booted. `number` picks one from
+        /// ``SimulatorPool``: the first is named for its device, and the others add `#2`, `#3`,
+        /// and so on.
+        public static func dedicated(for device: Device, number: Int = 1) throws -> Simulator {
             let type = try deviceType(for: device)
             let runtimes =
                 try simctlJSON(["list", "runtimes", "--json"])["runtimes"] as? [[String: Any]] ?? []
@@ -51,7 +53,8 @@
                         "No \(type.platform) 27 simulator runtime is installed. Install one in Xcode › Settings › Components."
                 )
             }
-            let name = "SwiftBook \(type.name) (\(type.platform) \(version))"
+            let name =
+                "SwiftBook \(type.name)\(number > 1 ? " #\(number)" : "") (\(type.platform) \(version))"
             let devices =
                 try simctlJSON(["list", "devices", "--json"])["devices"]
                 as? [String: [[String: Any]]] ?? [:]
@@ -72,6 +75,11 @@
         public func boot() throws {
             // `bootstatus -b` boots if needed and waits for the device to finish booting.
             _ = try Self.simctl(["bootstatus", udid, "-b"])
+        }
+
+        /// Shuts the simulator down, if it's booted.
+        public func shutdown() {
+            _ = Shell.run(["xcrun", "simctl", "shutdown", udid])
         }
 
         /// Installs the app at `app`, replacing any earlier copy.

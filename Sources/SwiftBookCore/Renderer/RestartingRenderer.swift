@@ -18,8 +18,16 @@
         public private(set) var incidents: [String] = []
 
         /// Starts a renderer with `start`, which also starts each replacement.
-        public init(start: @escaping @Sendable () throws -> RendererProcess) throws {
+        private let onShutdown: @Sendable () -> Void
+
+        /// Starts a renderer with `start`, which also restarts it. `onShutdown` runs after
+        /// ``shutdown()``, to release what the renderer used, such as its simulator.
+        public init(
+            start: @escaping @Sendable () throws -> RendererProcess,
+            onShutdown: @escaping @Sendable () -> Void = {}
+        ) throws {
             self.start = start
+            self.onShutdown = onShutdown
             process = try start()
         }
 
@@ -60,6 +68,7 @@
 
         public func shutdown() {
             lock.withLock { process.shutdown() }
+            onShutdown()
         }
 
         /// The renderer, restarted if it has exited.

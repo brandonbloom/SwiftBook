@@ -341,6 +341,16 @@ _(fill in on completion)_
 
 ## Phase 4: Viewer depth
 
+- [x] **`simulator-pool`**
+  - From Fulbloom's feedback: with 3–4 worktrees running `swiftbook test --device iphone` at once, renderers hung, restarted up to 5 times a run, and results varied.
+  - **Cause:** every run shared SwiftBook's one simulator per device. Each worktree's renderer app has its own bundle ID, so each launch moved the others to the background, where iOS suspends them. Their renders went unanswered until the 30 s timeout, and each restart suspended another run's renderer. Two zoo runs at once took 16 s and 47 s: the second paused through the first.
+  - **Done:** `SimulatorPool` leases each run a simulator of its own, held by an exclusive `flock` that ends with the process. Runs beyond the pool's size wait, saying so; waiting is never a timeout.
+    - Extra simulators are named `#2`, `#3` and so on. They boot on demand (about 2.5 s once created) and shut down when released, so idle memory stays at one simulator per device.
+    - The pool holds as many as fit in half the Mac's memory at 4 GB each, at most one per two performance cores, unless `SWIFTBOOK_SIMULATORS` says otherwise. Booted simulators measured 3.3 GB (iPhone), 3.0 GB (iPad), and 2.0 GB (Apple TV).
+    - With the pool, the same two runs took 16 s and 28 s, the second including a boot; with `SWIFTBOOK_SIMULATORS=1`, 14 s and 24 s, waiting their turn. No failures either way.
+- [x] **`lfs-diagnostics`**
+  - From Fulbloom's feedback: fresh worktrees had Git LFS pointers instead of references.
+  - Done. Every path that reads a reference recognizes pointers, with one message (`git lfs pull`, after `git lfs install`). Recording in any mode refuses to overwrite a pointer; `all` mode used to. `swiftbook test` stops up front with a count instead of failing every snapshot. The viewer badges an unreadable reference with its reason instead of calling the story new.
 - [ ] **`diff-modes`**
   - Swipe, onion skin, blink, and a diff highlight with an adjustable ΔE threshold.
 - [ ] **`ios-in-viewer`**
