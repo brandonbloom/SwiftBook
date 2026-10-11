@@ -37,6 +37,58 @@ import Testing
         return context.makeImage()!
     }
 
+    /// Dark glass as the render server draws it: dithered (every other pixel's channels a few
+    /// levels apart, in a checkerboard) or banded (flat). The two states differ by more than
+    /// ΔE 1 at half the pixels. `block` paints a real change: 10×10 pixels 40 levels lighter.
+    func glass(dithered: Bool, block: (x: Int, y: Int)? = nil) -> CGImage {
+        let (width, height) = (120, 40)
+        var pixels = [UInt8](repeating: 255, count: width * height * 4)
+        for y in 0..<height {
+            for x in 0..<width {
+                let shift: UInt8 = dithered && (x + y) % 2 == 0 ? 3 : 0
+                var rgb: [UInt8] = [20 + shift, 24, 40 - shift]
+                if let block, (block.x..<block.x + 10).contains(x),
+                    (block.y..<block.y + 10).contains(y)
+                {
+                    rgb = rgb.map { $0 + 40 }
+                }
+                pixels.replaceSubrange((y * width + x) * 4..<(y * width + x) * 4 + 3, with: rgb)
+            }
+        }
+        return Bitmap(width: width, height: height, pixels: pixels).image()!
+    }
+
+    @Test func ignoresGlassNoiseOnlyInsideGlass() throws {
+        let dithered = glass(dithered: true)
+        let banded = glass(dithered: false)
+        let everywhere = [ImageDiff.PixelRect(x: 0, y: 0, width: 120, height: 40)]
+
+        // Outside glass, banding is a change like any other.
+        let exact = try ImageDiff.compare(expected: dithered, actual: banded)
+        #expect(!exact.matches)
+        #expect(exact.changedPixels == 2_400)
+
+        // Inside glass, it's noise: it still shows in the diff image, but doesn't count.
+        let inGlass = try ImageDiff.compare(expected: dithered, actual: banded, glass: everywhere)
+        #expect(inGlass.matches)
+        #expect(inGlass.changedPixels == 0)
+        #expect(inGlass.glassNoisePixels == 2_400)
+        #expect(inGlass.image != nil)
+        #expect(try inGlass.pngData() == exact.pngData())
+
+        // Glass covers only where it is.
+        let leftHalf = [ImageDiff.PixelRect(x: 0, y: 0, width: 60, height: 40)]
+        let partly = try ImageDiff.compare(expected: dithered, actual: banded, glass: leftHalf)
+        #expect(!partly.matches)
+        #expect(partly.changedPixels == 1_200)
+
+        // A real change inside glass still counts.
+        let changed = try ImageDiff.compare(
+            expected: dithered, actual: glass(dithered: false, block: (50, 15)), glass: everywhere)
+        #expect(!changed.matches)
+        #expect(changed.changedPixels >= 80)
+    }
+
     @Test func identicalImagesMatchExactly() throws {
         let diff = try ImageDiff.compare(expected: image(), actual: image())
         #expect(diff.isIdentical)

@@ -125,15 +125,15 @@ public struct SnapshotStore: Sendable {
             if reference == png {
                 return .matched(
                     try compare(
-                        snapshot.image, toReference: reference, at: url, tolerance: tolerance))
+                        snapshot, toReference: reference, at: url, tolerance: tolerance))
             }
             let previous = try? compare(
-                snapshot.image, toReference: reference, at: url, tolerance: tolerance)
+                snapshot, toReference: reference, at: url, tolerance: tolerance)
             try write(png, to: url)
             return .recorded(url, previous: previous, replaced: reference)
         }
         let diff = try compare(
-            snapshot.image, toReference: reference, at: url, tolerance: tolerance)
+            snapshot, toReference: reference, at: url, tolerance: tolerance)
         if diff.matches { return .matched(diff) }
         if mode == .changed {
             try write(png, to: url)
@@ -144,14 +144,17 @@ public struct SnapshotStore: Sendable {
     }
 
     private func compare(
-        _ image: CGImage, toReference reference: Data, at url: URL, tolerance: ImageDiff.Tolerance
+        _ snapshot: Snapshot, toReference reference: Data, at url: URL,
+        tolerance: ImageDiff.Tolerance
     )
         throws -> ImageDiff
     {
         guard let source = CGImageSourceCreateWithData(reference as CFData, nil),
             let expected = CGImageSourceCreateImageAtIndex(source, 0, nil)
         else { throw StorageError(description: "\(url.path) isn't a readable image") }
-        return try ImageDiff.compare(expected: expected, actual: image, tolerance: tolerance)
+        return try ImageDiff.compare(
+            expected: expected, actual: snapshot.image, tolerance: tolerance,
+            glass: snapshot.glassRegions)
     }
 
     /// Decodes `png`, naming `path` if it can't.

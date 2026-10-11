@@ -44,8 +44,20 @@ Comparison is perceptual. A pixel counts as changed if its color differs by more
 ignored.
 
 By default, any changed pixel fails, except for noise: at most 10 changed pixels, none differing
-by more than ΔE 3, still match, because GPU-rendered materials such as Liquid Glass can settle a
-pixel differently from run to run.
+by more than ΔE 3, still match, because GPU-rendered materials can settle a pixel differently from
+run to run.
+
+On iPhone, iPad, and Apple TV, Liquid Glass gets one more allowance. The simulator draws glass in
+a few states from run to run: dithered or banded, and with a selected tab's lens one way or
+another. Those states differ across thousands of pixels, but only faintly. Inside glass, a
+changed pixel counts only if its 3×3 neighborhood, averaged, still differs by more than ΔE 3. A
+real change in or behind glass, such as different text or a different color, still fails. The
+reference and diff images are unaffected; only what counts changes. A snapshot that matched
+because of this says so:
+
+```
+~ MyUI/Browser/Spending (iphone.light): matched, ignoring 1009 pixels of Liquid Glass noise
+```
 
 ### Adjusting tolerance
 
@@ -59,4 +71,4 @@ tightening tolerance, re-record with `SWIFTBOOK_RECORD=all`.
 - <doc:Capture>
 
 <!-- sources: Sources/SwiftBookCore/Diff Sources/SwiftBookCore/Storage/SnapshotReport.swift Sources/SwiftBookCLI/TestCommand.swift -->
-<!-- checked: 5656084 -->
+<!-- checked: 0448c81 -->

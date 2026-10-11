@@ -12,6 +12,9 @@ public struct Snapshot: @unchecked Sendable {
     public let environment: RenderEnvironment
     public let image: CGImage
     public let metadata: SnapshotMetadata
+    /// Where the image has Liquid Glass, in pixels, for comparing it (``ImageDiff/compare(expected:actual:tolerance:glass:)``).
+    /// Not saved: references stay exactly the image.
+    public var glassRegions: [ImageDiff.PixelRect] = []
 
     init(
         story: StoryID, device: Device, environment: RenderEnvironment, image: CGImage,

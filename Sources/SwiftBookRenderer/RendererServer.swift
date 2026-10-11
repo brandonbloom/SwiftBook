@@ -226,7 +226,9 @@ public enum RendererServer {
                         story,
                         in: request.environment ?? .standard(for: UIKitRenderer.device))
                 #endif
-                return RendererResponse(id: request.id, png: try snapshot.pngData())
+                return RendererResponse(
+                    id: request.id, png: try snapshot.pngData(),
+                    glassRegions: snapshot.glassRegions.isEmpty ? nil : snapshot.glassRegions)
             } catch {
                 return RendererResponse(id: request.id, error: String(describing: error))
             }

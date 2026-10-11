@@ -199,7 +199,7 @@
             let stories = try renderer.stories()
             var results: [Result] = []
             var failed = false
-            var counts = (matched: 0, new: 0, rerecorded: 0, failed: 0)
+            var counts = (matched: 0, new: 0, rerecorded: 0, failed: 0, glassNoise: 0)
             for story in stories {
                 for appearance in RenderEnvironment.Appearance.allCases {
                     var environment = RenderEnvironment.standard(for: device)
@@ -207,9 +207,11 @@
                     let subject =
                         "\(story.id) (\(SnapshotStore.variantName(device: device, environment: environment)))"
                     do {
-                        let png = try renderer.render(story.id, in: environment)
-                        let snapshot = try Snapshot(
-                            png: png, story: story.id, device: device, environment: environment)
+                        let rendered = try renderer.renderImage(story.id, in: environment)
+                        var snapshot = try Snapshot(
+                            png: rendered.png, story: story.id, device: device,
+                            environment: environment)
+                        snapshot.glassRegions = rendered.glassRegions
                         let verification = try project.store.verify(
                             snapshot, mode: mode, tolerance: tolerance)
                         guard
@@ -218,6 +220,13 @@
                                 hints: hints)
                         else {
                             counts.matched += 1
+                            // Say so, so a reviewer knows glass was compared averaged.
+                            if case .matched(let diff) = verification, diff.glassNoisePixels > 0 {
+                                counts.glassNoise += 1
+                                print(
+                                    "~ \(subject): matched, ignoring \(diff.glassNoisePixels) pixels of Liquid Glass noise\n"
+                                )
+                            }
                             results.append(Result(device: device, subject: subject))
                             continue
                         }
@@ -244,7 +253,7 @@
                 }
             }
             print(
-                "\(device): \(results.count) snapshots: \(counts.matched) matched, \(counts.new) new, \(counts.rerecorded) re-recorded, \(counts.failed) failed."
+                "\(device): \(results.count) snapshots: \(counts.matched) matched\(counts.glassNoise > 0 ? " (\(counts.glassNoise) ignoring glass noise)" : ""), \(counts.new) new, \(counts.rerecorded) re-recorded, \(counts.failed) failed."
                     + (renderer.restarts > 0
                         ? " The renderer crashed or hung and was restarted \(renderer.restarts) times:\n"
                             + renderer.incidents.map { "  \($0)" }.joined(separator: "\n")

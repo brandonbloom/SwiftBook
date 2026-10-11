@@ -66,20 +66,37 @@ public struct RendererResponse: Codable, Hashable, Sendable {
     public var stories: [StoryInfo]?
     /// For `render`: the snapshot as PNG, with its metadata.
     public var png: Data?
+    /// For `render`: where the snapshot has Liquid Glass, in pixels, if anywhere.
+    public var glassRegions: [ImageDiff.PixelRect]?
     /// For `windows`.
     public var windows: [RendererWindow]?
     /// Why the request failed.
     public var error: String?
 
     public init(
-        id: Int, stories: [StoryInfo]? = nil, png: Data? = nil, windows: [RendererWindow]? = nil,
+        id: Int, stories: [StoryInfo]? = nil, png: Data? = nil,
+        glassRegions: [ImageDiff.PixelRect]? = nil, windows: [RendererWindow]? = nil,
         error: String? = nil
     ) {
         self.id = id
         self.stories = stories
         self.png = png
+        self.glassRegions = glassRegions
         self.windows = windows
         self.error = error
+    }
+}
+
+/// A rendered snapshot as it crosses the protocol.
+public struct RenderedImage: Sendable {
+    /// The snapshot as PNG, with its metadata.
+    public let png: Data
+    /// Where it has Liquid Glass, in pixels.
+    public let glassRegions: [ImageDiff.PixelRect]
+
+    public init(png: Data, glassRegions: [ImageDiff.PixelRect] = []) {
+        self.png = png
+        self.glassRegions = glassRegions
     }
 }
 

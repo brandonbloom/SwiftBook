@@ -203,6 +203,16 @@
             // The device layout fills the pinned iPhone's screen, at its scale.
             #expect(image.width == 402 * 3 && image.height == 874 * 3)
             #expect(try renderer.render(card, in: environment) == png)
+            #expect(try renderer.renderImage(card, in: environment).glassRegions.isEmpty)
+
+            // Glass is reported where it is: the tab bar and toolbar, not the whole screen.
+            let glass = try renderer.renderImage(
+                StoryID(module: "PreviewZoo", group: "Hazards", name: "Liquid Glass"),
+                in: environment
+            ).glassRegions
+            #expect(!glass.isEmpty)
+            let area = glass.reduce(0) { $0 + $1.width * $1.height }
+            #expect(area < image.width * image.height / 4)
         }
 
         static let tintZoo = zoo.deletingLastPathComponent()

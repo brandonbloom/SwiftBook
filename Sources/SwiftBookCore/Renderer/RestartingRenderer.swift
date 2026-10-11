@@ -46,16 +46,24 @@
             _ story: StoryID, in environment: RenderEnvironment = RenderEnvironment(),
             timeout: Duration = .seconds(30)
         ) throws -> Data {
+            try renderImage(story, in: environment, timeout: timeout).png
+        }
+
+        /// Like ``render(_:in:timeout:)``, with where the snapshot has glass.
+        public func renderImage(
+            _ story: StoryID, in environment: RenderEnvironment = RenderEnvironment(),
+            timeout: Duration = .seconds(30)
+        ) throws -> RenderedImage {
             try lock.withLock {
                 let first = try running()
                 do {
-                    return try first.render(story, in: environment, timeout: timeout)
+                    return try first.renderImage(story, in: environment, timeout: timeout)
                 } catch {
                     // An error the renderer reported leaves it running; that's the story's fault.
                     guard !first.isRunning else { throw error }
                     incidents.append("\(story): \(error)")
                     do {
-                        return try running().render(story, in: environment, timeout: timeout)
+                        return try running().renderImage(story, in: environment, timeout: timeout)
                     } catch let retry {
                         throw RendererError(
                             description:

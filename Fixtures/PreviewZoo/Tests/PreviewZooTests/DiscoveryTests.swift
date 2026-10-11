@@ -16,7 +16,7 @@ import Testing
             "PreviewZoo/Card.swift": 4,
             "PreviewZoo/Chrome.swift": 2,
             "PreviewZoo/EdgeCases.swift": 4,
-            "PreviewZoo/Hazards.swift": 7,
+            "PreviewZoo/Hazards.swift": 8,
             "PreviewZoo/Layouts.swift": 5,
             "PreviewZoo/Previewable.swift": 1,
             "PreviewZoo/SharedContext.swift": 3,

@@ -116,7 +116,7 @@
                 of: window, scale: scale, timeout: timeout, error: error)
             let os = ProcessInfo.processInfo.operatingSystemVersion
             let device = Self.device
-            return Snapshot(
+            var snapshot = Snapshot(
                 story: story.id, device: device, environment: environment, image: image,
                 metadata: SnapshotMetadata(
                     story: story.id.description, device: device.rawValue,
@@ -128,6 +128,37 @@
                     layoutDirection: String(describing: environment.layoutDirection),
                     swiftBookVersion: SwiftBookInfo.version,
                     tint: ProjectConfiguration.tintDescription(in: environment.appearance)))
+            snapshot.glassRegions = glassRegions(
+                in: window, scale: scale, width: image.width, height: image.height)
+            return snapshot
+        }
+
+        /// Where `window` has Liquid Glass, in the capture's pixels: every visible backdrop layer
+        /// with filters, which is how glass samples what's behind it, grown by 4 points to cover
+        /// its edges. The render server draws these in a few states from run to run.
+        static func glassRegions(in window: UIWindow, scale: Double, width: Int, height: Int)
+            -> [ImageDiff.PixelRect]
+        {
+            var regions: [ImageDiff.PixelRect] = []
+            func visit(_ layer: CALayer) {
+                guard !layer.isHidden, layer.opacity > 0 else { return }
+                if NSStringFromClass(type(of: layer)) == "CABackdropLayer",
+                    !(layer.filters ?? []).isEmpty, !layer.bounds.isEmpty
+                {
+                    let frame = layer.convert(layer.bounds, to: window.layer).insetBy(
+                        dx: -4, dy: -4)
+                    let x = max(Int((frame.minX * scale).rounded(.down)), 0)
+                    let y = max(Int((frame.minY * scale).rounded(.down)), 0)
+                    let maxX = min(Int((frame.maxX * scale).rounded(.up)), width)
+                    let maxY = min(Int((frame.maxY * scale).rounded(.up)), height)
+                    if maxX > x, maxY > y {
+                        regions.append(.init(x: x, y: y, width: maxX - x, height: maxY - y))
+                    }
+                }
+                layer.sublayers?.forEach(visit)
+            }
+            visit(window.layer)
+            return regions
         }
 
         #if os(iOS)

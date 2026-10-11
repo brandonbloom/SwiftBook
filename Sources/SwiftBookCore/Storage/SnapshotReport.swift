@@ -107,6 +107,11 @@ public struct SnapshotReport: Sendable {
         actualMetadata: SnapshotMetadata, artifacts: URL, hints: Hints
     ) -> String {
         var lines = ["\(subject) doesn't match \(reference).", change(diff)]
+        if diff.glassNoisePixels > 0 {
+            lines.append(
+                "\(diff.glassNoisePixels) more pixels differ inside Liquid Glass, but only as glass's run-to-run noise; they don't count."
+            )
+        }
         if let referenceMetadata, referenceMetadata != actualMetadata {
             let changes = environmentChanges(from: referenceMetadata, to: actualMetadata)
             if !changes.isEmpty {

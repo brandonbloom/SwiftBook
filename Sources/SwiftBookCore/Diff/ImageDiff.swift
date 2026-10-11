@@ -18,8 +18,32 @@ public struct ImageDiff: @unchecked Sendable {
         /// `noisePixels` changed pixels, none differing by more than `noiseDeltaE`, matches.
         public var noisePixels = 10
         public var noiseDeltaE: Double = 3
+        /// Inside Liquid Glass, a changed pixel counts only if its 3×3 neighborhood still differs
+        /// by more than this after averaging. The render server draws glass in a few discrete
+        /// states from run to run, such as dithered or banded, which averaging hides; real
+        /// changes in or behind glass don't. See docs/research/liquid-glass-noise.md.
+        public var glassDeltaE: Double = 3
 
         public init() {}
+    }
+
+    /// A rectangle in pixels, such as a glass region of a capture.
+    public struct PixelRect: Codable, Hashable, Sendable {
+        public var x: Int
+        public var y: Int
+        public var width: Int
+        public var height: Int
+
+        public init(x: Int, y: Int, width: Int, height: Int) {
+            self.x = x
+            self.y = y
+            self.width = width
+            self.height = height
+        }
+
+        @inline(__always) func contains(x px: Int, y py: Int) -> Bool {
+            px >= x && px < x + width && py >= y && py < y + height
+        }
     }
 
     public let expectedSize: CGSize
@@ -28,6 +52,9 @@ public struct ImageDiff: @unchecked Sendable {
     public let changedPixels: Int
     /// Differing pixels attributed to anti-aliasing and ignored.
     public let antialiasedPixels: Int
+    /// Differing pixels inside glass that averaging shows to be glass's run-to-run noise, and
+    /// ignored. ``image`` still shows them as changed.
+    public var glassNoisePixels = 0
     /// The largest CIEDE2000 difference of any pixel, whether or not it counted as changed.
     public let maxDeltaE: Double
     /// The largest CIEDE2000 difference of a changed pixel.
@@ -66,9 +93,11 @@ public struct ImageDiff: @unchecked Sendable {
         try image.map { try PNG.encode($0, text: [:]) }
     }
 
-    /// Compares two images pixel by pixel, perceptually.
+    /// Compares two images pixel by pixel, perceptually. Inside `glass`, the actual image's Liquid
+    /// Glass regions, pixels are also compared averaged (``Tolerance/glassDeltaE``).
     public static func compare(
-        expected: CGImage, actual: CGImage, tolerance: Tolerance = Tolerance()
+        expected: CGImage, actual: CGImage, tolerance: Tolerance = Tolerance(),
+        glass: [PixelRect] = []
     ) throws
         -> ImageDiff
     {
@@ -95,6 +124,7 @@ public struct ImageDiff: @unchecked Sendable {
 
         var changed = 0
         var antialiased = 0
+        var glassNoise = 0
         var maxDeltaE = 0.0
         var maxChangedDeltaE = 0.0
         var deltaEs: [UInt64: Double] = [:]
@@ -124,6 +154,13 @@ public struct ImageDiff: @unchecked Sendable {
                     if tolerance.ignoresAntialiasing, Antialiasing.isAntialiased(x: x, y: y, a, b) {
                         antialiased += 1
                         output.paint(index, red: 255, green: 220, blue: 0)
+                    } else if glass.contains(where: { $0.contains(x: x, y: y) }),
+                        ColorMath.deltaE2000(a.boxMean(x: x, y: y), b.boxMean(x: x, y: y))
+                            <= tolerance.glassDeltaE
+                    {
+                        // Painted like any change: only what counts differs, not the picture.
+                        glassNoise += 1
+                        output.paint(index, red: 255, green: 0, blue: 0)
                     } else {
                         changed += 1
                         maxChangedDeltaE = max(maxChangedDeltaE, deltaE)
@@ -144,7 +181,7 @@ public struct ImageDiff: @unchecked Sendable {
                 height: bounds.maxY - bounds.minY + 1)
         return ImageDiff(
             expectedSize: expectedSize, actualSize: actualSize, changedPixels: changed,
-            antialiasedPixels: antialiased,
+            antialiasedPixels: antialiased, glassNoisePixels: glassNoise,
             maxDeltaE: maxDeltaE, maxChangedDeltaE: maxChangedDeltaE, changedBounds: changedBounds,
             image: output.image(),
             tolerance: tolerance)
@@ -170,6 +207,21 @@ extension Bitmap {
         return UInt32(pixels[offset]) << 24 | UInt32(pixels[offset + 1]) << 16 | UInt32(
             pixels[offset + 2]) << 8
             | UInt32(pixels[offset + 3])
+    }
+
+    /// The mean color of the 3×3 pixels around (`x`, `y`), composited over white, as RGB. At 3x,
+    /// that's about one point.
+    fileprivate func boxMean(x: Int, y: Int) -> (Double, Double, Double) {
+        var sum = (0.0, 0.0, 0.0)
+        var count = 0.0
+        for ny in max(y - 1, 0)...min(y + 1, height - 1) {
+            for nx in max(x - 1, 0)...min(x + 1, width - 1) {
+                let (r, g, b) = rgb(ny * width + nx)
+                sum = (sum.0 + r, sum.1 + g, sum.2 + b)
+                count += 1
+            }
+        }
+        return (sum.0 / count, sum.1 / count, sum.2 / count)
     }
 
     fileprivate mutating func paint(_ index: Int, red: UInt8, green: UInt8, blue: UInt8) {

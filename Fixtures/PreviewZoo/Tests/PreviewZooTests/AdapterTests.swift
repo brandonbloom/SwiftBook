@@ -22,6 +22,7 @@ import Testing
             "Hazards/List", "Hazards/Text fields", "Hazards/Material and blur",
             "Hazards/Scroll view",
             "Hazards/Dates", "Hazards/Foundation-formatted date", "Hazards/Progress",
+            "Hazards/Liquid Glass",
             "Layouts/Default layout", "Layouts/Size that fits", "Layouts/Fixed layout",
             "Layouts/Landscape",
             "Layouts/Combined traits",

@@ -358,6 +358,20 @@ _(fill in on completion)_
   - **Renamed:** the `swiftbook` executable target is now `SwiftBookMain`, because its module clashed with `SwiftBook`'s on case-insensitive disks. The product and binary are still `swiftbook`.
   - **Tested:** `Fixtures/TintZoo` takes its tint from an asset-catalog `AccentColor`. `tintsEveryStoryWithTheProjectsColor` checks the metadata and a tinted swatch in light and dark. On the Mac, inactive render windows draw prominent buttons without the accent.
   - Not yet: reading the accent from the app target that uses the package.
+- [x] **`glass-comparison`**
+  - From Fulbloom's feedback: Liquid Glass tab bars, search fields, and toolbars differed between runs by more than the noise floor (17 pixels on a tab bar; 5,725 at ΔE 3 on a search field).
+  - Investigated in [research/liquid-glass-noise.md](research/liquid-glass-noise.md). The simulator's render server draws glass in a few discrete states: dither on or off, a selected tab's lens that toggles indefinitely, and inline or cached shapes. No setting makes it deterministic, and no settle time helps.
+  - Done.
+    - The iOS and tvOS renderer reports glass regions with each render: visible `CABackdropLayer`s with filters, plus 4 pt, in pixels. They cross the protocol beside the PNG and are never written into references.
+    - Inside those regions, `ImageDiff` counts a changed pixel only if the 3×3 means of both images still differ by more than ΔE 3 (`Tolerance.glassDeltaE`). The glass-noise count is reported separately.
+    - Reference and diff images are unchanged. The diff image still marks every differing pixel.
+    - `swiftbook test` prints "matched, ignoring N pixels of Liquid Glass noise", and failure messages count the glass noise they ignored.
+    - Regions come from the actual render only, so glass that moved can't excuse changes where it used to be.
+  - **Tests:**
+    - A synthetic golden: banding matches inside glass and fails outside it; a real change inside glass fails.
+    - `Hazards/Liquid Glass` joins the zoo as a canary, with references on all four devices. The iPhone renderer test checks that its glass regions cover the tab bar and toolbar, not the screen.
+    - The canary's glass was calm in five iPhone runs, so live noise wasn't observed here.
+  - Not yet: Mac window-server capture, which wasn't measured.
 - [ ] **`diff-modes`**
   - Swipe, onion skin, blink, and a diff highlight with an adjustable ΔE threshold.
 - [ ] **`ios-in-viewer`**

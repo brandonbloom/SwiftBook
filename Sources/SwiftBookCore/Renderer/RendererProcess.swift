@@ -143,13 +143,21 @@
             _ story: StoryID, in environment: RenderEnvironment = RenderEnvironment(),
             timeout: Duration = .seconds(30)
         ) throws -> Data {
+            try renderImage(story, in: environment, timeout: timeout).png
+        }
+
+        /// Renders `story` in `environment`, returning the snapshot and where it has glass.
+        public func renderImage(
+            _ story: StoryID, in environment: RenderEnvironment = RenderEnvironment(),
+            timeout: Duration = .seconds(30)
+        ) throws -> RenderedImage {
             let response = try send(
                 .init(id: 0, method: .render, story: story.description, environment: environment),
                 timeout: timeout)
             guard let png = response.png else {
                 throw RendererError(description: "the renderer sent no image for \(story)")
             }
-            return png
+            return RenderedImage(png: png, glassRegions: response.glassRegions ?? [])
         }
 
         /// Shows `story` in `environment` in a window of its own, live and interactive.

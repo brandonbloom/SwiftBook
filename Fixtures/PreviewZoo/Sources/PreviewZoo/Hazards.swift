@@ -77,3 +77,28 @@ import SwiftUI
     }
     .padding()
 }
+
+// Liquid Glass over content: a tab bar with a selected tab's lens and a glass toolbar button.
+// The render server draws these in a few states from run to run (see
+// docs/research/liquid-glass-noise.md), so this keeps glass comparison under test.
+#Preview("Liquid Glass") {
+    TabView {
+        Tab("Spending", systemImage: "chart.pie") {
+            NavigationStack {
+                List(0..<30) { row in
+                    HStack {
+                        Text("Row \(row)")
+                        Spacer()
+                        Text("$\(row * 1234)").monospacedDigit()
+                    }
+                }
+                .navigationTitle("Spending")
+                .toolbar {
+                    ToolbarItem { Button("Add", systemImage: "plus") {} }
+                }
+            }
+        }
+        Tab("Accounts", systemImage: "building.columns") { Text("Accounts") }
+        Tab(role: .search) { Text("Search") }
+    }
+}
