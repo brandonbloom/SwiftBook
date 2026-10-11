@@ -109,10 +109,7 @@
 
         /// Why testing can't start, if any of `project`'s references are Git LFS pointers.
         static func lfsProblem(_ project: Project) -> String? {
-            let (all, pointers) = project.references()
-            guard let first = pointers.first else { return nil }
-            return
-                "\(pointers.count) of \(all.count) references are Git LFS pointers, not images, such as \(first.path). Run: \(GitLFS.fix)"
+            project.store.lfsProblem()
         }
 
         /// The devices with at least one reference in `store`, in a fixed order.

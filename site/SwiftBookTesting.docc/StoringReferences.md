@@ -28,7 +28,14 @@ This adds the rule to `.gitattributes`, and is safe to run again:
 **/Snapshots/**/*.png filter=lfs diff=lfs merge=lfs -text
 ```
 
-GitHub's LFS works. `swiftbook doctor` reports references that are unpulled LFS pointers.
+GitHub's LFS works.
+
+In a clone or worktree where Git LFS isn't set up, or its files weren't pulled, references are
+small text pointers rather than images. SwiftBook checks before comparing anything: `swift test`
+fails one test, "References are images", and skips the snapshots, and `swiftbook test` stops with
+the same message. Both count the pointers and give the fix, `git lfs pull` (after
+`git lfs install`, if Git LFS isn't set up). No record mode overwrites a pointer.
+`swiftbook doctor` reports pointers too.
 
 ### Pruning
 
@@ -46,4 +53,4 @@ Only modules the renderer links are pruned, so references for code SwiftBook can
 - <doc:ComparingHistory>
 
 <!-- sources: Sources/SwiftBookCore/Storage Sources/SwiftBookCLI/InitCommand.swift Sources/SwiftBookCLI/PruneCommand.swift Sources/SwiftBookCLI/DoctorCommand.swift -->
-<!-- checked: 11fe2f9 -->
+<!-- checked: 2a795fb -->

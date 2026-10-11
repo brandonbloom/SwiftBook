@@ -79,6 +79,36 @@ public struct SnapshotStore: Sendable {
         throw StorageError(description: "no Package.swift or .xcodeproj encloses \(filePath)")
     }
 
+    /// Every reference PNG, and those that are Git LFS pointers whose images aren't downloaded.
+    public func references() -> (all: [URL], pointers: [URL]) {
+        guard
+            let enumerator = FileManager.default.enumerator(
+                at: root, includingPropertiesForKeys: nil)
+        else { return ([], []) }
+        var all: [URL] = []
+        var pointers: [URL] = []
+        while let url = enumerator.nextObject() as? URL {
+            guard url.pathExtension == "png" else { continue }
+            all.append(url)
+            if let handle = try? FileHandle(forReadingFrom: url),
+                let start = try? handle.read(upToCount: GitLFS.pointerPrefix.count),
+                GitLFS.isPointer(start)
+            {
+                pointers.append(url)
+            }
+        }
+        return (all, pointers)
+    }
+
+    /// Why the references can't be used, if any are Git LFS pointers: one message for all of
+    /// them, rather than a failure for every snapshot.
+    public func lfsProblem() -> String? {
+        let (all, pointers) = references()
+        guard let first = pointers.first else { return nil }
+        return
+            "\(pointers.count) of \(all.count) references are Git LFS pointers, not images, such as \(first.path). Run: \(GitLFS.fix)"
+    }
+
     /// How `device`'s references were captured, as their metadata names the method, judging by
     /// the first readable one. `nil` if there are none, or it doesn't say.
     public func recordedCapture(on device: Device) -> String? {

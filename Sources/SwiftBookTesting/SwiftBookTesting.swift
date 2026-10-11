@@ -2,6 +2,7 @@
 
 import Foundation
 @_exported import SwiftBookCore
+import Synchronization
 import Testing
 
 /// Snapshot-tests every story in the test target: one Swift Testing test case per story, which
@@ -68,6 +69,22 @@ public enum SwiftBook {
             false
         #endif
     }
+
+    /// Why the project's references can't be used, if any are Git LFS pointers. `#SwiftBookTests`
+    /// reports it once, and skips the snapshots, rather than failing every one.
+    ///
+    /// - Parameter filePath: A file in the project, which locates its `Snapshots/` directory.
+    public static func lfsProblem(filePath: String) -> String? {
+        lfsProblems.withLock { cache in
+            if let known = cache[filePath] { return known }
+            let problem = (try? SnapshotStore.forProject(containing: filePath))?.lfsProblem()
+            cache[filePath] = .some(problem)
+            return problem
+        }
+    }
+
+    /// Checked once per file per run: the scan reads every reference.
+    private static let lfsProblems = Mutex<[String: String?]>([:])
 
     /// Every story in this process, except `excluded` ones (as `Module/Group/Name`).
     public static func stories(excluding excluded: Set<String> = []) async -> [TestStory] {

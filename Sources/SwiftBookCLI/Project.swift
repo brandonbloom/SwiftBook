@@ -52,23 +52,7 @@
 
         /// Every reference PNG, and those that are Git LFS pointers whose images aren't downloaded.
         func references() -> (all: [URL], pointers: [URL]) {
-            guard
-                let enumerator = FileManager.default.enumerator(
-                    at: store.root, includingPropertiesForKeys: nil)
-            else { return ([], []) }
-            var all: [URL] = []
-            var pointers: [URL] = []
-            while let url = enumerator.nextObject() as? URL {
-                guard url.pathExtension == "png" else { continue }
-                all.append(url)
-                if let handle = try? FileHandle(forReadingFrom: url),
-                    let start = try? handle.read(upToCount: GitLFS.pointerPrefix.count),
-                    GitLFS.isPointer(start)
-                {
-                    pointers.append(url)
-                }
-            }
-            return (all, pointers)
+            store.references()
         }
     }
 #endif

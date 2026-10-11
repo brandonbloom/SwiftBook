@@ -20,8 +20,19 @@ import Testing
         """
         struct SwiftBookSnapshots {
             @Testing.Test(
+                "References are images",
+                .enabled(if: SwiftBookTesting.SwiftBook.canSnapshot, "iOS and tvOS snapshots run through `swiftbook test`")
+            )
+            func references() {
+                if let problem = SwiftBookTesting.SwiftBook.lfsProblem(filePath: #filePath) {
+                    Testing.Issue.record(Testing.Comment(rawValue: problem))
+                }
+            }
+
+            @Testing.Test(
                 "Snapshot",
                 .enabled(if: SwiftBookTesting.SwiftBook.canSnapshot, "iOS and tvOS snapshots run through `swiftbook test`"),
+                .enabled(if: SwiftBookTesting.SwiftBook.lfsProblem(filePath: #filePath) == nil, "references are Git LFS pointers; see \\"References are images\\""),
                 arguments: await SwiftBookTesting.SwiftBook.stories(excluding: \(excluding))
             )
             func snapshot(_ story: SwiftBookTesting.TestStory) async throws {
