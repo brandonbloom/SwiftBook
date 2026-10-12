@@ -16,6 +16,7 @@
                 ViewCommand.self, TestCommand.self, DiffCommand.self, ReviewCommand.self,
                 ListCommand.self,
                 RenderCommand.self,
+                FlakesCommand.self,
                 PruneCommand.self,
                 InitCommand.self,
                 DoctorCommand.self,

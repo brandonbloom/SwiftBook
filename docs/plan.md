@@ -349,6 +349,15 @@ _(fill in on completion)_
     - **Kept warm:** shutting extras down at release cost every overlapping run a cold boot and install, about 15 s, and Fulbloom's agents overlap constantly. The CLI now starts a detached `swiftbook simulator-idle`, which shuts an extra simulator down once it has been idle for 5 minutes. It records the release time, and takes the simulator's lease before shutting it down, so it never stops one in use. In tests, a warm pair of runs took 9 s each; cold, 15 s and 26 s. Other callers still shut extras down at release.
     - The pool holds as many as fit in half the Mac's memory at 4 GB each, at most one per two performance cores, unless `SWIFTBOOK_SIMULATORS` says otherwise. Booted simulators measured 3.3 GB (iPhone), 3.0 GB (iPad), and 2.0 GB (Apple TV).
     - With the pool, the same two runs took 16 s and 28 s, the second including a boot; with `SWIFTBOOK_SIMULATORS=1`, 14 s and 24 s, waiting their turn. No failures either way.
+- [x] **`flake-finder`**
+  - From Fulbloom's flake feedback. Brandon prefers discouraging flaky tests, and giving tools to fix them, to retrying them.
+  - Done: `swiftbook flakes [stories…] [--device] [--runs N]`, 10 runs by default.
+    - Each run renders the stories in a fresh renderer (built once, on one leased simulator), and `FlakeFinder` groups each snapshot's renders into variants.
+    - It reports a snapshot that rendered more than one way, or failed in only some runs, with counts per variant. For each other variant, it gives how many pixels differ and how much, and whether a snapshot comparison would fail, including glass tolerance. It writes each variant and its diff image to `.build/swiftbook/flakes`.
+    - It exits 1 if anything is flaky.
+    - Precedents: Xcode's test repetition (`-test-iterations`), `go test -count`, Bazel's `--runs_per_test`, pytest-repeat.
+  - Checked: the zoo is stable on the Mac (74 snapshots, 5 runs). Its glass canary rendered a second way once in 10 iPhone runs, within comparison tolerance. FaultZoo's new `Flaky` preview, a random number, rendered three ways in six runs, and each variant was located to its text.
+  - Not yet: guessing causes, such as glass, progress views, dates, or late changes after settling. Also running in parallel across the pool.
 - [x] **`parallel-devices`**
   - From Fulbloom: after profiling, its iPhone snapshots were CI's critical path, about 135 s for 394.
   - Done. `swiftbook test` spreads one device's snapshots across pooled simulators (`DeviceRun`).

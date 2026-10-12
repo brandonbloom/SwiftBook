@@ -37,6 +37,25 @@ Use `.sizeThatFitsLayout` for components and `.fixedLayout(width:height:)` for w
 screens. Views that fill the space they're given, such as a `List`, get the device canvas under
 `.sizeThatFitsLayout`.
 
+### Find flaky previews
+
+A preview that renders differently from run to run fails now and then for no reason. Find them
+by rendering each story several times and comparing the renders with each other:
+
+```sh
+swift run swiftbook flakes --device iphone --runs 20
+swift run swiftbook flakes MyUI/Charts/Cash\ flow --runs 50
+```
+
+Each run starts a fresh renderer, as CI would. For each snapshot that rendered more than one
+way, it reports how often each way appeared, how many pixels differ and where, and whether a
+snapshot comparison would fail on the difference. Images of every variant and its difference go
+to `.build/swiftbook/flakes`. It compares renders with each other, not with references, so it
+works on stories that have none yet.
+
+Common causes: random or live data, the current date or time, content that loads
+asynchronously, and animations that don't start from a fixed state.
+
 ### Leave a preview out
 
 ```swift

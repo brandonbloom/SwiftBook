@@ -42,7 +42,7 @@
                 for: Self.faultZoo, renderTimeout: .seconds(8))
             #expect(await supervisor.generation() == 1)
             let stories = try await supervisor.stories().map(\.name)
-            #expect(stories == ["Fine", "Crashes", "Hangs", "Slow"])
+            #expect(stories == ["Fine", "Crashes", "Hangs", "Slow", "Flaky"])
             let fine = try await supervisor.render(
                 Self.story("Fine"), in: RenderEnvironment(), background: false)
 

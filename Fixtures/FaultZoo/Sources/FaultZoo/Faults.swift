@@ -20,3 +20,8 @@ import SwiftUI
     let _: Void = { Thread.sleep(forTimeInterval: 1) }()
     Text("Slow").padding()
 }
+
+// Renders differently each launch, as a preview reading random or live data would.
+#Preview("Flaky") {
+    Text("Roll: \(Int.random(in: 1...3))").padding()
+}

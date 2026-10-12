@@ -6,7 +6,10 @@ Feedback and findings not yet planned. Remove an item when it lands or is declin
 
 Fulbloom has 632 references (about 300 on iPhone), checked by many agents running CI in parallel on one Mac.
 
-- **Retry failures.** A failure in a preview the change didn't touch still blocks landing. `--retry-failed N` would re-render only the failures and pass if a retry matches. Report retried-then-matched separately, so flakes stay visible.
+- **Flaky failures.** A failure in a preview the change didn't touch still blocks landing. Brandon would rather discourage flaky tests and give tools to fix them than retry them: retries also slow down runs that genuinely break many snapshots. `swiftbook flakes` (`flake-finder`) finds them. To discuss:
+  - Diagnose failures without passing them: when few snapshots fail, re-render each once or twice to label it "consistent change" or "flaky", pointing to `swiftbook flakes`.
+  - Guard new references: render a missing reference twice before recording it, and refuse if the renders differ.
+  - Report renderer timeouts and crashes as infrastructure failures, separate from mismatches.
 - **Throughput as suites grow.** Full Mac and iPhone runs take minutes and grow linearly. Simulated devices now spread across the pool (`parallel-devices`). Ideas:
   - Render only previews whose source files (or their dependencies) changed since their references were recorded, with a full run nightly. The viewer's source-changed pass is a start.
   - Parallel Mac rendering under `swift test` (84 s for Fulbloom). Renders are serialized because they set process-wide state, such as the time zone.
