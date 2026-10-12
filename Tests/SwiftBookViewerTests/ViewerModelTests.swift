@@ -254,8 +254,11 @@
             model.selection = Self.story("M/A/Two")
             await settle(model)
             // The first story was selected at start; then the selection, then the rest after it.
+            // Two may already be rendering ahead when it's selected, if One finished first.
             #expect(
-                renderer.requests == [
+                renderer.requests.map {
+                    $0 == "M/A/Two light g1 ahead" ? "M/A/Two light g1" : $0
+                } == [
                     "M/A/One light g1", "M/A/Two light g1", "M/B/Three light g1 ahead",
                     "M/B/Four light g1 ahead",
                 ])
