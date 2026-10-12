@@ -10,6 +10,8 @@ Fulbloom has 632 references (about 300 on iPhone), checked by many agents runnin
   - Diagnose failures without passing them: when few snapshots fail, re-render each once or twice to label it "consistent change" or "flaky", pointing to `swiftbook flakes`.
   - Guard new references: render a missing reference twice before recording it, and refuse if the renders differ.
   - Report renderer timeouts and crashes as infrastructure failures, separate from mismatches.
+  - `swiftbook flakes` under load: a CI failure under several parallel CI runs didn't reproduce in 10 sequential runs. Rendering across the pool at once, or under artificial CPU load, might surface timing flakes.
+  - `swiftbook flakes --from-ci <log>`, taking the failing stories from a test log.
 - **Throughput as suites grow.** Full Mac and iPhone runs take minutes and grow linearly. Simulated devices now spread across the pool (`parallel-devices`). Ideas:
   - Render only previews whose source files (or their dependencies) changed since their references were recorded, with a full run nightly. The viewer's source-changed pass is a start.
   - Parallel Mac rendering under `swift test` (84 s for Fulbloom). Renders are serialized because they set process-wide state, such as the time zone.

@@ -353,8 +353,8 @@ _(fill in on completion)_
   - From Fulbloom's flake feedback. Brandon prefers discouraging flaky tests, and giving tools to fix them, to retrying them.
   - Done: `swiftbook flakes [stories…] [--device] [--runs N]`, 10 runs by default.
     - Each run renders the stories in a fresh renderer (built once, on one leased simulator), and `FlakeFinder` groups each snapshot's renders into variants.
-    - It reports a snapshot that rendered more than one way, or failed in only some runs, with counts per variant. For each other variant, it gives how many pixels differ and how much, and whether a snapshot comparison would fail, including glass tolerance. It writes each variant and its diff image to `.build/swiftbook/flakes`.
-    - It exits 1 if anything is flaky.
+    - It reports a snapshot that rendered more than one way, or failed in only some runs, with counts per variant. For each other variant, it gives how many pixels differ, where (their bounding box) and how much, and whether a snapshot comparison would fail, including glass tolerance. It writes each variant, a diff image with every differing pixel boxed, and an enlarged close-up of the three to `.build/swiftbook/flakes/<device>`; a run clears only its own device's.
+    - It exits 1 if a comparison could fail on a flaky snapshot. Snapshots that vary only below the comparison threshold are reported (`≈`) and summarized separately, but don't count: Fulbloom's first run reported 3 such Mac snapshots as flaky, which was alarming.
     - Precedents: Xcode's test repetition (`-test-iterations`), `go test -count`, Bazel's `--runs_per_test`, pytest-repeat.
   - Checked: the zoo is stable on the Mac (74 snapshots, 5 runs). Its glass canary rendered a second way once in 10 iPhone runs, within comparison tolerance. FaultZoo's new `Flaky` preview, a random number, rendered three ways in six runs, and each variant was located to its text.
   - Not yet: guessing causes, such as glass, progress views, dates, or late changes after settling. Also running in parallel across the pool.

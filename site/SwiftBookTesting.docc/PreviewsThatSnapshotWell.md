@@ -49,9 +49,12 @@ swift run swiftbook flakes MyUI/Charts/Cash\ flow --runs 50
 
 Each run starts a fresh renderer, as CI would. For each snapshot that rendered more than one
 way, it reports how often each way appeared, how many pixels differ and where, and whether a
-snapshot comparison would fail on the difference. Images of every variant and its difference go
-to `.build/swiftbook/flakes`. It compares renders with each other, not with references, so it
-works on stories that have none yet.
+snapshot comparison would fail on the difference. Images of every variant, its difference
+(boxed), and an enlarged close-up go to `.build/swiftbook/flakes/<device>`. It compares renders
+with each other, not with references, so it works on stories that have none yet.
+
+It exits with status 1 only if a comparison could fail on a flaky snapshot. A snapshot that
+varies too faintly to fail a comparison is listed with `≈` and summarized separately.
 
 Common causes: random or live data, the current date or time, content that loads
 asynchronously, and animations that don't start from a fixed state.

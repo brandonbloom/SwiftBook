@@ -20,11 +20,18 @@ public struct FlakeFinder: Sendable {
         /// How each other variant differs from the most common one, in order, as a snapshot
         /// comparison would see it: with the default tolerance, glass included.
         public let differences: [ImageDiff]
-        /// How many pixels differ at all, for each other variant.
-        public let differingPixels: [Int]
+        /// How each other variant differs at all, in order: every differing pixel, with no
+        /// tolerance. Shows where a difference too faint to fail a comparison is.
+        public let exactDifferences: [ImageDiff]
         /// Runs in which it failed to render, and the first failure.
         public let failures: Int
         public let failure: String?
+
+        /// Whether a snapshot comparison could fail on it: a variant differs beyond the tolerance,
+        /// or a render failed.
+        public var wouldFail: Bool {
+            failures > 0 || differences.contains { !$0.matches }
+        }
     }
 
     private var subjects: [String] = []
@@ -75,19 +82,18 @@ public struct FlakeFinder: Sendable {
             exact.deltaE = 0
             exact.ignoresAntialiasing = false
             var differences: [ImageDiff] = []
-            var differingPixels: [Int] = []
+            var exactDifferences: [ImageDiff] = []
             for variant in variants.dropFirst() {
                 let image = try SnapshotStore.image(variant.png, at: subject)
                 differences.append(
                     try ImageDiff.compare(
                         expected: first, actual: image, glass: variant.glassRegions))
-                differingPixels.append(
-                    try ImageDiff.compare(expected: first, actual: image, tolerance: exact)
-                        .changedPixels)
+                exactDifferences.append(
+                    try ImageDiff.compare(expected: first, actual: image, tolerance: exact))
             }
             return Flake(
                 subject: subject, variants: variants, differences: differences,
-                differingPixels: differingPixels, failures: failures?.count ?? 0,
+                exactDifferences: exactDifferences, failures: failures?.count ?? 0,
                 failure: failures?.first)
         }
     }

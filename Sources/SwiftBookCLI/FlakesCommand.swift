@@ -13,8 +13,9 @@
                 and reports the snapshots whose renders disagree: how many ways they rendered, \
                 how often, and where they differ. It compares renders with each other, not with \
                 references, so it works on stories that have none yet. Images of each variant \
-                and their differences go to .build/swiftbook/flakes. Exits with status \
-                \(Exit.changed.rawValue) if any snapshot is flaky.
+                and their differences go to .build/swiftbook/flakes/<device>. Exits with status \
+                \(Exit.changed.rawValue) if a comparison could fail on a flaky snapshot; one that \
+                varies only below the comparison threshold is reported, but doesn't count.
                 """)
 
         @Argument(help: "Stories to check, as Module/Group/Name. All of them by default.")
@@ -37,16 +38,27 @@
                 warn("swiftbook: \(error)")
                 throw Exit.broken.code
             }
-            let artifacts = Self.artifacts(for: project)
+            // Only this device's: another device's results stay until it's checked again.
+            let artifacts = Self.artifacts(for: project).appending(
+                path: device.rawValue, directoryHint: .isDirectory)
             try? FileManager.default.removeItem(at: artifacts)
             for flake in flakes {
                 print(Self.describe(flake, runs: runs, artifacts: artifacts) + "\n")
             }
+            let failing = flakes.filter(\.wouldFail)
+            let faint = flakes.filter { !$0.wouldFail }
             if flakes.isEmpty {
                 print(
                     "No flaky snapshots: \(checked) snapshots rendered the same way \(runs) times.")
+            } else if failing.isEmpty {
+                print(
+                    "No flaky snapshots: in \(runs) runs of \(checked) snapshots, a comparison would "
+                        + "match every render. \(Self.varyFaintly(faint))")
             } else {
-                print("\(flakes.count) of \(checked) snapshots are flaky in \(runs) runs.")
+                print(
+                    "\(failing.count) of \(checked) snapshots are flaky in \(runs) runs: a comparison "
+                        + "could fail on them."
+                        + (faint.isEmpty ? "" : " \(Self.varyFaintly(faint))"))
                 throw Exit.changed.code
             }
         }
@@ -118,7 +130,14 @@
             )
         }
 
-        /// Where images of flaky snapshots go.
+        /// "3 vary below the comparison threshold (ΔE up to 0.9)."
+        static func varyFaintly(_ flakes: [FlakeFinder.Flake]) -> String {
+            let deltaE = flakes.flatMap(\.differences).map(\.maxDeltaE).max() ?? 0
+            return
+                "\(flakes.count) vary below the comparison threshold (ΔE up to \(deltaE.formatted(.number.precision(.fractionLength(1)))))."
+        }
+
+        /// Where images of flaky snapshots go, in a directory per device.
         static func artifacts(for project: Project) -> URL {
             (ProcessInfo.processInfo.environment["SWIFTBOOK_ARTIFACTS"].map { URL(filePath: $0) }
                 ?? project.root.appending(path: ".build/swiftbook"))
@@ -126,22 +145,26 @@
         }
 
         /// A flaky snapshot, for people: its variants, how they differ, and where to look. Writes
-        /// each variant, and its difference from the most common one, under `artifacts`.
+        /// each variant, and its difference from the most common one with a close-up, under
+        /// `artifacts`.
         static func describe(_ flake: FlakeFinder.Flake, runs: Int, artifacts: URL) -> String {
             let counts = flake.variants.map { String($0.count) }
             var lines = [
-                "~ \(flake.subject): rendered \(flake.variants.count) ways in \(runs) runs (\(counts.joined(separator: ", ")))"
+                (flake.wouldFail ? "~" : "≈")
+                    + " \(flake.subject): rendered \(flake.variants.count) ways in \(runs) runs (\(counts.joined(separator: ", ")))"
                     + (flake.failures > 0 ? ", and failed in \(flake.failures)" : "")
             ]
             for (offset, difference) in flake.differences.enumerated() {
+                let exact = flake.exactDifferences[offset]
                 let deltaE = difference.maxDeltaE.formatted(.number.precision(.fractionLength(1)))
                 var line =
-                    "    Variant \(offset + 2): \(flake.differingPixels[offset]) pixels differ from variant 1, ΔE up to \(deltaE). "
+                    "    Variant \(offset + 2): \(exact.changedPixels) pixels differ from variant 1"
+                if let bounds = exact.changedBounds { line += " " + Self.describe(bounds) }
+                line += ", ΔE up to \(deltaE). "
                 if !difference.matches {
                     line += "A comparison would fail"
                     if let bounds = difference.changedBounds {
-                        line +=
-                            ": \(difference.changedPixels) changed within \(Int(bounds.width))×\(Int(bounds.height)) pixels at (\(Int(bounds.minX)), \(Int(bounds.minY)))"
+                        line += ": \(difference.changedPixels) changed \(Self.describe(bounds))"
                     }
                     line += "."
                 } else if difference.glassNoisePixels > 0 {
@@ -164,13 +187,20 @@
                 for (offset, variant) in flake.variants.enumerated() {
                     try? variant.png.write(to: stem.appending(path: "variant-\(offset + 1).png"))
                 }
-                for (offset, difference) in flake.differences.enumerated() {
-                    try? difference.pngData()?.write(
+                for offset in flake.differences.indices {
+                    try? flake.differenceImage(offset)?.write(
                         to: stem.appending(path: "variant-\(offset + 2).diff.png"))
+                    try? flake.closeUp(offset)?.write(
+                        to: stem.appending(path: "variant-\(offset + 2).close-up.png"))
                 }
                 lines.append("    Images: \(stem.path)")
             }
             return lines.joined(separator: "\n")
+        }
+
+        /// "within 31×31 pixels at x 980–1010, y 400–430"
+        static func describe(_ bounds: CGRect) -> String {
+            "within \(Int(bounds.width))×\(Int(bounds.height)) pixels at x \(Int(bounds.minX))–\(Int(bounds.maxX) - 1), y \(Int(bounds.minY))–\(Int(bounds.maxY) - 1)"
         }
     }
 #endif
