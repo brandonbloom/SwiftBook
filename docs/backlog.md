@@ -17,6 +17,7 @@ Fulbloom has 632 references (about 300 on iPhone), checked by many agents runnin
   - Parallel Mac rendering under `swift test` (84 s for Fulbloom). Renders are serialized because they set process-wide state, such as the time zone.
   - `--shard i/n` to split a run across CI machines.
   - Give extra simulators back when another run is waiting, if one run starves the others.
+  - Recruit fewer simulators when the machine is already loaded. Fulbloom's CI ran a Mac `swift test` next to an iPhone run that recruited 3–4 simulators, with load averages over 100; slow captures failed Mac snapshots as "still changing" after a single capture, until renders took at least 5 captures. `--jobs` caps it by hand.
 - **A machine-wide pool size.** Each run reads `SWIFTBOOK_SIMULATORS` for itself, so runs with different values disagree on the pool's size, and the larger one can use simulators beyond the others' pool. Documented for now; recording the size in the shared cache directory would enforce one.
 - **Date-dependent previews.** A compact `DatePicker`'s width changed at midnight. Ideas: a fixed clock in snapshot mode, or a lint for `Date.now` in previews.
 - **Read the accent color from the app target.** `SwiftBookConfiguration.tint` (`project-tint`) sets it by hand. SwiftBook could instead find the app target that uses the package and read its `ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME` color.

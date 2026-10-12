@@ -169,6 +169,10 @@
                 initialDelay: .milliseconds(300), interval: .milliseconds(50), matches: 3)
         }
 
+        /// Captures to take before a render counts as still changing, however long they take:
+        /// on a loaded machine, one capture can take the whole timeout.
+        static let minimumCaptures = 5
+
         private static func stableCapture(
             of host: NSView, settling: Settling, timeout: Duration, error: (String) -> RenderError,
             capture: () async throws -> CGImage
@@ -192,7 +196,7 @@
                 matches = pixels == previous ? matches + 1 : 1
                 if matches >= settling.matches { return image }
                 previous = pixels
-                guard clock.now < deadline else {
+                guard clock.now < deadline || captures < minimumCaptures else {
                     throw error("still changing after \(captures) captures over \(timeout)")
                 }
                 // Let the run loop process SwiftUI's pending updates.

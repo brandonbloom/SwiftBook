@@ -194,6 +194,10 @@
         /// blank capture may come before a presentation, such as a sheet, has drawn.
         static let uniformSettling = Duration.seconds(1)
 
+        /// Captures to take before a render counts as still changing, however long they take:
+        /// on a loaded machine, one capture can take the whole timeout.
+        static let minimumCaptures = 5
+
         /// Whether every pixel of 32-bit `pixels` is the same: whether the buffer equals itself
         /// shifted by one pixel. `memcmp` keeps this fast in the debug builds renderers use,
         /// where a Swift loop over millions of pixels takes seconds.
@@ -241,7 +245,7 @@
                 }
                 previous = pixels
                 previousTime = now
-                guard now < deadline else {
+                guard now < deadline || captures < minimumCaptures else {
                     throw error("still changing after \(captures) captures over \(timeout)")
                 }
                 try await Task.sleep(for: .milliseconds(16))
