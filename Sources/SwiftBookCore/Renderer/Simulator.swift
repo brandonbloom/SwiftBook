@@ -79,6 +79,16 @@
             _ = try Self.simctl(["bootstatus", udid, "-b"])
         }
 
+        /// Whether the simulator is booted.
+        public var isBooted: Bool {
+            let devices =
+                (try? Self.simctlJSON(["list", "devices", "--json"]))?["devices"]
+                as? [String: [[String: Any]]] ?? [:]
+            return devices.values.joined().contains {
+                ($0["udid"] as? String) == udid && ($0["state"] as? String) == "Booted"
+            }
+        }
+
         /// Shuts the simulator down, if it's booted.
         public func shutdown() {
             _ = Shell.run(["xcrun", "simctl", "shutdown", udid])

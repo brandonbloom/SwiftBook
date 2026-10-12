@@ -23,6 +23,15 @@
                 valueName: "device"))
         var devices: [Device] = []
 
+        @Option(
+            name: [.short, .long],
+            help: ArgumentHelp(
+                "The most simulators one device may use at once.",
+                discussion:
+                    "A run takes extra pooled simulators while they're free and enough stories remain to repay starting them. Defaults to the pool's size (SWIFTBOOK_SIMULATORS). 1 renders on one."
+            ))
+        var jobs: Int?
+
         @Option(help: "When to write references: missing, changed, all, or never.")
         var record: RecordMode?
 
@@ -89,7 +98,8 @@
                         try results.add(Self.testMac(project, mode: mode))
                     } else {
                         try results.add(
-                            Self.test(project, on: device, mode: mode, tolerance: tolerance))
+                            Self.test(
+                                project, on: device, mode: mode, tolerance: tolerance, jobs: jobs))
                     }
                 } catch {
                     warn("swiftbook: \(device): \(error)")
@@ -184,79 +194,17 @@
             accept: "swiftbook test --record changed", record: "swiftbook test --record missing")
 
         /// Renders every story on `device`, light and dark, and verifies each against its
-        /// reference.
+        /// reference, on up to `jobs` pooled simulators at once.
         static func test(
             _ project: Project, on device: Device, mode: RecordMode,
-            tolerance: ImageDiff.Tolerance = ImageDiff.Tolerance()
+            tolerance: ImageDiff.Tolerance = ImageDiff.Tolerance(), jobs: Int? = nil
         ) throws
             -> (results: [Result], failed: Bool)
         {
-            let renderer = try Renderers.start(for: project, on: device)
-            defer { renderer.shutdown() }
-            let stories = try renderer.stories()
-            var results: [Result] = []
-            var failed = false
-            var counts = (matched: 0, new: 0, rerecorded: 0, failed: 0, glassNoise: 0)
-            for story in stories {
-                for appearance in RenderEnvironment.Appearance.allCases {
-                    var environment = RenderEnvironment.standard(for: device)
-                    environment.appearance = appearance
-                    let subject =
-                        "\(story.id) (\(SnapshotStore.variantName(device: device, environment: environment)))"
-                    do {
-                        let rendered = try renderer.renderImage(story.id, in: environment)
-                        var snapshot = try Snapshot(
-                            png: rendered.png, story: story.id, device: device,
-                            environment: environment)
-                        snapshot.glassRegions = rendered.glassRegions
-                        let verification = try project.store.verify(
-                            snapshot, mode: mode, tolerance: tolerance)
-                        guard
-                            let report = try SnapshotReport(
-                                verification, of: snapshot, mode: mode, store: project.store,
-                                hints: hints)
-                        else {
-                            counts.matched += 1
-                            // Say so, so a reviewer knows glass was compared averaged.
-                            if case .matched(let diff) = verification, diff.glassNoisePixels > 0 {
-                                counts.glassNoise += 1
-                                print(
-                                    "~ \(subject): matched, ignoring \(diff.glassNoisePixels) pixels of Liquid Glass noise\n"
-                                )
-                            }
-                            results.append(Result(device: device, subject: subject))
-                            continue
-                        }
-                        print((report.severity == .failure ? "✗ " : "! ") + report.message + "\n")
-                        switch report.kind {
-                        case .new: counts.new += 1
-                        case .changed: counts.rerecorded += 1
-                        default: counts.failed += 1
-                        }
-                        if report.severity == .failure {
-                            failed = true
-                            results.append(
-                                Result(device: device, subject: subject, failure: report.message))
-                        } else {
-                            results.append(Result(device: device, subject: subject))
-                        }
-                    } catch {
-                        failed = true
-                        counts.failed += 1
-                        print("✗ \(subject): \(error)\n")
-                        results.append(
-                            Result(device: device, subject: subject, failure: "\(error)"))
-                    }
-                }
-            }
-            print(
-                "\(device): \(results.count) snapshots: \(counts.matched) matched\(counts.glassNoise > 0 ? " (\(counts.glassNoise) ignoring glass noise)" : ""), \(counts.new) new, \(counts.rerecorded) re-recorded, \(counts.failed) failed."
-                    + (renderer.restarts > 0
-                        ? " The renderer crashed or hung and was restarted \(renderer.restarts) times:\n"
-                            + renderer.incidents.map { "  \($0)" }.joined(separator: "\n")
-                        : "")
-            )
-            return (results, failed)
+            try DeviceRun(
+                project: project, device: device, mode: mode, tolerance: tolerance,
+                jobs: jobs ?? SimulatorPool.size()
+            ).run()
         }
 
         /// Runs the Mac's snapshots through `swift test`, where `#SwiftBookTests` applies.

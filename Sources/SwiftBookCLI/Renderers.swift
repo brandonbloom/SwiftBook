@@ -37,30 +37,44 @@
                 let executable = try host.build()
                 return try RestartingRenderer { try RendererProcess(executable: executable) }
             case .iphone, .ipad, .tv:
-                progress("Building the \(device == .tv ? "tvOS" : "iOS") renderer…")
-                let app = try host.buildApp(for: device == .tv ? .tvOS : .iOS)
+                let app = try buildApp(for: project, on: device)
                 progress("Starting the simulator…")
                 // A simulator of this run's own: runs sharing one suspend each other's renderers.
                 // Extra simulators stay booted for a few minutes after the run, for the next one.
-                let lease = try SimulatorPool.lease(
-                    for: device, waiting: progress, keepWarm: SimulatorIdleCommand.start)
-                do {
-                    return try RestartingRenderer {
-                        try RendererProcess(
-                            app: app.url, bundleID: app.bundleID, in: lease.simulator)
-                    } onShutdown: {
-                        lease.release()
-                    }
-                } catch {
-                    lease.release()
-                    throw error
-                }
+                return try start(
+                    app,
+                    in: SimulatorPool.lease(
+                        for: device, waiting: progress, keepWarm: SimulatorIdleCommand.start))
             case .catalyst:
                 throw Failure(description: "Mac Catalyst rendering isn't supported yet.")
             }
         }
 
-        private static func progress(_ message: String) {
+        /// Builds the renderer app for `device`, a simulated one.
+        static func buildApp(for project: Project, on device: Device) throws -> RendererHost.App {
+            progress("Building the \(device == .tv ? "tvOS" : "iOS") renderer…")
+            return try RendererHost(package: project.root).buildApp(
+                for: device == .tv ? .tvOS : .iOS)
+        }
+
+        /// Starts `app` in `lease`'s simulator, giving the lease back when the renderer shuts
+        /// down.
+        static func start(_ app: RendererHost.App, in lease: SimulatorLease) throws
+            -> RestartingRenderer
+        {
+            do {
+                return try RestartingRenderer {
+                    try RendererProcess(app: app.url, bundleID: app.bundleID, in: lease.simulator)
+                } onShutdown: {
+                    lease.release()
+                }
+            } catch {
+                lease.release()
+                throw error
+            }
+        }
+
+        static func progress(_ message: String) {
             FileHandle.standardError.write(Data((message + "\n").utf8))
         }
     }

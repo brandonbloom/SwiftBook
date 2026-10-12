@@ -29,6 +29,19 @@
             #expect(project.repository != nil)
         }
 
+        @Test func startsAnotherSimulatorOnlyWhenItPays() {
+            // Fulbloom's iPhone run: 394 snapshots at about 0.34 s each.
+            #expect(
+                DeviceRun.worthStarting(remaining: 390, perItem: 0.34, renderers: 1, warm: false))
+            // The zoo's: 72 at the same pace repays a booted simulator, not a cold one.
+            #expect(DeviceRun.worthStarting(remaining: 68, perItem: 0.34, renderers: 1, warm: true))
+            #expect(
+                !DeviceRun.worthStarting(remaining: 68, perItem: 0.34, renderers: 1, warm: false))
+            // A short tail isn't worth even a warm one.
+            #expect(
+                !DeviceRun.worthStarting(remaining: 20, perItem: 0.34, renderers: 2, warm: true))
+        }
+
         @Test func failsOutsideAProject() {
             #expect(throws: Failure.self) {
                 try Project(containing: URL(filePath: "/", directoryHint: .isDirectory))

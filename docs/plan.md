@@ -349,6 +349,14 @@ _(fill in on completion)_
     - **Kept warm:** shutting extras down at release cost every overlapping run a cold boot and install, about 15 s, and Fulbloom's agents overlap constantly. The CLI now starts a detached `swiftbook simulator-idle`, which shuts an extra simulator down once it has been idle for 5 minutes. It records the release time, and takes the simulator's lease before shutting it down, so it never stops one in use. In tests, a warm pair of runs took 9 s each; cold, 15 s and 26 s. Other callers still shut extras down at release.
     - The pool holds as many as fit in half the Mac's memory at 4 GB each, at most one per two performance cores, unless `SWIFTBOOK_SIMULATORS` says otherwise. Booted simulators measured 3.3 GB (iPhone), 3.0 GB (iPad), and 2.0 GB (Apple TV).
     - With the pool, the same two runs took 16 s and 28 s, the second including a boot; with `SWIFTBOOK_SIMULATORS=1`, 14 s and 24 s, waiting their turn. No failures either way.
+- [x] **`parallel-devices`**
+  - From Fulbloom: after profiling, its iPhone snapshots were CI's critical path, about 135 s for 394.
+  - Done. `swiftbook test` spreads one device's snapshots across pooled simulators (`DeviceRun`).
+    - It leases one, waiting if it must, then takes more without waiting, while the remaining work, at the pace so far and shared by the renderers already at it, takes at least twice as long as starting another. That's about 5 s warm and 20 s cold.
+    - One queue of story and appearance pairs feeds every renderer, so slow stories even out and late simulators join mid-run. Reports and output are serialized, and results come back in story order for JUnit.
+    - `-j`/`--jobs` caps simulators per run, defaulting to the pool's size. "Shard" is kept for splitting runs across machines (`--shard i/n`), which isn't built.
+    - The zoo's 72 iPhone snapshots took 37 s on one simulator and 24 s on two, with the second warm. They don't repay a cold one.
+  - Not yet: giving extras back when another run is waiting, if starvation shows up; parallel Mac rendering within `swift test`.
 - [x] **`lfs-diagnostics`**
   - From Fulbloom's feedback: fresh worktrees had Git LFS pointers instead of references.
   - Done. Every path that reads a reference recognizes pointers, with one message (`git lfs pull`, after `git lfs install`). Recording in any mode refuses to overwrite a pointer; `all` mode used to. `swiftbook test` stops up front with a count instead of failing every snapshot. So does `swift test`: `#SwiftBookTests` adds a "References are images" test that reports the count once, and skips the snapshots while any reference is a pointer. Fulbloom's fresh worktree had hit 157 failures before the message. The viewer badges an unreadable reference with its reason instead of calling the story new.

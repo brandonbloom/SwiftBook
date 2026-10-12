@@ -99,7 +99,7 @@ In a package that depends on SwiftBook, run it with `swift run swiftbook <comman
 | Command | What it does |
 |---|---|
 | `swiftbook view` | Opens the viewer on the Mac: every story in a sidebar, rendered as you edit, compared across color scheme, layout direction, or a git revision, and openable live in a window of its own. |
-| `swiftbook test [--device iphone] [--record <mode>] [--junit <file>]` | Snapshot-tests stories on each device: the Mac through `swift test`, and iPhone, iPad and Apple TV in SwiftBook's own simulators, light and dark. With no `--device`, tests every device that has references. Concurrent runs each lease a simulator from a pool (`SWIFTBOOK_SIMULATORS` sets its size). |
+| `swiftbook test [--device iphone] [--record <mode>] [--junit <file>]` | Snapshot-tests stories on each device: the Mac through `swift test`, and iPhone, iPad and Apple TV in SwiftBook's own simulators, light and dark. With no `--device`, tests every device that has references. Concurrent runs each lease a simulator from a pool (`SWIFTBOOK_SIMULATORS` sets its size), and one run spreads across free ones while it pays (`--jobs` caps it). |
 | `swiftbook diff [<revision>] [--merge-base]` | Lists references added, deleted, or changed in the working tree against a revision (`HEAD` by default), with how many pixels changed. `--format json` or `junit` for machines; `--open` shows before, after and diff images. |
 | `swiftbook list [--check] [--device iphone]` | Lists the package's stories. `--check` also builds each one and reports any SwiftBook can't read. |
 | `swiftbook render [<story>…] [--device iphone] [-o <dir>]` | Renders stories, light and dark, to PNG files laid out like references. |

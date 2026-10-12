@@ -84,6 +84,31 @@
             }
         }
 
+        /// Leases a free simulator for `device` without waiting, or returns `nil` if none is free
+        /// or `accept` declines it. `accept` learns whether the simulator is already booted, since
+        /// booting and installing on a cold one costs more.
+        public static func tryLease(
+            for device: Device, size: Int = size(),
+            keepWarm: (@Sendable (Device, Int) -> Void)? = nil,
+            accept: (_ warm: Bool) -> Bool = { _ in true }
+        ) throws -> SimulatorLease? {
+            guard let (number, lock) = try claim(device, size: size) else { return nil }
+            do {
+                let simulator = try Simulator.dedicated(for: device, number: number, boot: false)
+                guard accept(simulator.isBooted) else {
+                    lock.release()
+                    return nil
+                }
+                try simulator.boot()
+                return SimulatorLease(
+                    simulator: simulator, device: device, number: number, lock: lock,
+                    keepWarm: keepWarm)
+            } catch {
+                lock.release()
+                throw error
+            }
+        }
+
         /// How long an extra simulator stays booted after its last run, for the next one. Runs
         /// often overlap in bursts, and booting and installing on a cold simulator costs about
         /// 15 s.
