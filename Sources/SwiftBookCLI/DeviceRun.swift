@@ -171,7 +171,7 @@
                     if let output { print(output) }
                 }
             }
-            let result = TestCommand.Result(device: device, subject: subject)
+            let result = TestCommand.Result(device: device, subject: subject, story: item.story)
             do {
                 let rendered = try renderer.renderImage(item.story, in: environment)
                 var snapshot = try Snapshot(

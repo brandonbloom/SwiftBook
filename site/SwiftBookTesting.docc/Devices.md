@@ -66,11 +66,18 @@ effect; `--jobs 1` keeps it to one.
 
 ### Rendering stories to files
 
-`swiftbook render` writes PNGs laid out like references, without comparing them:
+`swiftbook render` writes PNGs laid out like references, without comparing or recording
+anything. It's the quick way to look at one story, or to send someone a picture of it. Name
+stories as `swiftbook list` prints them, and it prints the path of each file it writes:
 
 ```sh
-swift run swiftbook render Wander/Welcome/Welcome --device iphone -o /tmp/renders
+$ swift run swiftbook render Wander/Welcome/Welcome --device iphone -o /tmp/renders
+/tmp/renders/Wander/Welcome/Welcome/iphone.light.png
+/tmp/renders/Wander/Welcome/Welcome/iphone.dark.png
 ```
+
+When `swiftbook test` fails, its last lines name every failed snapshot on one line starting
+with `✗`, and give the `swiftbook render` command for the failed stories on each device.
 
 ### Limitations
 

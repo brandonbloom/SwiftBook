@@ -11,10 +11,12 @@
             discussion: """
                 Renders each story in each appearance into the output directory, named like \
                 references: <Module>/<Group>/<Story>/<device>.<appearance>.png. With no stories, \
-                renders all of them.
+                renders all of them. Nothing is compared or recorded, so it's the quick way to \
+                look at a story, or to send someone a picture of one. swiftbook list prints \
+                story names; for example, swiftbook render Wander/Welcome/Welcome --device iphone.
                 """)
 
-        @Argument(help: "Stories to render, as Module/Group/Name.")
+        @Argument(help: "Stories to render, as Module/Group/Name, as swiftbook list prints them.")
         var stories: [String] = []
 
         @Option(name: [.customLong("device"), .customLong("platform")], help: deviceHelp)

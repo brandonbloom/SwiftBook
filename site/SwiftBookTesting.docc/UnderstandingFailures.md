@@ -19,6 +19,14 @@ To accept the change: SWIFTBOOK_RECORD=changed swift test
 The reference, actual, and diff images are attached to the test result, and appear on the
 review page. In diff images, changed pixels are red and anti-aliasing differences are yellow.
 
+A long `swiftbook test` log ends with every failed snapshot on one line, and a command that
+renders the failed stories for a closer look:
+
+```
+✗ 1 failed: Wander/WeatherCard/Weather card (iphone.dark)
+  To look at them: swiftbook render 'Wander/WeatherCard/Weather card' --device iphone
+```
+
 @Row {
     @Column {
         @Image(source: failure-reference, alt: "The reference: 72° and Mostly Sunny.")

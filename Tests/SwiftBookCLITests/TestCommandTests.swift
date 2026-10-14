@@ -50,5 +50,34 @@
                 xml.contains(#"<failure message="doesn't match">doesn't match\#ndetails</failure>"#)
             )
         }
+
+        @Test func summarizesTheFailures() {
+            var results = TestCommand.Results()
+            #expect(results.failureSummary() == nil)
+            let plain = StoryID(module: "M", group: "G", name: "S")
+            let spaced = StoryID(module: "M", group: "G", name: "Bob's row")
+            results.add(
+                (
+                    [
+                        .init(device: .iphone, subject: "M/G/S (iphone.light)", story: plain),
+                        .init(
+                            device: .iphone, subject: "M/G/S (iphone.dark)", story: plain,
+                            failure: "doesn't match"),
+                        .init(
+                            device: .iphone, subject: "M/G/Bob's row (iphone.light)",
+                            story: spaced, failure: "doesn't match"),
+                        .init(
+                            device: .iphone, subject: "M/G/Bob's row (iphone.dark)",
+                            story: spaced, failure: "doesn't match"),
+                        .init(device: .mac, subject: "swift test", failure: "exited with 1"),
+                    ], true
+                ))
+            #expect(
+                results.failureSummary() == """
+                    ✗ 4 failed: M/G/S (iphone.dark), M/G/Bob's row (iphone.light), \
+                    M/G/Bob's row (iphone.dark), swift test
+                      To look at them: swiftbook render M/G/S 'M/G/Bob'\\''s row' --device iphone
+                    """)
+        }
     }
 #endif

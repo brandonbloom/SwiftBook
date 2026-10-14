@@ -12,8 +12,9 @@
                 The Mac runs through swift test, so #SwiftBookTests applies. Other devices \
                 render in SwiftBook's own simulators and check every story, light and dark. \
                 With no --device, tests every device that already has references, so coverage \
-                follows what's committed. Exits with status \(Exit.changed.rawValue) if a \
-                snapshot fails.
+                follows what's committed. Ends by naming the failed snapshots, and exits with \
+                status \(Exit.changed.rawValue) if any failed. To look at a story without \
+                testing, use swiftbook render.
                 """)
 
         @Option(
@@ -114,6 +115,7 @@
                     throw Exit.broken.code
                 }
             }
+            if let summary = results.failureSummary() { print(summary) }
             if results.failed { throw Exit.changed.code }
         }
 
@@ -141,6 +143,8 @@
         struct Result {
             var device: Device
             var subject: String
+            /// The story it rendered, if it's one snapshot.
+            var story: StoryID? = nil
             /// Why it failed, if it did.
             var failure: String?
         }
@@ -152,6 +156,41 @@
             mutating func add(_ results: (results: [Result], failed: Bool)) {
                 all += results.results
                 failed = failed || results.failed
+            }
+
+            /// Closing lines that name every failed snapshot, so a long log needn't be searched
+            /// for them, and give a command per device that renders the failed stories to look
+            /// at. Nil when nothing failed.
+            func failureSummary() -> String? {
+                let failures = all.filter { $0.failure != nil }
+                guard !failures.isEmpty else { return nil }
+                var lines = [
+                    "✗ \(failures.count) failed: "
+                        + failures.map(\.subject).joined(separator: ", ")
+                ]
+                for device in Device.allCases {
+                    var stories: [StoryID] = []
+                    for case let story? in failures.filter({ $0.device == device }).map(\.story)
+                    where !stories.contains(story) {
+                        stories.append(story)
+                    }
+                    guard !stories.isEmpty else { continue }
+                    let names = stories.map { Self.shellQuoted($0.description) }
+                    lines.append(
+                        "  To look at them: swiftbook render \(names.joined(separator: " ")) --device \(device)"
+                    )
+                }
+                return lines.joined(separator: "\n")
+            }
+
+            /// `text` as one shell word, quoted only if it must be.
+            static func shellQuoted(_ text: String) -> String {
+                let plain = CharacterSet.alphanumerics.union(
+                    CharacterSet(charactersIn: "/._-+=:,@%"))
+                guard !text.isEmpty, text.unicodeScalars.allSatisfy(plain.contains) else {
+                    return "'" + text.replacingOccurrences(of: "'", with: #"'\''"#) + "'"
+                }
+                return text
             }
 
             func junit() -> String {

@@ -13,7 +13,7 @@ In a package that depends on SwiftBook, run it with `swift run swiftbook <comman
 | `swiftbook test [--device <device>] [--record <mode>] [--junit <file>] [--jobs <n>]` | Snapshot-tests stories on each device: the Mac through `swift test`, and iPhone, iPad, and Apple TV in SwiftBook's simulators, several at once when they're free. See <doc:Devices>. |
 | `swiftbook diff [<revision>] [--merge-base] [--format human\|json\|junit] [--open]` | Lists references added, deleted, or changed against a revision. See <doc:ComparingHistory>. |
 | `swiftbook list [--check] [--device <device>]` | Lists the package's stories. `--check` also builds each one. |
-| `swiftbook render [<story>…] [--device <device>] [-o <dir>]` | Renders stories, light and dark, to PNGs laid out like references. |
+| `swiftbook render [<story>…] [--device <device>] [-o <dir>]` | Renders stories, light and dark, to PNGs laid out like references, without comparing them. See <doc:Devices>. |
 | `swiftbook flakes [<story>…] [--device <device>] [--runs <n>]` | Finds stories that render differently from run to run. See <doc:PreviewsThatSnapshotWell>. |
 | `swiftbook prune [--dry-run]` | Deletes references to stories that no longer exist. |
 | `swiftbook init` | Adds the Git LFS rule for references to `.gitattributes`. |
