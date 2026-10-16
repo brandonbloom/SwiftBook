@@ -285,7 +285,7 @@ Snapshots/
 
 ## Phasing
 
-1. **Core:** discovery and the adapter guard, macOS rendering, the diff engine, storage, and `SwiftBookTesting` under `swift test`. Fulbloom adopts at this point.
+1. **Core:** discovery and the adapter guard, macOS rendering, the diff engine, storage, and `SwiftBookTesting` under `swift test`. The first adopter takes it up at this point.
 2. **CLI:** `test`, `diff`, `prune`, `init`, and `doctor`, plus iOS and tvOS rendering in the simulator.
 3. **macOS viewer:** renderers out of process, live rebuild, the sidebar with history filters, and toolbar A, B and C.
 4. **Viewer depth:** swipe, onion skin, blink, and diff overlays, iOS renderer streaming into the Mac viewer, and the difftool.
@@ -293,7 +293,7 @@ Snapshots/
 
 ## First consumer
 
-Fulbloom Finance is a macOS SwiftUI app built as a SwiftPM package. It has 29 `#Preview`s using `.fixedLayout`, fixtures, and `#if DEBUG`. Its constraints are:
+The first adopter is a macOS SwiftUI app built as a SwiftPM package. It has 29 `#Preview`s using `.fixedLayout`, fixtures, and `#if DEBUG`. Its constraints are:
 
 - Plain `swift test`.
 - No third-party prebuilt binaries.
@@ -302,7 +302,7 @@ Fulbloom Finance is a macOS SwiftUI app built as a SwiftPM package. It has 29 `#
 - Deterministic macOS rendering.
 - A macOS story browser.
 
-Details are in [research.md](research.md#first-consumer-fulbloom-finance).
+Details are in [research.md](research.md#first-consumer).
 
 ## Open questions
 

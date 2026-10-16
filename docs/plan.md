@@ -46,7 +46,7 @@ This plan implements [vision.md](vision.md). It is a living document: it gets re
 
 ## Phase 1: Core, macOS, `swift test`
 
-Fulbloom adopts SwiftBook at the end of this phase.
+The first adopter takes up SwiftBook at the end of this phase.
 
 - [x] **`discovery-scan`**
   - Scan `__swift5_proto` for `PreviewRegistry` and `PreviewProvider` conformances.
@@ -83,10 +83,10 @@ Fulbloom adopts SwiftBook at the end of this phase.
     - **Emulation** is the fallback: each vibrant layer's color matrix applied to its backdrop, measured against the window server at ≤0.7% of pixels changed in light mode. Dark glass backgrounds differ by ΔE ≈ 15.
   - Both match the window server's inactive-window style, because the test process is never the active app.
   - Cost: window-server capture waits for the window server to settle, about 0.65 s per image versus about 0.1 s emulated.
-- [x] **`fulbloom-adoption`**
-  - Send Fulbloom a pinned revision plus the `Package.swift` changes.
-  - Fulbloom records light and dark references for all 29 previews and runs its CI.
-  - Landed in Fulbloom at `3ff0ffe`, pinned to SwiftBook `41b40ec`.
+- [x] **`first-adoption`**
+  - Send the first adopter a pinned revision plus the `Package.swift` changes.
+  - The adopter records light and dark references for all 29 previews and runs its CI.
+  - Landed in the adopter, pinned to SwiftBook `41b40ec`.
   - Adoption surfaced two vibrancy bugs, both fixed: hover states from the real pointer, and stale layers composited at the origin. It also surfaced `glass-emulation`.
 
 **Automated verification:**
@@ -101,11 +101,11 @@ Fulbloom adopts SwiftBook at the end of this phase.
 - A contact sheet of every zoo story in light and dark, next to screenshots of Xcode's canvas.
 - Three sample failure messages.
 - The diff images for the golden cases.
-- Fulbloom's recorded references.
+- The first adopter's recorded references.
 
 ### Phase 1 retro
 
-- **What worked.** The single discovery mechanism (a conformance scan plus the `Mirror`-based adapter) read every zoo form except `arguments:`, and all 49 of Fulbloom's previews. One macro line was all the configuration Fulbloom needed. The diff engine needed no changes after its golden tests.
+- **What worked.** The single discovery mechanism (a conformance scan plus the `Mirror`-based adapter) read every zoo form except `arguments:`, and all 49 of the first adopter's previews. One macro line was all the configuration the first adopter needed. The diff engine needed no changes after its golden tests.
 - **What surprised us: rendering fidelity, not discovery, was the hard part.** Most of the phase went to sidebars and glass:
   - Vibrancy is applied by the window server, so `cacheDisplay` misses it.
   - The test process is never the active app, so windows draw in their inactive style.
@@ -114,7 +114,7 @@ Fulbloom adopts SwiftBook at the end of this phase.
   - Window-server capture is exact, but it needs Screen Recording permission and an unlocked screen, and it's about 6× slower.
 - **What surprised us: emulated output drifted between days.** The same commit on the same OS stopped reproducing references (`glass-emulation`).
 - **Debugging lesson.** Bisect the capture pipeline before theorizing about the environment. Compare the raw capture, the composite, and each layer's contribution. Preference and lock-state hypotheses cost hours; a per-layer bisect found the bug in minutes.
-- **Adoption friction.** Reviewing Fulbloom's 92 new references one at a time was slow, and no summary showed what a `changed` run had re-recorded. The validation packet's generated HTML page proved the review-page idea.
+- **Adoption friction.** Reviewing the first adopter's 92 new references one at a time was slow, and no summary showed what a `changed` run had re-recorded. The validation packet's generated HTML page proved the review-page idea.
 - **Replan.**
   - Phase 2 starts with `glass-emulation`, since it's a CI determinism risk, then the cheap adoption fixes: `record-summary`, `readme` and `review-page`.
   - `vibrant-text` moved into Phase 1's record, where the work happened.
@@ -123,11 +123,11 @@ Fulbloom adopts SwiftBook at the end of this phase.
 
 - [x] **`glass-emulation`**
   - Emulated captures drew Liquid Glass controls as a flat fallback. `cacheDisplay` calls `_setDoingCacheDisplayInRect:`, which SwiftUI observes: it re-renders, swapping a control's glass layers (`CABackdropLayer`, SDF layers) for a translucent white fill with a 1-point border, until the window next displays.
-  - Fixed by drawing with `displayIgnoringOpacity(_:in:)`, which `cacheDisplay` wraps, so the glass stays. Against the window server, Fulbloom's sidebar search field went from mean ΔE 6.4 to 3.9 in light mode and from 10.9 to 5.6 in dark. The zoo's references were unchanged.
+  - Fixed by drawing with `displayIgnoringOpacity(_:in:)`, which `cacheDisplay` wraps, so the glass stays. Against the window server, the first adopter's sidebar search field went from mean ΔE 6.4 to 3.9 in light mode and from 10.9 to 5.6 in dark. The zoo's references were unchanged.
   - Still differs from the window server: the glass edge highlight, and the dimmed placeholder text inside glass. Window-server capture is exact.
-  - The Oct 2 drift of Fulbloom's references stays unexplained. It happened inside the swap this avoids.
+  - The Oct 2 drift of the first adopter's references stays unexplained. It happened inside the swap this avoids.
 - [x] **`record-summary`**
-  - In `changed` and `all` modes, report which references were re-recorded, even when the run passes, so a reviewer knows what to look at. From Fulbloom's adoption feedback.
+  - In `changed` and `all` modes, report which references were re-recorded, even when the run passes, so a reviewer knows what to look at. From the first adopter's feedback.
   - Each re-recorded reference is a Swift Testing warning: what changed, and a diff image under `.build/swiftbook/recorded/`. The run still passes. `all` mode leaves byte-identical references alone and doesn't report them.
   - Artifacts moved under `.build/swiftbook/{failures,recorded}/`. `$SWIFTBOOK_ARTIFACTS` replaces `.build/swiftbook`.
 - [x] **`readme`**
@@ -135,9 +135,9 @@ Fulbloom adopts SwiftBook at the end of this phase.
     - `swift test --filter SwiftBookSnapshots` to run only the snapshots.
     - Injecting fixed times in previews instead of reading `Date.now`.
     - What each `SWIFTBOOK_RECORD` mode does.
-  - From Fulbloom's adoption feedback.
+  - From the first adopter's feedback.
 - [x] **`review-page`**
-  - `swiftbook review` writes an HTML page of new and changed references: grouped by file, light and dark side by side, diffs beside failures. Reviewing Fulbloom's 92 new references one at a time was the slowest step of adoption.
+  - `swiftbook review` writes an HTML page of new and changed references: grouped by file, light and dark side by side, diffs beside failures. Reviewing the first adopter's 92 new references one at a time was the slowest step of adoption.
   - Done for `swift test`: every recording and failure writes its images and a JSON entry under `.build/swiftbook/`, and rewrites `review/index.html` from them. Each message ends with the page's path. The page copies its images, so it stays accurate after references change and can be uploaded from CI as is.
   - `swiftbook review` itself waits for `cli-skeleton`.
 - [x] **`preview-arguments`**
@@ -185,7 +185,7 @@ Fulbloom adopts SwiftBook at the end of this phase.
   - A generated hidden `.swiftpm` host with an `.iOSApplication` product, built with `xcodebuild`.
   - The fallback is `swift build` plus our own `.app` wrapper; see the [spike](spikes/ios-renderer.md).
   - SwiftBook creates and reuses its own dedicated simulator.
-  - Fulbloom's iPhone app is the first real test bed. Its `PhoneBrowser` previews (iOS-only, in FBFUI) use a Liquid Glass floating tab bar and a split search tab (`Tab(role: .search)` with `.tabViewSearchActivation(.searchTabSelection)`), a good fidelity check for materials and the tab bar. When `cli-test` can run iOS, message the "iOS app parallel development" session, which will wire it into Fulbloom's CI.
+  - The first adopter's iPhone app is the first real test bed. Its iOS-only tab bar previews use a Liquid Glass floating tab bar and a split search tab (`Tab(role: .search)` with `.tabViewSearchActivation(.searchTabSelection)`), a good fidelity check for materials and the tab bar. When `cli-test` can run iOS, tell the adopter, which will wire it into its CI.
   - In a host app, a SwiftPM resource directory copied as `Resources` (`.copy("Resources")`) makes codesign fail with "bundle format unrecognized", because iOS bundles are flat. The host must handle or diagnose this for user packages.
   - Done with the fallback, which proved simpler than `.iOSApplication`.
     - **Build:** the macOS renderer's host package, cross-compiled with `swift build --triple arm64-apple-ios27.0-simulator`. It's wrapped in a minimal app: the SDK stamped with `vtool`, an `Info.plist` with a scene manifest, the package's resource bundles copied in, and an ad hoc signature.
@@ -205,16 +205,16 @@ Fulbloom adopts SwiftBook at the end of this phase.
     - `--device` repeats, and accepts platform names (`--platform ios`). `--record` takes a record mode. `--junit` writes one test case per snapshot. With no device, it tests every device that has references.
     - The zoo has iPhone, iPad, and Apple TV references (204), and CI verifies them with `--record never`, in about 100 s.
     - Not yet: variants other than light and dark on simulated devices, and `excluding:`. The CLI can't read `#SwiftBookTests`' arguments.
-    - From Fulbloom's iPhone adoption: an indeterminate `ProgressView` spun between captures, because Core Animation runs animations outside the app. Render windows now stop their layer clock (`speed = 0`) before content arrives, so every animation stays on its first frame. The zoo's new Hazards/Progress story is the canary. Renderer build failures now lead with the compiler's errors.
-    - Fulbloom's iPhone adoption, round two (152 references):
+    - From the first adopter's iPhone adoption: an indeterminate `ProgressView` spun between captures, because Core Animation runs animations outside the app. Render windows now stop their layer clock (`speed = 0`) before content arrives, so every animation stays on its first frame. The zoo's new Hazards/Progress story is the canary. Renderer build failures now lead with the compiler's errors.
+    - The first adopter's iPhone adoption, round two (152 references):
       - Hangs past the 30 s timeout used to fail every remaining story. The CLI now restarts a renderer that crashes or hangs, and retries the story once on the fresh one (`RestartingRenderer` in SwiftBookCore). The test summary counts restarts.
       - A capture that's all one color must hold for a second before it counts as settled, since a presentation such as an inspector sheet may not have drawn yet.
-      - The hangs didn't reproduce in four runs on Fulbloom's branch, two of them under load.
+      - The hangs didn't reproduce in four runs on the first adopter's branch, two of them under load.
       - One story's Liquid Glass tab bar settles one pixel in one of two states (ΔE about 2), so its reference failed every other run. The diff engine now has a noise floor: at most 10 changed pixels, none past ΔE 3, still match. `swiftbook test` takes tolerance options, since it can't read `#SwiftBookTests(tolerance:)`.
       - Hangs under load, investigated with stack samples. A renderer that times out is now sampled before it's stopped, and the sample's path is in the error. `swiftbook test` lists the stories that caused restarts. Two causes were found:
         - SwiftBook's check for blank captures walked every pixel in Swift, which takes seconds in a debug-built renderer. It now uses `memcmp`.
         - SwiftUI sometimes spins in `CFRelease` while building a List header, about one run in five under heavy load. That's a framework bug; the restart and retry contain it.
-      - Open: under load, PhoneBrowser (spending)'s whole glass tab bar once shifted tint by up to ΔE 4. It didn't reproduce. Holding every capture with a backdrop for 300 ms cost 40 s per Fulbloom run, so it isn't in.
+      - Open: under load, one tab bar story's whole glass tab bar once shifted tint by up to ΔE 4. It didn't reproduce. Holding every capture with a backdrop for 300 ms cost 40 s per adopter run, so it isn't in.
 - [x] **`tvos-runtime`**
   - Install the tvOS simulator runtime (a human step) and get the zoo rendering on tvOS.
   - Done: Brandon installed tvOS 27, and the zoo renders and verifies on Apple TV 4K.
@@ -228,14 +228,14 @@ Fulbloom adopts SwiftBook at the end of this phase.
 **Human validation packet:**
 - iOS and tvOS contact sheets next to Xcode's canvas.
 - `swiftbook diff` output for a staged change.
-- A walkthrough of `init` and `doctor` on a fresh clone of Fulbloom.
+- A walkthrough of `init` and `doctor` on a fresh clone of the first adopting app.
 
 ### Phase 2 retro
 
 - **What worked.**
   - One renderer protocol serves every client and platform. The CLI, the viewer, and the iPhone, iPad and Apple TV renderers all speak it, and supervision (timeouts, restarts, samples of hung renderers) lives in one place.
   - `swift build` plus a hand-made `.app` beat a generated Xcode project for the iOS host: simpler, faster, and the same packaging for tvOS.
-  - Fulbloom's iPhone adoption found real bugs fast. Each round of friction became a fix and a zoo canary.
+  - The first adopter's iPhone adoption found real bugs fast. Each round of friction became a fix and a zoo canary.
 - **What surprised us: simulators are noisy under load.** Framework hangs, blank first frames, and Liquid Glass settling a pixel either way each needed their own defense: restart and retry, holding uniform captures, and the noise floor. Brandon approved keeping the noise floor (10 pixels, ΔE 3) as the default.
 - **What surprised us: debug-build costs.** Per-pixel loops and `Array(repeating:count:)` take seconds on screen-sized images in debug builds, enough to look like hangs. Hot paths over pixels use `memcmp` and `memset`.
 - **What surprised us: `Process.waitUntilExit` hangs** when called off the main thread, because it spins a run loop. Waits poll instead.
@@ -333,7 +333,7 @@ Fulbloom adopts SwiftBook at the end of this phase.
 
 **Human validation packet:**
 - The agent drives the viewer through a scripted session (computer use), records screenshots and a short screen recording, and reports timings.
-- Brandon then keeps the viewer open while working on Fulbloom for a day and logs any friction.
+- Brandon then keeps the viewer open while working on the first adopting app for a day and logs any friction.
 
 ### Phase 3 retro
 
@@ -342,24 +342,24 @@ _(fill in on completion)_
 ## Phase 4: Viewer depth
 
 - [x] **`simulator-pool`**
-  - From Fulbloom's feedback: with 3–4 worktrees running `swiftbook test --device iphone` at once, renderers hung, restarted up to 5 times a run, and results varied.
+  - From the first adopter's feedback: with 3–4 worktrees running `swiftbook test --device iphone` at once, renderers hung, restarted up to 5 times a run, and results varied.
   - **Cause:** every run shared SwiftBook's one simulator per device. Each worktree's renderer app has its own bundle ID, so each launch moved the others to the background, where iOS suspends them. Their renders went unanswered until the 30 s timeout, and each restart suspended another run's renderer. Two zoo runs at once took 16 s and 47 s: the second paused through the first.
   - **Done:** `SimulatorPool` leases each run a simulator of its own, held by an exclusive `flock` that ends with the process. Runs beyond the pool's size wait, saying so; waiting is never a timeout.
     - Extra simulators are named `#2`, `#3` and so on. They boot on demand (about 2.5 s once created).
-    - **Kept warm:** shutting extras down at release cost every overlapping run a cold boot and install, about 15 s, and Fulbloom's agents overlap constantly. The CLI now starts a detached `swiftbook simulator-idle`, which shuts an extra simulator down once it has been idle for 5 minutes. It records the release time, and takes the simulator's lease before shutting it down, so it never stops one in use. In tests, a warm pair of runs took 9 s each; cold, 15 s and 26 s. Other callers still shut extras down at release.
+    - **Kept warm:** shutting extras down at release cost every overlapping run a cold boot and install, about 15 s, and the first adopter's agents overlap constantly. The CLI now starts a detached `swiftbook simulator-idle`, which shuts an extra simulator down once it has been idle for 5 minutes. It records the release time, and takes the simulator's lease before shutting it down, so it never stops one in use. In tests, a warm pair of runs took 9 s each; cold, 15 s and 26 s. Other callers still shut extras down at release.
     - The pool holds as many as fit in half the Mac's memory at 4 GB each, at most one per two performance cores, unless `SWIFTBOOK_SIMULATORS` says otherwise. Booted simulators measured 3.3 GB (iPhone), 3.0 GB (iPad), and 2.0 GB (Apple TV).
     - With the pool, the same two runs took 16 s and 28 s, the second including a boot; with `SWIFTBOOK_SIMULATORS=1`, 14 s and 24 s, waiting their turn. No failures either way.
 - [x] **`flake-finder`**
-  - From Fulbloom's flake feedback. Brandon prefers discouraging flaky tests, and giving tools to fix them, to retrying them.
+  - From the first adopter's flake feedback. Brandon prefers discouraging flaky tests, and giving tools to fix them, to retrying them.
   - Done: `swiftbook flakes [stories…] [--device] [--runs N]`, 10 runs by default.
     - Each run renders the stories in a fresh renderer (built once, on one leased simulator), and `FlakeFinder` groups each snapshot's renders into variants.
     - It reports a snapshot that rendered more than one way, or failed in only some runs, with counts per variant. For each other variant, it gives how many pixels differ, where (their bounding box) and how much, and whether a snapshot comparison would fail, including glass tolerance. It writes each variant, a diff image with every differing pixel boxed, and an enlarged close-up of the three to `.build/swiftbook/flakes/<device>`; a run clears only its own device's.
-    - It exits 1 if a comparison could fail on a flaky snapshot. Snapshots that vary only below the comparison threshold are reported (`≈`) and summarized separately, but don't count: Fulbloom's first run reported 3 such Mac snapshots as flaky, which was alarming.
+    - It exits 1 if a comparison could fail on a flaky snapshot. Snapshots that vary only below the comparison threshold are reported (`≈`) and summarized separately, but don't count: the first adopter's first run reported 3 such Mac snapshots as flaky, which was alarming.
     - Precedents: Xcode's test repetition (`-test-iterations`), `go test -count`, Bazel's `--runs_per_test`, pytest-repeat.
   - Checked: the zoo is stable on the Mac (74 snapshots, 5 runs). Its glass canary rendered a second way once in 10 iPhone runs, within comparison tolerance. FaultZoo's new `Flaky` preview, a random number, rendered three ways in six runs, and each variant was located to its text.
   - Not yet: guessing causes, such as glass, progress views, dates, or late changes after settling. Also running in parallel across the pool.
 - [x] **`parallel-devices`**
-  - From Fulbloom: after profiling, its iPhone snapshots were CI's critical path, about 135 s for 394.
+  - From the first adopter: after profiling, its iPhone snapshots were CI's critical path, about 135 s for 394.
   - Done. `swiftbook test` spreads one device's snapshots across pooled simulators (`DeviceRun`).
     - It leases one, waiting if it must, then takes more without waiting, while the remaining work, at the pace so far and shared by the renderers already at it, takes at least twice as long as starting another. That's about 5 s warm and 20 s cold.
     - One queue of story and appearance pairs feeds every renderer, so slow stories even out and late simulators join mid-run. Reports and output are serialized, and results come back in story order for JUnit.
@@ -367,17 +367,17 @@ _(fill in on completion)_
     - The zoo's 72 iPhone snapshots took 37 s on one simulator and 24 s on two, with the second warm. They don't repay a cold one.
   - Not yet: giving extras back when another run is waiting, if starvation shows up; parallel Mac rendering within `swift test`.
 - [x] **`lfs-diagnostics`**
-  - From Fulbloom's feedback: fresh worktrees had Git LFS pointers instead of references.
-  - Done. Every path that reads a reference recognizes pointers, with one message (`git lfs pull`, after `git lfs install`). Recording in any mode refuses to overwrite a pointer; `all` mode used to. `swiftbook test` stops up front with a count instead of failing every snapshot. So does `swift test`: `#SwiftBookTests` adds a "References are images" test that reports the count once, and skips the snapshots while any reference is a pointer. Fulbloom's fresh worktree had hit 157 failures before the message. The viewer badges an unreadable reference with its reason instead of calling the story new.
+  - From the first adopter's feedback: fresh worktrees had Git LFS pointers instead of references.
+  - Done. Every path that reads a reference recognizes pointers, with one message (`git lfs pull`, after `git lfs install`). Recording in any mode refuses to overwrite a pointer; `all` mode used to. `swiftbook test` stops up front with a count instead of failing every snapshot. So does `swift test`: `#SwiftBookTests` adds a "References are images" test that reports the count once, and skips the snapshots while any reference is a pointer. The first adopter's fresh worktree had hit 157 failures before the message. The viewer badges an unreadable reference with its reason instead of calling the story new.
 - [x] **`project-tint`**
-  - From Fulbloom's feedback: previews render outside the app, so they don't get its global accent color, and controls rendered blue where the app is green.
+  - From the first adopter's feedback: previews render outside the app, so they don't get its global accent color, and controls rendered blue where the app is green.
   - Done. A new `SwiftBook` library, with no dependencies besides SwiftUI, declares `SwiftBookConfiguration`. A library conforms one type, and the conformance scan finds it like previews. Every renderer applies its `tint` around every story, and snapshot metadata records it per appearance (`#RRGGBB`, resolved through AppKit or UIKit, since asset colors ignore SwiftUI's environment). A tint change shows in failure messages.
   - **Why a library:** renderers link library products, not test targets, so a `#SwiftBookTests` argument would have reached only Mac `swift test`. The vision now puts rendering settings in library code.
   - **Renamed:** the `swiftbook` executable target is now `SwiftBookMain`, because its module clashed with `SwiftBook`'s on case-insensitive disks. The product and binary are still `swiftbook`.
   - **Tested:** `Fixtures/TintZoo` takes its tint from an asset-catalog `AccentColor`. `tintsEveryStoryWithTheProjectsColor` checks the metadata and a tinted swatch in light and dark. On the Mac, inactive render windows draw prominent buttons without the accent.
   - Not yet: reading the accent from the app target that uses the package.
 - [x] **`glass-comparison`**
-  - From Fulbloom's feedback: Liquid Glass tab bars, search fields, and toolbars differed between runs by more than the noise floor (17 pixels on a tab bar; 5,725 at ΔE 3 on a search field).
+  - From the first adopter's feedback: Liquid Glass tab bars, search fields, and toolbars differed between runs by more than the noise floor (17 pixels on a tab bar; 5,725 at ΔE 3 on a search field).
   - Investigated in [research/liquid-glass-noise.md](research/liquid-glass-noise.md). The simulator's render server draws glass in a few discrete states: dither on or off, a selected tab's lens that toggles indefinitely, and inline or cached shapes. No setting makes it deterministic, and no settle time helps.
   - Done.
     - The iOS and tvOS renderer reports glass regions with each render: visible `CABackdropLayer`s with filters, plus 4 pt, in pixels. They cross the protocol beside the PNG and are never written into references.
@@ -404,7 +404,7 @@ _(fill in on completion)_
   - `git difftool` opens the viewer's comparison mode for PNGs.
 
 **Automated verification:** diff-mode rendering tests against the golden pairs. A live iOS rebuild updates the viewer within budget. The difftool is invoked correctly from a temporary repo.
-**Human validation packet:** a guided tour of each diff mode on real Fulbloom and zoo changes.
+**Human validation packet:** a guided tour of each diff mode on real adopter and zoo changes.
 
 ### Phase 4 retro
 

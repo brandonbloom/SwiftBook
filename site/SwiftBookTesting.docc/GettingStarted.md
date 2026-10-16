@@ -9,11 +9,12 @@ deployment target must be 27 or later. Reference images live in [Git LFS](https:
 
 ### Add the dependency
 
-Pin SwiftBook by revision until there are releases:
+There are no releases yet, so depend on the main branch. `Package.resolved` keeps you on one
+revision until you update it:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/brandonbloom/SwiftBook.git", revision: "<commit>"),
+    .package(url: "https://github.com/brandonbloom/SwiftBook.git", branch: "main"),
 ],
 ```
 

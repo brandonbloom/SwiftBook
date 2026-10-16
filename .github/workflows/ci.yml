@@ -4,8 +4,10 @@ on:
   workflow_dispatch:
 jobs:
   ci:
-    runs-on: macos-latest
+    runs-on: xcode-27  # Xcode 27 (Swift 6.4); macos-latest images stop at Xcode 26.
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true  # References and the website's figures.
       - uses: jdx/mise-action@v2
       - run: mise run ci

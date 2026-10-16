@@ -1,0 +1,32 @@
+# Publishes the website and documentation to GitHub Pages, under /SwiftBook.
+name: docs
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: xcode-27  # Xcode 27 (Swift 6.4); macos-latest images stop at Xcode 26.
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true  # References and the website's figures.
+      - uses: jdx/mise-action@v2
+      - run: mise run site-build
+        env:
+          SWIFTBOOK_SITE_BASE: SwiftBook
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .build/site
+      - id: deployment
+        uses: actions/deploy-pages@v4

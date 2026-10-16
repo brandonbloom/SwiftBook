@@ -37,8 +37,8 @@ The `swiftbook` command tests the other devices, compares references against any
 git, and opens the viewer: a Mac app you leave open, which shows every story and redraws as your
 code compiles.
 
-> Important: SwiftBook is early and private. Interfaces may change, and there are no tagged
-> releases yet.
+> Important: SwiftBook is a preview release. Interfaces change without notice, and there are no
+> tagged releases yet.
 
 ## Topics
 

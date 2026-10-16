@@ -19,7 +19,7 @@ Confidence markers:
 5. Git / GitHub / LFS-aware local diffing.
 6. CI-friendly build integration and CLI.
 
-Plus the concrete requirements of the first consumer, Fulbloom Finance (see [First consumer](#first-consumer-fulbloom-finance)).
+Plus the concrete requirements of the first consumer (see [First consumer](#first-consumer)).
 
 ---
 
@@ -459,7 +459,7 @@ The runtime scan itself (finding `PreviewRegistry` types and calling `makePrevie
   - simulator model and OS
 - Disable animations, freeze spinners, and wait for idle (or for two identical consecutive captures, as Playwright does) instead of fixed delays.
 - Encode the rendering environment in reference paths or names (platform, OS, scale), and fail with a readable message on mismatch.
-- Known macOS offscreen artifacts (from Fulbloom):
+- Known macOS offscreen artifacts (from the first consumer):
   - A selected `List` row in a sidebar renders solid black.
   - A `Menu` label containing a colored `Circle` renders blank inside a sidebar `List`.
 
@@ -481,21 +481,21 @@ The runtime scan itself (finding `PreviewRegistry` types and calling `makePrevie
 
 ---
 
-## First consumer: Fulbloom Finance
+## First consumer
 
-Shared by the Fulbloom Finance session, at Brandon's request.
+A private app, the first to adopt SwiftBook.
 
 ### Project shape
 
-- A macOS SwiftUI app at `/Users/bbloom/Projects/FulbloomFinance`.
-- A SwiftPM package (`FBFKit`, `FBFUI`, `FBFFixtures`) plus a thin Xcode project.
+- A macOS SwiftUI app.
+- A SwiftPM package (model, UI, and fixture modules) plus a thin Xcode project.
 - Swift tools 6.4, macOS 27, Swift 6 strict concurrency.
 - CI fails on any warning and runs `swift format lint --strict`.
 
 ### Story source
 
 - Plain `#Preview` blocks inside `#if DEBUG` at the bottom of each view file. For example:
-  `#Preview("AccountList (empty)", traits: .fixedLayout(width: 420, height: 640)) { let f = Fixtures.named("empty")!; AccountList(…) }`
+  `#Preview("ItemList (empty)", traits: .fixedLayout(width: 420, height: 640)) { let f = Fixtures.named("empty")!; ItemList(…) }`
 - Bodies contain `let` statements.
 - 29 previews across 7 files.
 - **Nothing beyond the `#Preview` block**: no registry, no wrappers, no repeated names.
@@ -525,7 +525,7 @@ Recording into `Tests/<Target>/__Snapshots__/` under `swift test` needed no sand
 
 ### Integration
 
-Fulbloom pins packages by exact revision and resolves in CI with `--force-resolved-versions`.
+It pins packages by exact revision and resolves in CI with `--force-resolved-versions`.
 
 ---
 

@@ -39,13 +39,13 @@
 
         @Test func matchesStoriesToChangedSourceFiles() {
             let story = StoryInfo(
-                id: StoryID(module: "FBFUI", group: "Card", name: "Card"),
-                fileID: "FBFUI/Card.swift")
-            #expect(History.sourceChanged(story, in: ["Sources/FBFUI/Views/Card.swift"]))
+                id: StoryID(module: "MyUI", group: "Card", name: "Card"),
+                fileID: "MyUI/Card.swift")
+            #expect(History.sourceChanged(story, in: ["Sources/MyUI/Views/Card.swift"]))
             #expect(!History.sourceChanged(story, in: ["Sources/Other/Card.swift"]))
-            #expect(!History.sourceChanged(story, in: ["Sources/FBFUI/Cards.swift"]))
+            #expect(!History.sourceChanged(story, in: ["Sources/MyUI/Cards.swift"]))
             #expect(
-                !History.sourceChanged(StoryInfo(id: story.id), in: ["Sources/FBFUI/Card.swift"]))
+                !History.sourceChanged(StoryInfo(id: story.id), in: ["Sources/MyUI/Card.swift"]))
         }
 
         @Test func comparesRendersWithReferences() {

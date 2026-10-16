@@ -30,7 +30,7 @@
         }
 
         @Test func startsAnotherSimulatorOnlyWhenItPays() {
-            // Fulbloom's iPhone run: 394 snapshots at about 0.34 s each.
+            // An adopter's iPhone run: 394 snapshots at about 0.34 s each.
             #expect(
                 DeviceRun.worthStarting(remaining: 390, perItem: 0.34, renderers: 1, warm: false))
             // The zoo's: 72 at the same pace repays a booted simulator, not a cold one.
