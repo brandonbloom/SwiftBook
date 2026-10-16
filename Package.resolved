@@ -1,5 +1,5 @@
 {
-  "originHash" : "8b427ddb894abb5649ca2857d301e9323dfbae3fbd01220cf1ea4b7fada23e36",
+  "originHash" : "f8f5a8eef0a4888bb0616e5f138bdf770dc871d403279c76402467fce2d01cc4",
   "pins" : [
     {
       "identity" : "swift-argument-parser",
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/brandonbloom/Swiftpothesis.git",
       "state" : {
-        "revision" : "a995090a136cbdad9051e51b519e4b9a261b147c",
-        "version" : "0.1.0"
+        "revision" : "85da7bc1e9f8e683a59b193a881597d0211ef74f",
+        "version" : "0.1.1"
       }
     }
   ],

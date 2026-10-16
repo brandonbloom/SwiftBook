@@ -117,14 +117,13 @@ import Testing
     /// Pairs that shrink toward smaller images, plainer colors, and fewer repainted pixels.
     /// Colors come mostly from a few, so flat regions and anti-aliasing-like edges are common.
     static var pairs: some Generator<ImagePair> {
-        zip(Int.arbitrary(in: 1...6), Int.arbitrary(in: 1...6)).map { ($0, $1) }.flatMap { size in
-            let (width, height) = size
+        zip(Int.arbitrary(in: 1...6), Int.arbitrary(in: 1...6)).flatMap { width, height in
             let color = oneOf(
                 element(
                     of: [[255, 255, 255], [0, 0, 0], [128, 128, 128], [255, 0, 0]] as [[UInt8]]),
                 [UInt8].arbitrary(UInt8.arbitrary, count: 3...3))
-            let edit = Swiftpothesis.zip(Int.arbitrary(in: 0...(width * height - 1)), color)
-            return Swiftpothesis.zip(
+            let edit = zip(Int.arbitrary(in: 0...(width * height - 1)), color)
+            return zip(
                 [[UInt8]].arbitrary(color, count: (width * height)...(width * height)),
                 [(Int, [UInt8])].arbitrary(edit, count: 0...8)
             ).map { colors, edits in
