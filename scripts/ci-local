@@ -8,6 +8,7 @@ cd "$SWIFTBOOK_HOME"
 scripts/ci
 export SWIFTBOOK_STRICT=1
 
+# The suites scripts/ci skips, in parallel: Macs with more cores don't deadlock.
 swift test --skip-build --quiet --filter "$(cat scripts/ui-suites)"
 # The zoo's tests exercise SwiftBook as a consuming package would. Its manifest treats warnings as
 # errors. CI never records references: a missing one fails instead of being written. It renders

@@ -9,7 +9,7 @@ SwiftBook's checks come in two tiers, because most of what it tests needs a real
 | `mise run ci` | Style, a warning-free build, the tests that need no window server, renderer, or simulator, and iOS and tvOS builds | GitHub Actions on every pull request; anywhere |
 | `mise run ci-local` | `ci`, then the suites in `scripts/ui-suites`, the zoo's snapshots on every device, the viewer, and edit-to-render latency | A Mac with a logged-in, unlocked display |
 
-`scripts/ui-suites` lists, as one `swift test --filter` pattern, the suites that `ci` skips. Add a suite to it when it renders, captures, opens windows, builds a renderer, or depends on timing that a slow, shared runner can't keep. Hosted macOS runners have three cores. Run in parallel there, those suites deadlock, and they render differently from the committed references.
+`scripts/ui-suites` lists, as one `swift test --filter` pattern, the suites that `ci` skips. Add a suite to it when it renders, captures, opens windows, builds a renderer, or depends on timing that a slow, shared runner can't keep. Hosted macOS runners have three cores and no logged-in display, and there those suites render differently from the committed references. `ci` also runs its tests serially, because on hosted runners the test suites deadlock when run in parallel. The cause is unknown.
 
 ## Before landing
 

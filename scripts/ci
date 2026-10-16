@@ -13,7 +13,8 @@ export SWIFTBOOK_STRICT=1
 git ls-files -z '*.swift' | xargs -0 swift format lint --strict --parallel
 # Resolve only from Package.resolved, so a moved tag upstream can't change what builds.
 swift build --build-tests --force-resolved-versions
-swift test --skip-build --quiet --skip "$(cat scripts/ui-suites)"
+# Serially: on three-core hosted runners, these suites deadlock when run in parallel.
+swift test --skip-build --quiet --no-parallel --skip "$(cat scripts/ui-suites)"
 # Everything must also build for the simulator platforms, warning-free. SWIFTBOOK_STRICT makes our
 # targets' warnings errors; a global SWIFT_TREAT_WARNINGS_AS_ERRORS would clash with dependencies
 # that suppress theirs. Each entry is "<package dir>:<scheme>"; a package with several products gets
