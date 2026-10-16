@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import Swiftpothesis
 import Testing
 
 @testable import SwiftBookCore
@@ -87,6 +88,138 @@ import Testing
             expected: dithered, actual: glass(dithered: false, block: (50, 15)), glass: everywhere)
         #expect(!changed.matches)
         #expect(changed.changedPixels >= 80)
+    }
+
+    /// A small opaque image and a copy with a few pixels repainted.
+    struct ImagePair: Sendable, CustomStringConvertible {
+        var width: Int
+        var height: Int
+        var expected: [UInt8]
+        var actual: [UInt8]
+
+        var expectedImage: CGImage {
+            Bitmap(width: width, height: height, pixels: expected).image()!
+        }
+        var actualImage: CGImage { Bitmap(width: width, height: height, pixels: actual).image()! }
+
+        /// The indices of the pixels that differ.
+        var differing: [Int] {
+            (0..<width * height).filter {
+                expected[$0 * 4..<$0 * 4 + 4] != actual[$0 * 4..<$0 * 4 + 4]
+            }
+        }
+
+        var description: String {
+            "\(width)×\(height), \(differing.count) differing at \(differing)"
+        }
+    }
+
+    /// Pairs that shrink toward smaller images, plainer colors, and fewer repainted pixels.
+    /// Colors come mostly from a few, so flat regions and anti-aliasing-like edges are common.
+    static var pairs: some Generator<ImagePair> {
+        zip(Int.arbitrary(in: 1...6), Int.arbitrary(in: 1...6)).map { ($0, $1) }.flatMap { size in
+            let (width, height) = size
+            let color = oneOf(
+                element(
+                    of: [[255, 255, 255], [0, 0, 0], [128, 128, 128], [255, 0, 0]] as [[UInt8]]),
+                [UInt8].arbitrary(UInt8.arbitrary, count: 3...3))
+            let edit = Swiftpothesis.zip(Int.arbitrary(in: 0...(width * height - 1)), color)
+            return Swiftpothesis.zip(
+                [[UInt8]].arbitrary(color, count: (width * height)...(width * height)),
+                [(Int, [UInt8])].arbitrary(edit, count: 0...8)
+            ).map { colors, edits in
+                let expected: [UInt8] = colors.flatMap { $0 + [255] }
+                var actual = expected
+                for (index, rgb) in edits {
+                    actual.replaceSubrange(index * 4..<index * 4 + 3, with: rgb)
+                }
+                return ImagePair(width: width, height: height, expected: expected, actual: actual)
+            }
+        }
+    }
+
+    @Test func everyImageMatchesItself() async {
+        await forAll(Self.pairs) { pair in
+            let diff = try ImageDiff.compare(expected: pair.actualImage, actual: pair.actualImage)
+            #expect(diff.isIdentical)
+            #expect(diff.matches)
+            #expect(diff.changedPixels == 0)
+            #expect(diff.image == nil)
+        }
+    }
+
+    @Test func onlyDifferingPixelsCount() async {
+        await forAll(Self.pairs) { pair in
+            let diff = try ImageDiff.compare(expected: pair.expectedImage, actual: pair.actualImage)
+            let differing = pair.differing
+            #expect(diff.changedPixels + diff.antialiasedPixels <= differing.count)
+            #expect(diff.isIdentical == differing.isEmpty)
+            // Changes lie within the pixels that differ.
+            if let bounds = diff.changedBounds {
+                let xs = differing.map { $0 % pair.width }
+                let ys = differing.map { $0 / pair.width }
+                #expect(bounds.minX >= CGFloat(xs.min()!) && bounds.maxX <= CGFloat(xs.max()! + 1))
+                #expect(bounds.minY >= CGFloat(ys.min()!) && bounds.maxY <= CGFloat(ys.max()! + 1))
+            }
+        }
+    }
+
+    @Test func comparisonIsSymmetric() async {
+        await forAll(Self.pairs) { pair in
+            let forward = try ImageDiff.compare(
+                expected: pair.expectedImage, actual: pair.actualImage)
+            let backward = try ImageDiff.compare(
+                expected: pair.actualImage, actual: pair.expectedImage)
+            #expect(forward.changedPixels == backward.changedPixels)
+            #expect(forward.antialiasedPixels == backward.antialiasedPixels)
+            #expect(forward.changedBounds == backward.changedBounds)
+        }
+    }
+
+    @Test func aLooserToleranceNeverAddsChanges() async {
+        await forAll(Self.pairs, Double.arbitrary(in: 0...30), Double.arbitrary(in: 0...30)) {
+            pair, a, b in
+            var strict = ImageDiff.Tolerance()
+            strict.deltaE = min(a, b)
+            var loose = strict
+            loose.deltaE = max(a, b)
+            let (expected, actual) = (pair.expectedImage, pair.actualImage)
+            let strictDiff = try ImageDiff.compare(
+                expected: expected, actual: actual, tolerance: strict)
+            let looseDiff = try ImageDiff.compare(
+                expected: expected, actual: actual, tolerance: loose)
+            #expect(looseDiff.changedPixels <= strictDiff.changedPixels)
+            #expect(!strictDiff.matches || looseDiff.matches)
+        }
+    }
+
+    @Test func glassOnlyTurnsChangesIntoNoise() async {
+        let rects = zip(
+            Int.arbitrary(in: 0...6), Int.arbitrary(in: 0...6), Int.arbitrary(in: 0...6),
+            Int.arbitrary(in: 0...6)
+        ).map { ImageDiff.PixelRect(x: $0, y: $1, width: $2, height: $3) }
+        await forAll(Self.pairs, [ImageDiff.PixelRect].arbitrary(rects, count: 0...3)) {
+            pair, glass in
+            let (expected, actual) = (pair.expectedImage, pair.actualImage)
+            let plain = try ImageDiff.compare(expected: expected, actual: actual)
+            let glassy = try ImageDiff.compare(expected: expected, actual: actual, glass: glass)
+            #expect(glassy.changedPixels + glassy.glassNoisePixels == plain.changedPixels)
+            #expect(glassy.antialiasedPixels == plain.antialiasedPixels)
+            #expect(!plain.matches || glassy.matches)
+        }
+    }
+
+    @Test func colorDifferenceIsADistance() async {
+        let rgb = zip(
+            Double.arbitrary(in: 0...255), Double.arbitrary(in: 0...255),
+            Double.arbitrary(in: 0...255)
+        ).map { ($0, $1, $2) }
+        await forAll(rgb, rgb) { a, b in
+            #expect(ColorMath.deltaE2000(a, a) == 0)
+            let forward = ColorMath.deltaE2000(a, b)
+            #expect(forward.isFinite && forward >= 0)
+            #expect(abs(forward - ColorMath.deltaE2000(b, a)) < 1e-9)
+        }
     }
 
     @Test func identicalImagesMatchExactly() throws {

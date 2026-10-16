@@ -26,6 +26,8 @@ let package = Package(
         // The major version tracks the Swift release; accept every release consumers might pin.
         .package(url: "https://github.com/swiftlang/swift-syntax.git", "600.0.0"..<"605.0.0"),
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.5.0"),
+        // Tests only. Every 0.x release may change alpha features, so pin exactly.
+        .package(url: "https://github.com/brandonbloom/Swiftpothesis.git", exact: "0.1.0"),
     ],
     targets: [
         .target(name: "SwiftBook", swiftSettings: strict),
@@ -56,12 +58,20 @@ let package = Package(
         .executableTarget(
             name: "SwiftBookViewer", dependencies: ["SwiftBookCore"], swiftSettings: strict),
         .testTarget(
-            name: "SwiftBookCoreTests", dependencies: ["SwiftBookCore"], swiftSettings: strict),
+            name: "SwiftBookCoreTests",
+            dependencies: [
+                "SwiftBookCore", .product(name: "Swiftpothesis", package: "Swiftpothesis"),
+            ],
+            swiftSettings: strict),
         .testTarget(
             name: "SwiftBookViewerTests", dependencies: ["SwiftBookViewer", "SwiftBookCore"],
             swiftSettings: strict),
         .testTarget(
-            name: "SwiftBookCLITests", dependencies: ["SwiftBookCLI", "SwiftBookCore"],
+            name: "SwiftBookCLITests",
+            dependencies: [
+                "SwiftBookCLI", "SwiftBookCore",
+                .product(name: "Swiftpothesis", package: "Swiftpothesis"),
+            ],
             swiftSettings: strict),
         .testTarget(
             name: "SwiftBookMacrosTests",

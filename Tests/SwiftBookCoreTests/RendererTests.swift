@@ -1,6 +1,7 @@
 #if os(macOS)
     import Foundation
     import SwiftUI
+    import Swiftpothesis
     import Testing
 
     @testable import SwiftBookCore
@@ -23,14 +24,28 @@
             return url
         }
 
-        @Test func roundTripsTheRenderEnvironment() throws {
-            var environment = RenderEnvironment()
-            environment.appearance = .dark
-            environment.dynamicTypeSize = .accessibility3
-            environment.layoutDirection = .rightToLeft
-            environment.localeIdentifier = "ar"
-            let data = try JSONEncoder().encode(environment)
-            #expect(try JSONDecoder().decode(RenderEnvironment.self, from: data) == environment)
+        @Test func roundTripsTheRenderEnvironment() async {
+            let finite = Double.arbitrary(allowNaN: false, allowInfinity: false)
+            let environments = zip(
+                element(of: RenderEnvironment.Appearance.allCases), finite, String.arbitrary,
+                String.arbitrary, element(of: DynamicTypeSize.allCases),
+                element(of: [LayoutDirection.leftToRight, .rightToLeft]), finite, finite
+            ).map { appearance, scale, locale, timeZone, size, direction, width, height in
+                var environment = RenderEnvironment()
+                environment.appearance = appearance
+                environment.scale = scale
+                environment.localeIdentifier = locale
+                environment.timeZoneIdentifier = timeZone
+                environment.dynamicTypeSize = size
+                environment.layoutDirection = direction
+                environment.deviceWidth = width
+                environment.deviceHeight = height
+                return environment
+            }
+            await forAll(environments) { environment in
+                let data = try JSONEncoder().encode(environment)
+                #expect(try JSONDecoder().decode(RenderEnvironment.self, from: data) == environment)
+            }
         }
 
         @Test func answersRequestsInOrder() throws {

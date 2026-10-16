@@ -1,5 +1,8 @@
-import SwiftBookCore
+import Foundation
+import Swiftpothesis
 import Testing
+
+@testable import SwiftBookCore
 
 @Suite struct StoryIDTests {
     @Test func namedStoriesKeepTheirNames() {
@@ -46,6 +49,58 @@ import Testing
     @Test func groupsThatWouldShareADirectoryNumberTheirStories() {
         let ids = StoryID.assign([("M", "Row", nil), ("M", "row", nil)])
         #expect(ids.map(\.description) == ["M/Row/Row", "M/row/row 2"])
+    }
+
+    /// Short names from characters that collide in file names: case, characters that become `_`,
+    /// trailing dots and spaces, and composed and decomposed accents.
+    static var names: some Generator<String> {
+        String.arbitrary(
+            element(of: Array("aA_:?. e\u{E9}\u{301}".unicodeScalars)), count: 0...3)
+    }
+
+    /// Stories in a few groups, some unnamed.
+    static var stories: some Generator<[(module: String, group: String, displayName: String?)]> {
+        [(module: String, group: String, displayName: String?)].arbitrary(
+            zip(element(of: ["M", "m"]), element(of: ["G", "g", "G:"]), String?.arbitrary(names))
+                .map { (module: $0, group: $1, displayName: $2) },
+            count: 0...8)
+    }
+
+    @Test func storiesNeverShareAReference() async {
+        let store = SnapshotStore(root: URL(filePath: "/Snapshots", directoryHint: .isDirectory))
+        await forAll(Self.stories) { stories in
+            let paths = StoryID.assign(stories).map {
+                store.url(for: $0, device: .mac, environment: RenderEnvironment()).path
+                    .decomposedStringWithCanonicalMapping.lowercased()
+            }
+            #expect(Set(paths).count == paths.count)
+        }
+    }
+
+    @Test func storiesWhoseReferencesWouldntCollideKeepTheirIDs() async {
+        // Numbering only exact repeats, as assign did before it considered file names.
+        func exact(_ stories: [(module: String, group: String, displayName: String?)])
+            -> [StoryID]
+        {
+            var taken: Set<StoryID> = []
+            return stories.map { story in
+                let base = story.displayName ?? story.group
+                var candidate = StoryID(module: story.module, group: story.group, name: base)
+                var ordinal = 1
+                while taken.contains(candidate) {
+                    ordinal += 1
+                    candidate = StoryID(
+                        module: story.module, group: story.group, name: "\(base) \(ordinal)")
+                }
+                taken.insert(candidate)
+                return candidate
+            }
+        }
+        await forAll(Self.stories) { stories in
+            let before = exact(stories)
+            try assume(Set(before.map(\.pathKey)).count == before.count)
+            #expect(StoryID.assign(stories) == before)
+        }
     }
 
     @Test func groupsAndModulesAreNumberedIndependently() {

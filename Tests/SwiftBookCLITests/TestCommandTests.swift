@@ -1,6 +1,7 @@
 #if os(macOS)
     import Foundation
     import SwiftBookCore
+    import Swiftpothesis
     import Testing
 
     @testable import SwiftBookCLI
@@ -49,6 +50,26 @@
             #expect(
                 xml.contains(#"<failure message="doesn't match">doesn't match\#ndetails</failure>"#)
             )
+        }
+
+        @Test func shellQuotingSurvivesTheShell() async {
+            // Arguments can't hold NUL.
+            let text = String.arbitrary(Unicode.Scalar.arbitrary.filter { $0 != "\0" })
+            await forAll(text) { text in
+                let process = Process()
+                process.executableURL = URL(filePath: "/bin/sh")
+                process.arguments = [
+                    "-c",
+                    #"set -- "# + TestCommand.Results.shellQuoted(text)
+                        + #"; printf '%s:%s' "$#" "$1""#,
+                ]
+                let output = Pipe()
+                process.standardOutput = output
+                try process.run()
+                let data = output.fileHandleForReading.readDataToEndOfFile()
+                process.waitUntilExit()
+                #expect(String(decoding: data, as: UTF8.self) == "1:\(text)")
+            }
         }
 
         @Test func summarizesTheFailures() {
