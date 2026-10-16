@@ -46,7 +46,7 @@ The [documentation](https://www.brandonbloom.name/SwiftBook/docs/documentation/s
 
 ## Contributing
 
-The project uses [mise](https://mise.jdx.dev). `mise run ci` runs everything that must pass before a change lands. [docs/](docs/) holds the vision, plan, and research behind the design.
+The project uses [mise](https://mise.jdx.dev). `mise run ci` runs the checks GitHub Actions runs, and `mise run ci-local` runs everything, including rendering and simulators, on your Mac; [AGENTS.md](AGENTS.md) says when each is needed. [docs/](docs/) holds the vision, plan, and research behind the design.
 
 ## License
 

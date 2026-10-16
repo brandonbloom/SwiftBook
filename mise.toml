@@ -17,8 +17,12 @@ description = "Run the test suite"
 run = "swift test"
 
 [tasks.ci]
-description = "Run everything that must pass before a change lands"
+description = "Run the checks GitHub Actions runs: style, build, and UI-free tests"
 run = "scripts/ci"
+
+[tasks.ci-local]
+description = "Run every check, including rendering, simulators, and the viewer, on this Mac"
+run = "scripts/ci-local"
 
 [tasks.latency]
 description = "Report edit-to-render latency on the zoo, per device"

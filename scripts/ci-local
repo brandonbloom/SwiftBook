@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Everything that must pass before a release: scripts/ci, then what hosted runners can't do, on a
+# Mac with a logged-in display. That's the tests that render, capture, or drive the viewer, the zoo's
+# snapshots on every device, and the viewer itself. See AGENTS.md.
+set -euo pipefail
+: "${SWIFTBOOK_HOME:?}"
+cd "$SWIFTBOOK_HOME"
+scripts/ci
+export SWIFTBOOK_STRICT=1
+
+swift test --skip-build --quiet --filter "$(cat scripts/ui-suites)"
+# The zoo's tests exercise SwiftBook as a consuming package would. Its manifest treats warnings as
+# errors. CI never records references: a missing one fails instead of being written. It renders
+# emulated, which works with the screen locked, without Screen Recording.
+SWIFTBOOK_RECORD=never SWIFTBOOK_CAPTURE=emulated swift test --package-path Fixtures/PreviewZoo --force-resolved-versions --quiet
+# The zoo's iPhone, iPad, and Apple TV references, rendered in SwiftBook's own simulators.
+swiftbook="$(swift build --show-bin-path)/swiftbook"
+(cd Fixtures/PreviewZoo && "$swiftbook" test --device iphone --device ipad --device tv --record never)
+# The viewer opens on the zoo, finds its stories, and renders one. It draws its window to a PNG
+# and describes what it shows in JSON beside it, then quits.
+snapshot="$(mktemp -d)/viewer.png"
+# A hung viewer fails after two minutes instead of stalling CI.
+SWIFTBOOK_PACKAGE="$SWIFTBOOK_HOME/Fixtures/PreviewZoo" SWIFTBOOK_VIEWER_SNAPSHOT="$snapshot" \
+  perl -e 'alarm 120; exec @ARGV' "$(swift build --show-bin-path)/swiftbook-viewer" >/dev/null 2>&1 || true
+grep -q '"status":"ready"' "${snapshot%.png}.json" && grep -q '"render":"image' "${snapshot%.png}.json" || {
+  echo "ci-local: the viewer didn't render the zoo: $(cat "${snapshot%.png}.json" 2>/dev/null)" >&2
+  exit 1
+}
+# The main thread never stalls for long: the viewer keeps responding while it builds and renders.
+stall="$(grep -o '"longestStall":[0-9]*' "${snapshot%.png}.json" | cut -d: -f2)"
+[ "$stall" -lt 500 ] || { echo "ci-local: the viewer's main thread stalled for $stall ms" >&2; exit 1; }
+# How long an edit takes to reach a new render, for the record.
+scripts/latency mac iphone
+echo "ci-local: ok"

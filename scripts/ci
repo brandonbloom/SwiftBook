@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Everything that must pass before a change lands. Runs identically locally and in GitHub Actions.
+# What GitHub Actions checks on its hosted runners: style, a warning-free build, the tests that need
+# no window server, renderer, or simulator, and builds for the simulator platforms. scripts/ci-local
+# runs this and everything else; see AGENTS.md.
 set -euo pipefail
 : "${SWIFTBOOK_HOME:?}"
 cd "$SWIFTBOOK_HOME"
@@ -11,29 +13,7 @@ export SWIFTBOOK_STRICT=1
 git ls-files -z '*.swift' | xargs -0 swift format lint --strict --parallel
 # Resolve only from Package.resolved, so a moved tag upstream can't change what builds.
 swift build --build-tests --force-resolved-versions
-swift test --skip-build --quiet
-# The zoo's tests exercise SwiftBook as a consuming package would. Its manifest treats warnings as
-# errors. CI never records references: a missing one fails instead of being written. It renders
-# emulated, which works with the screen locked and on hosted runners, without Screen Recording.
-SWIFTBOOK_RECORD=never SWIFTBOOK_CAPTURE=emulated swift test --package-path Fixtures/PreviewZoo --force-resolved-versions --quiet
-# The zoo's iPhone, iPad, and Apple TV references, rendered in SwiftBook's own simulators.
-swiftbook="$(swift build --show-bin-path)/swiftbook"
-(cd Fixtures/PreviewZoo && "$swiftbook" test --device iphone --device ipad --device tv --record never)
-# The viewer opens on the zoo, finds its stories, and renders one. It draws its window to a PNG
-# and describes what it shows in JSON beside it, then quits.
-snapshot="$(mktemp -d)/viewer.png"
-# A hung viewer fails after two minutes instead of stalling CI.
-SWIFTBOOK_PACKAGE="$SWIFTBOOK_HOME/Fixtures/PreviewZoo" SWIFTBOOK_VIEWER_SNAPSHOT="$snapshot" \
-  perl -e 'alarm 120; exec @ARGV' "$(swift build --show-bin-path)/swiftbook-viewer" >/dev/null 2>&1 || true
-grep -q '"status":"ready"' "${snapshot%.png}.json" && grep -q '"render":"image' "${snapshot%.png}.json" || {
-  echo "ci: the viewer didn't render the zoo: $(cat "${snapshot%.png}.json" 2>/dev/null)" >&2
-  exit 1
-}
-# The main thread never stalls for long: the viewer keeps responding while it builds and renders.
-stall="$(grep -o '"longestStall":[0-9]*' "${snapshot%.png}.json" | cut -d: -f2)"
-[ "$stall" -lt 500 ] || { echo "ci: the viewer's main thread stalled for $stall ms" >&2; exit 1; }
-# How long an edit takes to reach a new render, for the record.
-scripts/latency mac iphone
+swift test --skip-build --quiet --skip "$(cat scripts/ui-suites)"
 # Everything must also build for the simulator platforms, warning-free. SWIFTBOOK_STRICT makes our
 # targets' warnings errors; a global SWIFT_TREAT_WARNINGS_AS_ERRORS would clash with dependencies
 # that suppress theirs. Each entry is "<package dir>:<scheme>"; a package with several products gets
