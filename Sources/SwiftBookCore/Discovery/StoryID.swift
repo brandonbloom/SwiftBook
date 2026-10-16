@@ -1,3 +1,5 @@
+import Foundation
+
 /// A story's stable identity: its module, its file (or `PreviewProvider` type), and its name.
 ///
 /// Identities survive moving a preview within its file. They change when the preview is renamed,
@@ -22,21 +24,33 @@ public struct StoryID: Hashable, Sendable, CustomStringConvertible {
     /// Unnamed stories take their group's name, as Xcode's canvas labels them. Within a group, the
     /// second story with a given name gets " 2" appended, the third " 3", and so on. Xcode
     /// disambiguates by line number instead, which changes whenever code moves.
+    ///
+    /// Names count as the same when their references would share a path on a case- and
+    /// normalization-insensitive disk, such as `Dark` and `dark`, or `Row:` and `Row?`.
     public static func assign(_ stories: [(module: String, group: String, displayName: String?)])
         -> [StoryID]
     {
-        var taken: Set<StoryID> = []
+        var taken: Set<[String]> = []
         return stories.map { story in
             let base = story.displayName ?? story.group
             var candidate = StoryID(module: story.module, group: story.group, name: base)
             var ordinal = 1
-            while taken.contains(candidate) {
+            while taken.contains(candidate.pathKey) {
                 ordinal += 1
                 candidate = StoryID(
                     module: story.module, group: story.group, name: "\(base) \(ordinal)")
             }
-            taken.insert(candidate)
+            taken.insert(candidate.pathKey)
             return candidate
+        }
+    }
+
+    /// The components of this story's reference directory, as a case- and
+    /// normalization-insensitive disk such as APFS compares them.
+    var pathKey: [String] {
+        [module, group, name].map {
+            SnapshotStore.fileName($0).decomposedStringWithCanonicalMapping.folding(
+                options: .caseInsensitive, locale: nil)
         }
     }
 

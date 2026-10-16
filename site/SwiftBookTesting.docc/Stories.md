@@ -16,7 +16,8 @@ A story's ID is `Module/Group/Name`:
 - **Module** is the Swift module the preview is in.
 - **Group** is the name of its source file, without the extension.
 - **Name** is the preview's name. Unnamed previews take the group's name, and repeated names get
-  " 2", " 3", and so on.
+  " 2", " 3", and so on. Names count as repeated when their references would share a file:
+  `Dark` and `dark`, or `Row:` and `Row?`, since `:` and `?` both become `_` in file names.
 
 So in `MyUI/Card.swift`:
 

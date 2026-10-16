@@ -30,6 +30,24 @@ import Testing
         #expect(ids.map(\.name) == ["F 2", "F", "F 3"])
     }
 
+    @Test func namesThatWouldShareAReferenceAreNumbered() {
+        let ids = StoryID.assign([
+            ("M", "G", "Dark"), ("M", "G", "dark"), ("M", "G", "Row:"), ("M", "G", "Row?"),
+            ("M", "G", "Card."), ("M", "G", "Card"), ("M", "G", "Caf\u{E9}"),
+            ("M", "G", "Cafe\u{301}"),
+        ])
+        #expect(
+            ids.map(\.name) == [
+                "Dark", "dark 2", "Row:", "Row? 2", "Card.", "Card 2", "Caf\u{E9}",
+                "Cafe\u{301} 2",
+            ])
+    }
+
+    @Test func groupsThatWouldShareADirectoryNumberTheirStories() {
+        let ids = StoryID.assign([("M", "Row", nil), ("M", "row", nil)])
+        #expect(ids.map(\.description) == ["M/Row/Row", "M/row/row 2"])
+    }
+
     @Test func groupsAndModulesAreNumberedIndependently() {
         let ids = StoryID.assign([("M", "A", nil), ("M", "B", nil), ("N", "A", nil)])
         #expect(ids.map(\.description) == ["M/A/A", "M/B/B", "N/A/A"])
