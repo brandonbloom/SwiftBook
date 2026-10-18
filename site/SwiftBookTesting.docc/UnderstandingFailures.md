@@ -82,4 +82,4 @@ tightening tolerance, re-record with `SWIFTBOOK_RECORD=all`.
 - <doc:Capture>
 
 <!-- sources: Sources/SwiftBookCore/Diff Sources/SwiftBookCore/Storage/SnapshotReport.swift Sources/SwiftBookCLI/TestCommand.swift Sources/SwiftBookCLI/DeviceRun.swift -->
-<!-- checked: 2bc9529 -->
+<!-- checked: 10b6ab0 -->

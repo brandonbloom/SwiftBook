@@ -73,4 +73,4 @@ asynchronously, and animations that don't start from a fixed state.
 - <doc:Capture>
 
 <!-- sources: Sources/SwiftBookCore/Rendering Sources/SwiftBookTesting Sources/SwiftBookCLI/FlakesCommand.swift -->
-<!-- checked: 2bc9529 -->
+<!-- checked: 10b6ab0 -->

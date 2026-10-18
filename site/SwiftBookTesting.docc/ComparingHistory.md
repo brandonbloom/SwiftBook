@@ -49,4 +49,4 @@ swift run swiftbook diff main --merge-base --export changes.html
 - <doc:ContinuousIntegration>
 
 <!-- sources: Sources/SwiftBookCLI/DiffCommand.swift Sources/SwiftBookCore/Git Sources/SwiftBookCore/Storage/ReferenceChanges.swift -->
-<!-- checked: 2bc9529 -->
+<!-- checked: 10b6ab0 -->
