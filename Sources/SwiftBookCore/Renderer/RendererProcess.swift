@@ -252,6 +252,7 @@
 
             /// Samples the process's threads for two seconds into a file, and returns it.
             func sample() -> URL? {
+                guard isRunning() else { return nil }
                 let file = FileManager.default.temporaryDirectory.appending(
                     path: "swiftbook-renderer-\(pid)-\(UUID().uuidString.prefix(8)).sample.txt")
                 guard
@@ -284,9 +285,14 @@
 
             /// An app process the simulator launched. It isn't this process's child, so its exit
             /// status is unknown; its standard error goes to `errorLog`.
+            ///
+            /// Once it exits, macOS can give its pid to another process, so this checks that the
+            /// pid still names the app before signalling it. Otherwise stopping a renderer that
+            /// had already exited could kill an unrelated process.
             init(pid: pid_t, errorLog: URL) {
                 self.pid = pid
-                let isRunning: @Sendable () -> Bool = { kill(pid, 0) == 0 || errno == EPERM }
+                let identity = ProcessIdentity(pid: pid)
+                let isRunning: @Sendable () -> Bool = { identity?.isRunning == true }
                 self.isRunning = isRunning
                 stop = { grace in Child.stop(pid: pid, grace: grace, isRunning: isRunning) }
                 exitDescription = { "app exited" }
