@@ -53,6 +53,7 @@ public struct SnapshotReport: Sendable {
         let message: String
         let kind: ReviewEntry.Kind
         var images: [ReviewEntry.Image] = []
+        var region: ImageDiff.PixelRect?
         var severity = Severity.failure
         let artifacts: Artifacts
         switch verification {
@@ -70,6 +71,7 @@ public struct SnapshotReport: Sendable {
                 subject: subject, reference: Self.relative(url, to: store), previous: previous,
                 diffImage: diffImage.map { URL(filePath: $0.path) })
             kind = previous == nil ? .new : .changed
+            region = previous?.changedRegion
             // Recording on request passes with a warning, so the run lists what to review.
             // Recording because nothing existed fails, so a new reference gets reviewed before
             // it's committed.
@@ -91,11 +93,12 @@ public struct SnapshotReport: Sendable {
                 referenceMetadata: referenceMetadata, actualMetadata: snapshot.metadata,
                 artifacts: artifacts.directory, hints: hints)
             kind = .failed
+            region = diff.changedRegion
         }
         let page = try artifacts.add(
             ReviewEntry(
                 story: snapshot.story.description, variant: variant, kind: kind, message: message,
-                images: images))
+                images: images, region: region))
         self.severity = severity
         self.kind = kind
         self.images = images
@@ -239,19 +242,8 @@ struct Artifacts {
     /// Saves `entry`, rewrites the review page from every saved entry, and returns the page.
     func add(_ entry: ReviewEntry) throws -> URL {
         try JSONEncoder().encode(entry).write(to: stem.appendingPathExtension("json"))
-        var entries: [ReviewEntry] = []
-        for kind in Self.kinds {
-            let enumerator = FileManager.default.enumerator(
-                at: base.appending(path: kind), includingPropertiesForKeys: nil)
-            while let url = enumerator?.nextObject() as? URL {
-                guard url.pathExtension == "json", let data = try? Data(contentsOf: url),
-                    let entry = try? JSONDecoder().decode(ReviewEntry.self, from: data)
-                else { continue }
-                entries.append(entry)
-            }
-        }
         let page = base.appending(path: "review/index.html")
-        try ReviewPage.write(entries, to: page)
+        try ReviewPage.write(ReviewPage.savedEntries(under: base), to: page)
         return page
     }
 }

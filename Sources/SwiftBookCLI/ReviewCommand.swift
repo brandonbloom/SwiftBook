@@ -16,6 +16,13 @@
         @Flag(help: "Print the page's path instead of opening it.")
         var print = false
 
+        @Option(
+            help: ArgumentHelp(
+                "Write the page to this file, with its images inside it, instead of opening it.",
+                discussion: "One file, to send to someone or open on a phone.",
+                valueName: "file"))
+        var export: String?
+
         func run() throws {
             let page: URL
             do {
@@ -30,7 +37,17 @@
                 )
                 throw Exit.broken.code
             }
-            if print {
+            if let export {
+                let artifacts = page.deletingLastPathComponent().deletingLastPathComponent()
+                do {
+                    try ReviewPage.write(
+                        ReviewPage.savedEntries(under: artifacts), to: URL(filePath: export),
+                        inlineImages: true)
+                } catch {
+                    warn("swiftbook: couldn't write \(export): \(error)")
+                    throw Exit.broken.code
+                }
+            } else if print {
                 Swift.print(page.path)
             } else if Shell.run(["open", page.path])?.succeeded != true {
                 warn("swiftbook: couldn't open \(page.path)")

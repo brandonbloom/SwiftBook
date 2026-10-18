@@ -31,6 +31,13 @@ $ swift run swiftbook diff
 ### Seeing the images
 
 `--open` writes and opens a page of before, after, and diff images for every changed reference.
+Like the review page, it groups a change that covers the same region in three or more stories.
+`--export <file>` writes the page as one file with its images inside it, to send to someone or
+open on a phone:
+
+```sh
+swift run swiftbook diff main --merge-base --export changes.html
+```
 
 ### Output for machines
 

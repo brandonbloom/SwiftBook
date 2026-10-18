@@ -35,33 +35,113 @@ public struct ReviewEntry: Codable, Hashable, Sendable {
     /// What the test reported.
     public var message: String
     public var images: [Image]
+    /// Where the images differ, if they were compared and did.
+    public var region: ImageDiff.PixelRect?
 
-    public init(story: String, variant: String, kind: Kind, message: String, images: [Image]) {
+    public init(
+        story: String, variant: String, kind: Kind, message: String, images: [Image],
+        region: ImageDiff.PixelRect? = nil
+    ) {
         self.story = story
         self.variant = variant
         self.kind = kind
         self.message = message
         self.images = images
+        self.region = region
     }
 }
 
-/// An HTML page of references to review, grouped by module and group, with each story's variants
-/// side by side.
+/// An HTML page of references to review.
+///
+/// A change that covers the same region in several stories, such as a new row in a shared
+/// sidebar, comes first as one group: a representative in full, then the others' diff images in
+/// a grid. Everything else is grouped by module and group, with each story's variants side by
+/// side.
 public enum ReviewPage {
-    /// Writes the page for `entries` to `url`, linking images relative to it. `subtitle` goes
-    /// before the summary of entries.
-    public static func write(_ entries: [ReviewEntry], to url: URL, subtitle: String? = nil)
-        throws
-    {
+    /// Writes the page for `entries` to `url`. `subtitle` goes before the summary of entries.
+    /// With `inlineImages`, the page holds its images itself, so it can be sent as one file;
+    /// otherwise it links to them relative to `url`.
+    public static func write(
+        _ entries: [ReviewEntry], to url: URL, subtitle: String? = nil, inlineImages: Bool = false
+    ) throws {
         try FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data(
-            html(entries, directory: url.deletingLastPathComponent(), subtitle: subtitle).utf8
+            html(
+                entries, directory: url.deletingLastPathComponent(), subtitle: subtitle,
+                inlineImages: inlineImages
+            ).utf8
         ).write(to: url, options: .atomic)
     }
 
-    /// The page for `entries`, with image paths relative to `directory`.
-    static func html(_ entries: [ReviewEntry], directory: URL, subtitle: String? = nil) -> String {
+    /// The entries that test runs saved under the artifacts root `base`.
+    public static func savedEntries(under base: URL) -> [ReviewEntry] {
+        var entries: [ReviewEntry] = []
+        for kind in ["failures", "recorded"] {
+            let enumerator = FileManager.default.enumerator(
+                at: base.appending(path: kind), includingPropertiesForKeys: nil)
+            while let url = enumerator?.nextObject() as? URL {
+                guard url.pathExtension == "json", let data = try? Data(contentsOf: url),
+                    let entry = try? JSONDecoder().decode(ReviewEntry.self, from: data)
+                else { continue }
+                entries.append(entry)
+            }
+        }
+        return entries
+    }
+
+    /// How many stories a change must cover the same region in to be shown as one group.
+    static let sharedStories = 3
+
+    /// How much two regions must overlap, as their intersection's share of their union, to
+    /// count as the same.
+    static let sameRegion = 0.8
+
+    /// Groups of entries that changed the same region, each spanning at least ``sharedStories``
+    /// stories, and the entries in no group. Groups and their entries are in story order.
+    static func sharedChanges(_ entries: [ReviewEntry]) -> (
+        shared: [[ReviewEntry]], rest: [ReviewEntry]
+    ) {
+        var groups: [(region: ImageDiff.PixelRect, entries: [ReviewEntry])] = []
+        var rest: [ReviewEntry] = []
+        for entry in entries.sorted(by: { ($0.story, $0.variant) < ($1.story, $1.variant) }) {
+            guard let region = entry.region else {
+                rest.append(entry)
+                continue
+            }
+            if let index = groups.firstIndex(where: { overlap($0.region, region) >= sameRegion }) {
+                groups[index].entries.append(entry)
+            } else {
+                groups.append((region, [entry]))
+            }
+        }
+        var shared: [[ReviewEntry]] = []
+        for group in groups {
+            if Set(group.entries.map(\.story)).count >= sharedStories {
+                shared.append(group.entries)
+            } else {
+                rest += group.entries
+            }
+        }
+        return (shared, rest.sorted { ($0.story, $0.variant) < ($1.story, $1.variant) })
+    }
+
+    /// The area of `a` and `b`'s intersection over that of their union.
+    static func overlap(_ a: ImageDiff.PixelRect, _ b: ImageDiff.PixelRect) -> Double {
+        let width = min(a.x + a.width, b.x + b.width) - max(a.x, b.x)
+        let height = min(a.y + a.height, b.y + b.height) - max(a.y, b.y)
+        guard width > 0, height > 0 else { return 0 }
+        let intersection = Double(width * height)
+        return intersection / (Double(a.width * a.height + b.width * b.height) - intersection)
+    }
+
+    /// The page for `entries`, with image paths relative to `directory`, or the images
+    /// themselves with `inlineImages`.
+    static func html(
+        _ entries: [ReviewEntry], directory: URL, subtitle: String? = nil,
+        inlineImages: Bool = false
+    ) -> String {
+        let images = Images(directory: directory, inline: inlineImages)
         var out = [header]
         let counts = ReviewEntry.Kind.allCases.compactMap { kind -> String? in
             let count = entries.filter { $0.kind == kind }.count
@@ -72,7 +152,30 @@ public enum ReviewPage {
                 + (subtitle.map { escape($0) + ": " } ?? "")
                 + (counts.isEmpty
                     ? "Nothing to review." : escape(counts.joined(separator: " · "))) + "</p>")
-        let stories = Dictionary(grouping: entries, by: \.story)
+        let (shared, rest) = sharedChanges(entries)
+        if !shared.isEmpty { out.append("<h2>Shared changes</h2>") }
+        for group in shared {
+            let first = group[0]
+            let region = first.region!
+            out.append(
+                "<section class=\"story\"><h3>\(group.count) references in "
+                    + "\(Set(group.map(\.story)).count) stories changed within "
+                    + "\(region.width)×\(region.height) at (\(region.x), \(region.y))</h3>"
+                    + "<div class=\"variants\">"
+                    + variant(first, title: "\(first.story) \(first.variant)", images: images)
+                    + "</div><div class=\"thumbs\">")
+            for entry in group.dropFirst() {
+                guard
+                    let image = entry.images.first(where: { $0.role == "diff" })
+                        ?? entry.images.last
+                else { continue }
+                out.append(
+                    "<figure>\(images.figure(image))<figcaption>"
+                        + "\(escape(entry.story)) \(escape(entry.variant))</figcaption></figure>")
+            }
+            out.append("</div></section>")
+        }
+        let stories = Dictionary(grouping: rest, by: \.story)
         let groups = Dictionary(grouping: stories.keys) { story in
             story.split(separator: "/").dropLast().joined(separator: "/")
         }
@@ -83,7 +186,7 @@ public enum ReviewPage {
                 out.append(
                     "<section class=\"story\"><h3>\(escape(name))</h3><div class=\"variants\">")
                 for entry in stories[story]!.sorted(by: { $0.variant < $1.variant }) {
-                    out.append(variant(entry, directory: directory))
+                    out.append(variant(entry, title: entry.variant, images: images))
                 }
                 out.append("</div></section>")
             }
@@ -92,22 +195,40 @@ public enum ReviewPage {
         return out.joined(separator: "\n")
     }
 
-    private static func variant(_ entry: ReviewEntry, directory: URL) -> String {
+    private static func variant(_ entry: ReviewEntry, title: String, images: Images) -> String {
         var out = [
             "<div class=\"variant\"><div class=\"title\"><span class=\"badge \(entry.kind.rawValue)\">"
-                + "\(label(entry.kind))</span> \(escape(entry.variant))</div>",
+                + "\(label(entry.kind))</span> \(escape(title))</div>",
             "<pre>\(escape(entry.message))</pre><div class=\"images\">",
         ]
         for image in entry.images {
-            let src =
-                relativePath(to: URL(filePath: image.path), from: directory)
-                .addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? image.path
             out.append(
-                "<figure><a href=\"\(src)\"><img loading=\"lazy\" src=\"\(src)\"></a>"
-                    + "<figcaption>\(escape(image.role))</figcaption></figure>")
+                "<figure>\(images.figure(image))<figcaption>\(escape(image.role))</figcaption>"
+                    + "</figure>")
         }
         out.append("</div></div>")
         return out.joined()
+    }
+
+    /// How the page refers to images: linked relative to `directory`, or inlined.
+    private struct Images {
+        let directory: URL
+        let inline: Bool
+
+        /// `image` for a figure: a link to it around it, or, inlined, the image alone.
+        func figure(_ image: ReviewEntry.Image) -> String {
+            if inline {
+                let source =
+                    (try? Data(contentsOf: URL(filePath: image.path))).map {
+                        "data:image/png;base64,\($0.base64EncodedString())"
+                    } ?? image.path
+                return "<img src=\"\(source)\">"
+            }
+            let source =
+                relativePath(to: URL(filePath: image.path), from: directory)
+                .addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? image.path
+            return "<a href=\"\(source)\"><img loading=\"lazy\" src=\"\(source)\"></a>"
+        }
     }
 
     private static func label(_ kind: ReviewEntry.Kind) -> String {
@@ -162,6 +283,8 @@ public enum ReviewPage {
         .badge.failed{background:var(--failed)}.badge.missing,.badge.deleted{background:var(--missing)}
         pre{white-space:pre-wrap;font-size:12px;color:var(--muted);margin:4px 0 8px}
         .images{display:flex;gap:8px;align-items:flex-start}
+                .thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;
+        margin-top:12px}
         figure{margin:0;flex:1;min-width:0}figcaption{font-size:11px;color:var(--muted)}
         img{max-width:100%;border:1px solid var(--line);
         background:repeating-conic-gradient(#ccc 0 25%,#fff 0 50%) 0 0/12px 12px}

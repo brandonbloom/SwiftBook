@@ -40,6 +40,17 @@ swift run swiftbook review
 The page shows only the latest run, and every test message ends with its path. It copies its
 images, so it stays accurate after references change, and CI can upload it as is.
 
+When one change covers the same region in three or more stories, such as a new row in a shared
+sidebar, the page shows it first as one group: a representative in full, then the other
+references' diff images in a grid.
+
+To send the page to someone, or to open it on a phone, write it as one file with its images
+inside it:
+
+```sh
+swift run swiftbook review --export review.html
+```
+
 @Image(source: review-page.png, alt: "The review page, showing reference, actual, and diff images for a failed weather card in light and dark.")
 
 ### Where artifacts go

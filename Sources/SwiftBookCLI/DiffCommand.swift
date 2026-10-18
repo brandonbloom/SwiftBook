@@ -33,6 +33,13 @@
         @Flag(help: "Write a page of the changes, with before, after and diff images, and open it.")
         var open = false
 
+        @Option(
+            help: ArgumentHelp(
+                "Write the page of changes to this file, with its images inside it.",
+                discussion: "One file, to send to someone or open on a phone.",
+                valueName: "file"))
+        var export: String?
+
         func run() throws {
             let project: Project
             let repository: GitRepository
@@ -60,10 +67,12 @@
             case .json: print(try Self.json(changes, revision: revision, commit: basis))
             case .junit: print(Self.junit(changes, against: label))
             }
-            if open {
+            if open || export != nil {
                 do {
-                    let page = try Self.writePage(changes, project: project, against: label)
-                    if Shell.run(["open", page.path])?.succeeded != true {
+                    let page = try Self.writePage(
+                        changes, project: project, against: label,
+                        export: export.map { URL(filePath: $0) })
+                    if open, Shell.run(["open", page.path])?.succeeded != true {
                         warn("swiftbook: couldn't open \(page.path)")
                     }
                 } catch {
@@ -173,10 +182,12 @@
             return lines.joined(separator: "\n")
         }
 
-        /// Writes a review page of `changes` under the project's `.build/swiftbook/diff`.
-        static func writePage(_ changes: [ReferenceChange], project: Project, against label: String)
-            throws -> URL
-        {
+        /// Writes a review page of `changes` under the project's `.build/swiftbook/diff`, and
+        /// returns it. With `export`, also writes a copy holding its images to that file.
+        static func writePage(
+            _ changes: [ReferenceChange], project: Project, against label: String,
+            export: URL? = nil
+        ) throws -> URL {
             let base = project.root.appending(path: ".build/swiftbook/diff")
             try? FileManager.default.removeItem(at: base)
             var entries: [ReviewEntry] = []
@@ -206,10 +217,14 @@
                         story: change.story, variant: change.variant, kind: kind,
                         message: "\(change.kind.rawValue) \(summary(of: change))"
                             .trimmingCharacters(in: .whitespaces),
-                        images: images))
+                        images: images, region: change.diff?.changedRegion))
             }
             let page = base.appending(path: "index.html")
             try ReviewPage.write(entries, to: page, subtitle: "Against \(label)")
+            if let export {
+                try ReviewPage.write(
+                    entries, to: export, subtitle: "Against \(label)", inlineImages: true)
+            }
             return page
         }
     }

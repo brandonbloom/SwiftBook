@@ -61,6 +61,14 @@ public struct ImageDiff: @unchecked Sendable {
     public let maxChangedDeltaE: Double
     /// The smallest rectangle, in pixels, containing every changed pixel.
     public let changedBounds: CGRect?
+
+    /// ``changedBounds`` as a ``PixelRect``.
+    public var changedRegion: PixelRect? {
+        changedBounds.map {
+            PixelRect(
+                x: Int($0.minX), y: Int($0.minY), width: Int($0.width), height: Int($0.height))
+        }
+    }
     /// Expected faded to gray, with changed pixels red and anti-aliased pixels yellow. `nil` when
     /// the images are identical or their sizes differ.
     public let image: CGImage?
