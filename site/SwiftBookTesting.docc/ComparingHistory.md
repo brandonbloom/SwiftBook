@@ -42,4 +42,4 @@ $ swift run swiftbook diff
 - <doc:ContinuousIntegration>
 
 <!-- sources: Sources/SwiftBookCLI/DiffCommand.swift Sources/SwiftBookCore/Git Sources/SwiftBookCore/Storage/ReferenceChanges.swift -->
-<!-- checked: 901dbe2 -->
+<!-- checked: 2bc9529 -->
