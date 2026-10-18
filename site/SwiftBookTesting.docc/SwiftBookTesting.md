@@ -37,8 +37,9 @@ The `swiftbook` command tests the other devices, compares references against any
 git, and opens the viewer: a Mac app you leave open, which shows every story and redraws as your
 code compiles.
 
-> Important: SwiftBook is a preview release. Interfaces change without notice, and there are no
-> tagged releases yet.
+> Important: SwiftBook is a preview release. It follows
+> [StableVer](https://github.com/brandonbloom/stablever): until 1.0, every feature is alpha and
+> may change without notice.
 
 ## Topics
 
@@ -77,4 +78,4 @@ code compiles.
 - ``Variants``
 
 <!-- sources: README.md Sources/SwiftBookTesting -->
-<!-- checked: 0b491d7 -->
+<!-- checked: 901dbe2 -->

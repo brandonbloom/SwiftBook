@@ -18,7 +18,9 @@ screen. This needs:
 - An unlocked screen.
 - A canvas that fits on the main screen.
 
-Otherwise SwiftBook falls back to emulated capture. It takes about 0.65 s per image.
+Otherwise SwiftBook falls back to emulated capture. It takes about 0.65 s per image. If
+ScreenCaptureKit doesn't answer within 10 s, as while macOS asks whether to allow screen
+recording, the render fails rather than waiting.
 
 ### Emulated
 
@@ -45,4 +47,4 @@ app.
 - <doc:Troubleshooting>
 
 <!-- sources: Sources/SwiftBookCore/Rendering/MacRenderer.swift Sources/SwiftBookCore/Rendering/Vibrancy.swift Sources/SwiftBookCore/Rendering/WindowServerCapture.swift -->
-<!-- checked: 0b491d7 -->
+<!-- checked: 901dbe2 -->

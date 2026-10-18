@@ -28,8 +28,10 @@ Pass fixed dates, such as `Date(timeIntervalSince1970: 1_790_000_000)`, instead 
 
 ### Wait for nothing
 
-A render must settle within 2 seconds, and two captures in a row must match. Previews that
-animate forever, poll, or load asynchronously fail as "still changing".
+A render must settle within 2 seconds: two captures in a row must match, or three when
+capturing through the window server. On a loaded machine, a render gets at least 5 captures,
+however long they take. Previews that animate forever, poll, or load asynchronously fail as
+"still changing".
 
 ### Size deliberately
 
@@ -70,5 +72,5 @@ asynchronously, and animations that don't start from a fixed state.
 - <doc:Stories>
 - <doc:Capture>
 
-<!-- sources: Sources/SwiftBookCore/Rendering Sources/SwiftBookTesting -->
-<!-- checked: 5656084 -->
+<!-- sources: Sources/SwiftBookCore/Rendering Sources/SwiftBookTesting Sources/SwiftBookCLI/FlakesCommand.swift -->
+<!-- checked: 901dbe2 -->

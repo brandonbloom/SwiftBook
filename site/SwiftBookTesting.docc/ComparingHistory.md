@@ -9,9 +9,9 @@ with those at a revision, and lists each one added, deleted, or modified, with h
 changed:
 
 ```sh
-swift run swiftbook diff               # against HEAD
-swift run swiftbook diff main          # against a revision
-swift run swiftbook diff --merge-base  # against where this branch left the default branch
+swift run swiftbook diff                    # against HEAD
+swift run swiftbook diff main               # against a revision
+swift run swiftbook diff --merge-base main  # against where this branch left main
 ```
 
 Modified references within tolerance are listed, but don't count as changes. The command exits
@@ -42,4 +42,4 @@ $ swift run swiftbook diff
 - <doc:ContinuousIntegration>
 
 <!-- sources: Sources/SwiftBookCLI/DiffCommand.swift Sources/SwiftBookCore/Git Sources/SwiftBookCore/Storage/ReferenceChanges.swift -->
-<!-- checked: 0b491d7 -->
+<!-- checked: 901dbe2 -->

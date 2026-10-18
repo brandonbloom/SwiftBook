@@ -37,7 +37,7 @@ for that device, which it creates on first use and reuses after:
 | Device | Simulator |
 |---|---|
 | iPhone | iPhone 17 Pro |
-| iPad | 11-inch iPad Pro |
+| iPad | iPad Pro 11-inch |
 | Apple TV | Apple TV 4K |
 
 Your own simulators are left alone. The app is built from your package's library products, so a
@@ -89,5 +89,5 @@ with `✗`, and give the `swiftbook render` command for the failed stories on ea
 - <doc:CommandLine>
 - <doc:ContinuousIntegration>
 
-<!-- sources: Sources/SwiftBookCLI/TestCommand.swift Sources/SwiftBookCLI/RenderCommand.swift Sources/SwiftBookCore/Renderer Sources/SwiftBookCore/Rendering/Device.swift Sources/SwiftBookCore/Rendering/UIKitRenderer.swift -->
-<!-- checked: c60ae75 -->
+<!-- sources: Sources/SwiftBookCLI/TestCommand.swift Sources/SwiftBookCLI/RenderCommand.swift Sources/SwiftBookCLI/DeviceRun.swift Sources/SwiftBookCore/Renderer Sources/SwiftBookCore/Rendering/Device.swift Sources/SwiftBookCore/Rendering/UIKitRenderer.swift -->
+<!-- checked: 901dbe2 -->

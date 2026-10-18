@@ -40,12 +40,14 @@
             process.standardInput = FileHandle.nullDevice
             do { try process.run() } catch { return nil }
             // Drain both pipes at once, so a program filling one can't block on it while this
-            // waits on the other. The second reader is a GCD thread, not a Swift task: waiting
-            // on a task here could deadlock when every cooperative thread is busy waiting too.
+            // waits on the other. The second reader gets a thread of its own. A Swift task or a
+            // global dispatch queue would share the cooperative pool's width, one thread per
+            // core: when every one of those threads is a caller waiting here, as with three
+            // parallel tests on a three-core CI runner, the reader would never run.
             nonisolated(unsafe) var errorData = Data()
             let errorRead = DispatchGroup()
             errorRead.enter()
-            DispatchQueue.global().async {
+            Thread.detachNewThread {
                 errorData = error.fileHandleForReading.readDataToEndOfFile()
                 errorRead.leave()
             }

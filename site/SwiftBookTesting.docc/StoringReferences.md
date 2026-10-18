@@ -10,6 +10,9 @@ References are PNGs in your repository, one per story and variant:
 Snapshots/<Module>/<Group>/<Story>/<device>.<appearance>.png
 ```
 
+A variant that sets a dynamic type size, right-to-left layout, or a locale adds it to the name, as
+in `mac.light.rtl.png`.
+
 The `Snapshots` directory sits in the package or Xcode project that contains the test. Each PNG
 records the rendering environment it was made in, so a failure can point out an OS or capture
 change.
@@ -52,5 +55,5 @@ Only modules the renderer links are pruned, so references for code SwiftBook can
 
 - <doc:ComparingHistory>
 
-<!-- sources: Sources/SwiftBookCore/Storage Sources/SwiftBookCLI/InitCommand.swift Sources/SwiftBookCLI/PruneCommand.swift Sources/SwiftBookCLI/DoctorCommand.swift -->
-<!-- checked: 2a795fb -->
+<!-- sources: Sources/SwiftBookCore/Storage Sources/SwiftBookCLI/InitCommand.swift Sources/SwiftBookCLI/PruneCommand.swift Sources/SwiftBookCLI/DoctorCommand.swift Sources/SwiftBookCLI/TestCommand.swift Sources/SwiftBookMacros/SwiftBookTestsMacro.swift -->
+<!-- checked: 901dbe2 -->

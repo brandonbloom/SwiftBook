@@ -14,7 +14,8 @@ preview that works in Xcode's canvas works in SwiftBook.
 A story's ID is `Module/Group/Name`:
 
 - **Module** is the Swift module the preview is in.
-- **Group** is the name of its source file, without the extension.
+- **Group** is the name of its source file, without the extension, or of its `PreviewProvider`
+  type.
 - **Name** is the preview's name. Unnamed previews take the group's name, and repeated names get
   " 2", " 3", and so on. Names count as repeated when their references would share a file:
   `Dark` and `dark`, or `Row:` and `Row?`, since `:` and `?` both become `_` in file names.
@@ -81,12 +82,12 @@ too.
 ### When a preview can't be read
 
 SwiftBook reads each preview's name, traits, and body through Xcode's preview types. If a future
-Xcode changes their shape, SwiftBook fails loudly and names your Xcode version, rather than
-rendering something wrong.
+Xcode changes their shape, SwiftBook fails loudly and names your macOS, SwiftUI, and
+DeveloperToolsSupport versions, rather than rendering something wrong.
 
 ## See Also
 
 - <doc:PreviewsThatSnapshotWell>
 
 <!-- sources: Sources/SwiftBookCore/Discovery Sources/SwiftBookCore/Adapter Sources/SwiftBookCLI/ListCommand.swift -->
-<!-- checked: 0b491d7 -->
+<!-- checked: 901dbe2 -->

@@ -12,7 +12,7 @@ In a package that depends on SwiftBook, run it with `swift run swiftbook <comman
 | `swiftbook view` | Opens the viewer. See <doc:Viewer>. |
 | `swiftbook test [--device <device>] [--record <mode>] [--junit <file>] [--jobs <n>]` | Snapshot-tests stories on each device: the Mac through `swift test`, and iPhone, iPad, and Apple TV in SwiftBook's simulators, several at once when they're free. See <doc:Devices>. |
 | `swiftbook diff [<revision>] [--merge-base] [--format human\|json\|junit] [--open]` | Lists references added, deleted, or changed against a revision. See <doc:ComparingHistory>. |
-| `swiftbook list [--check] [--device <device>]` | Lists the package's stories. `--check` also builds each one. |
+| `swiftbook list [--check] [--device <device>] [--json]` | Lists the package's stories. `--check` also builds each one. |
 | `swiftbook render [<story>…] [--device <device>] [-o <dir>]` | Renders stories, light and dark, to PNGs laid out like references, without comparing them. See <doc:Devices>. |
 | `swiftbook flakes [<story>…] [--device <device>] [--runs <n>]` | Finds stories that render differently from run to run. See <doc:PreviewsThatSnapshotWell>. |
 | `swiftbook prune [--dry-run]` | Deletes references to stories that no longer exist. |
@@ -22,7 +22,7 @@ In a package that depends on SwiftBook, run it with `swift run swiftbook <comman
 
 ### The renderer
 
-`list`, `render`, `prune`, `doctor`, `test`, and the viewer build a *renderer*: a hidden package
+`list`, `render`, `flakes`, `prune`, `doctor`, `test`, and the viewer build a *renderer*: a hidden package
 under `.build/swiftbook/renderer` that links your package's library products, so SwiftBook can
 load your previews in a process of their own. The first build takes as long as building your
 package; later ones are incremental.
@@ -34,10 +34,11 @@ package; later ones are incremental.
 | `SWIFTBOOK_RECORD` | When `swift test` writes references: `missing`, `changed`, `all`, or `never`. See <doc:RecordingAndReviewing>. |
 | `SWIFTBOOK_CAPTURE` | How Mac renders are captured: `windowServer` or `emulated`. See <doc:Capture>. |
 | `SWIFTBOOK_ARTIFACTS` | Where actual images, diffs, and the review page go, instead of `.build/swiftbook`. |
+| `SWIFTBOOK_SIMULATORS` | How many simulators `swiftbook test` may use per device. See <doc:Devices>. |
 
 ## See Also
 
 - <doc:ContinuousIntegration>
 
 <!-- sources: Sources/SwiftBookCLI -->
-<!-- checked: 5656084 -->
+<!-- checked: 901dbe2 -->

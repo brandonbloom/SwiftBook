@@ -9,12 +9,11 @@ deployment target must be 27 or later. Reference images live in [Git LFS](https:
 
 ### Add the dependency
 
-There are no releases yet, so depend on the main branch. `Package.resolved` keeps you on one
-revision until you update it:
+Pin an exact version. Until 1.0, every release may change alpha features:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/brandonbloom/SwiftBook.git", branch: "main"),
+    .package(url: "https://github.com/brandonbloom/SwiftBook.git", exact: "0.1.0"),
 ],
 ```
 
@@ -66,13 +65,13 @@ Commit the references. From now on, `swift test` compares every preview against 
 
 ### Check your setup
 
-`swiftbook doctor` checks the toolchain, Git LFS, Screen Recording permission, simulators, and
-that SwiftBook can read every preview. See <doc:Troubleshooting>.
+`swiftbook doctor` checks the toolchain, Git LFS and your references, Screen Recording
+permission, simulators, and that SwiftBook can read every preview. See <doc:Troubleshooting>.
 
 ## See Also
 
 - <doc:Stories>
 - <doc:Devices>
 
-<!-- sources: README.md Sources/SwiftBookTesting Sources/SwiftBookCLI/InitCommand.swift Sources/SwiftBookCLI/ReviewCommand.swift -->
-<!-- checked: 0b491d7 -->
+<!-- sources: README.md Sources/SwiftBookTesting Sources/SwiftBookCLI/InitCommand.swift Sources/SwiftBookCLI/ReviewCommand.swift Sources/SwiftBookCLI/DoctorCommand.swift -->
+<!-- checked: 901dbe2 -->

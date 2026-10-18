@@ -15,7 +15,8 @@ swift run swiftbook test --device iphone --record never   # and ipad, tv, as you
 
 ### Checking out references
 
-Check out with LFS, so references are images rather than pointers. With GitHub Actions:
+Check out with LFS, so references are images rather than pointers. Otherwise `swift test` and
+`swiftbook test` fail once, naming the fix, rather than on every snapshot. With GitHub Actions:
 
 ```yaml
 - uses: actions/checkout@v4
@@ -27,7 +28,8 @@ Check out with LFS, so references are images rather than pointers. With GitHub A
 
 - Upload `.build/swiftbook` (or `$SWIFTBOOK_ARTIFACTS`) when a run fails. Its review page works
   as is.
-- `swiftbook test --junit <file>` writes one test case per snapshot.
+- `swiftbook test --junit <file>` writes one test case per snapshot on iPhone, iPad, and Apple
+  TV, and one for the Mac's whole `swift test` run.
 - `swiftbook diff --format junit` reports reference changes against a revision.
 
 ### Exit status
@@ -46,5 +48,5 @@ Every `swiftbook` command exits with:
 - <doc:Capture>
 - <doc:CommandLine>
 
-<!-- sources: Sources/SwiftBookCLI Sources/SwiftBookCore/Storage -->
-<!-- checked: 11fe2f9 -->
+<!-- sources: Sources/SwiftBookCLI Sources/SwiftBookCore/Storage Sources/SwiftBookMacros/SwiftBookTestsMacro.swift -->
+<!-- checked: 901dbe2 -->

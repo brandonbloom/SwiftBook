@@ -67,9 +67,12 @@ because of this says so:
 ~ MyUI/Browser/Spending (iphone.light): matched, ignoring 1009 pixels of Liquid Glass noise
 ```
 
+A snapshot that fails anyway says how many more pixels differed only as glass noise.
+
 ### Adjusting tolerance
 
-`#SwiftBookTests(tolerance:)` adjusts comparisons under `swift test`. `swiftbook test` takes
+`#SwiftBookTests(tolerance:)` adjusts comparisons under `swift test`, which is how
+`swiftbook test` tests the Mac. For iPhone, iPad, and Apple TV, `swiftbook test` takes
 `--delta-e`, `--changed-ratio`, `--noise-pixels`, and `--noise-delta-e`. After loosening or
 tightening tolerance, re-record with `SWIFTBOOK_RECORD=all`.
 
@@ -78,5 +81,5 @@ tightening tolerance, re-record with `SWIFTBOOK_RECORD=all`.
 - <doc:RecordingAndReviewing>
 - <doc:Capture>
 
-<!-- sources: Sources/SwiftBookCore/Diff Sources/SwiftBookCore/Storage/SnapshotReport.swift Sources/SwiftBookCLI/TestCommand.swift -->
-<!-- checked: 0448c81 -->
+<!-- sources: Sources/SwiftBookCore/Diff Sources/SwiftBookCore/Storage/SnapshotReport.swift Sources/SwiftBookCLI/TestCommand.swift Sources/SwiftBookCLI/DeviceRun.swift -->
+<!-- checked: 901dbe2 -->

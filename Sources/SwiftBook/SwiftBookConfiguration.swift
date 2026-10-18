@@ -18,8 +18,8 @@ import SwiftUI
 /// }
 /// ```
 ///
-/// Declare at most one per package. If there are several, SwiftBook uses the first in module
-/// order and warns.
+/// Declare at most one per package. If there are several, SwiftBook uses the first by
+/// module-qualified type name and warns.
 public protocol SwiftBookConfiguration {
     /// The tint around every story, as `.tint(_:)` applies it, or `nil` for the system's.
     ///

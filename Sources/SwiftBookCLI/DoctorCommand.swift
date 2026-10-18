@@ -255,7 +255,7 @@
                 return Check(
                     name: "Simulators", status: .warning,
                     detail:
-                        "No \(missing.joined(separator: " or ")) 27 simulator runtime. It's needed for those platforms' snapshots, once SwiftBook supports them.",
+                        "No \(missing.joined(separator: " or ")) 27 simulator runtime. It's needed for those platforms' snapshots, with swiftbook test --device.",
                     fix: "Install it in Xcode › Settings › Components.")
             }
             return Check(

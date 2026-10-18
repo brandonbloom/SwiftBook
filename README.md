@@ -5,7 +5,7 @@
 SwiftBook snapshot-tests every `#Preview` in light and dark, on Mac, iPhone, iPad and Apple TV, and diffs the renders against reference images in your repository. There are no stories to write and no service to sign up for.
 
 > [!WARNING]
-> **Preview release.** SwiftBook is young and unstable. Interfaces change without notice, and there are no tagged releases yet. `Package.resolved` holds you to one revision; when you update it, expect breaking changes and re-recorded references.
+> **Preview release.** SwiftBook is young and unstable. It follows [StableVer](https://github.com/brandonbloom/stablever): until 1.0, every feature is alpha and may change without notice. Pin an exact version, and expect breaking changes and re-recorded references when you update it.
 
 ## What you get
 
@@ -20,7 +20,7 @@ SwiftBook needs macOS 27 and Xcode 27, and [Git LFS](https://git-lfs.com) for re
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/brandonbloom/SwiftBook.git", branch: "main"),
+    .package(url: "https://github.com/brandonbloom/SwiftBook.git", exact: "0.1.0"),
 ],
 targets: [
     .testTarget(

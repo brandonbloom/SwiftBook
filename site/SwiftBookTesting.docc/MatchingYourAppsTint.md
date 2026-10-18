@@ -55,7 +55,8 @@ library's. To keep the two from drifting:
 
 ### What changes in your references
 
-Each snapshot records the tint it rendered with, as `#RRGGBB` for its appearance. Setting or
+Each snapshot records the tint it rendered with, as `#RRGGBB` for its appearance, or
+`#RRGGBBAA` if it's translucent. Setting or
 changing the tint changes the rendered controls, so re-record:
 
 ```
@@ -70,13 +71,13 @@ On the Mac, snapshots render in an inactive window, where macOS draws some contr
 prominent buttons and sidebar selections, without the accent. The tint still applies to
 everything that uses it in an inactive window, such as `.foregroundStyle(.tint)`.
 
-Declare one configuration per package. If there are several, SwiftBook uses the first by type name
-and prints a warning.
+Declare one configuration per package. If there are several, SwiftBook uses the first by
+module-qualified type name and prints a warning.
 
 ## See Also
 
 - <doc:PreviewsThatSnapshotWell>
 - <doc:RecordingAndReviewing>
 
-<!-- sources: Sources/SwiftBook Sources/SwiftBookCore/Discovery/ProjectConfiguration.swift -->
-<!-- checked: 028d424 -->
+<!-- sources: Sources/SwiftBook Sources/SwiftBookCore/Discovery/ProjectConfiguration.swift Sources/SwiftBookCore/Rendering/RenderEnvironment.swift Sources/SwiftBookCore/Storage/SnapshotReport.swift -->
+<!-- checked: 901dbe2 -->
