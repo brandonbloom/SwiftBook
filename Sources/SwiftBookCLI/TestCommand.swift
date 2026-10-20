@@ -9,9 +9,11 @@
             commandName: "test",
             abstract: "Snapshot-test the package's stories on each device.",
             discussion: """
-                The Mac runs through swift test, so #SwiftBookTests applies. Other devices \
-                render in SwiftBook's own simulators and check every story, light and dark. \
-                With no --device, tests every device that already has references, so coverage \
+                Checks every story, light and dark: on the Mac in renderer processes, several \
+                at once, and on other devices in SwiftBook's own simulators. #SwiftBookTests' \
+                arguments apply only under swift test; use SwiftBookConfiguration to leave \
+                stories out. With no --device, tests every device that already has \
+                references, so coverage \
                 follows what's committed. Ends by naming the failed snapshots, and exits with \
                 status \(Exit.changed.rawValue) if any failed. To look at a story without \
                 testing, use swiftbook render.
@@ -27,9 +29,9 @@
         @Option(
             name: [.short, .long],
             help: ArgumentHelp(
-                "The most simulators one device may use at once.",
+                "The most renderers one device may use at once.",
                 discussion:
-                    "A run takes extra pooled simulators while they're free and enough stories remain to repay starting them. Defaults to the pool's size (SWIFTBOOK_SIMULATORS). 1 renders on one."
+                    "A run starts extra renderers while enough stories remain to repay starting them: Mac renderer processes, or pooled simulators while they're free. Defaults to half the performance cores on the Mac, or 1 when capturing through the window server, and to the pool's size (SWIFTBOOK_SIMULATORS) for simulators. 1 renders on one."
             ))
         var jobs: Int?
 
@@ -95,13 +97,9 @@
                 // swift test writes to the same terminal; keep this line ahead of its output.
                 fflush(stdout)
                 do {
-                    if device == .mac {
-                        try results.add(Self.testMac(project, mode: mode))
-                    } else {
-                        try results.add(
-                            Self.test(
-                                project, on: device, mode: mode, tolerance: tolerance, jobs: jobs))
-                    }
+                    try results.add(
+                        Self.test(
+                            project, on: device, mode: mode, tolerance: tolerance, jobs: jobs))
                 } catch {
                     warn("swiftbook: \(device): \(error)")
                     throw Exit.broken.code
@@ -253,33 +251,18 @@
         {
             try DeviceRun(
                 project: project, device: device, mode: mode, tolerance: tolerance,
-                jobs: jobs ?? SimulatorPool.size()
+                jobs: jobs ?? (device == .mac ? macJobs() : SimulatorPool.size())
             ).run()
         }
 
-        /// Runs the Mac's snapshots through `swift test`, where `#SwiftBookTests` applies.
-        static func testMac(_ project: Project, mode: RecordMode) throws
-            -> (results: [Result], failed: Bool)
-        {
-            let process = Process()
-            process.executableURL = URL(filePath: "/usr/bin/env")
-            process.arguments = ["swift", "test", "--filter", "SwiftBookSnapshots"]
-            process.currentDirectoryURL = project.root
-            process.environment = ProcessInfo.processInfo.environment.merging([
-                RecordMode.environmentVariable: mode.rawValue
-            ]) { $1 }
-            try process.run()
-            process.waitUntilExit()
-            let failed = process.terminationStatus != 0
-            // swift test reports each snapshot itself; the JUnit report gets one case for all.
-            return (
-                [
-                    Result(
-                        device: .mac, subject: "swift test --filter SwiftBookSnapshots",
-                        failure: failed
-                            ? "swift test exited with status \(process.terminationStatus)" : nil)
-                ], failed
-            )
+        /// How many Mac renderer processes a run uses: half the performance cores, since each
+        /// render and comparison keeps a core busy, or 1 through the window server, whose
+        /// captures of windows on screen together haven't been checked.
+        static func macJobs(
+            capture: CaptureMethod? = try? CaptureMethod.current(),
+            performanceCores: Int = SimulatorPool.performanceCores()
+        ) -> Int {
+            capture == .windowServer ? 1 : max(performanceCores / 2, 1)
         }
     }
 

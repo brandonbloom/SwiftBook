@@ -2,14 +2,15 @@
     import Foundation
     import SwiftBookCore
 
-    /// One `swiftbook test` pass over a simulated device, spread across as many pooled simulators
-    /// as are free and worth starting.
+    /// One `swiftbook test` pass over a device, spread across as many renderers as are worth
+    /// starting: renderer processes on the Mac, and pooled simulators, as are free, for the
+    /// others.
     ///
-    /// The run leases one simulator, waiting if it must, and lists the stories. Every story and
-    /// appearance goes into one queue, which each simulator's renderer works through. Meanwhile
-    /// it takes more simulators, without ever waiting for one, while enough work remains to repay
-    /// starting them: a booted simulator costs a few seconds to start a renderer in, a cold one
-    /// about 15 more.
+    /// The run starts one renderer, leasing a simulator and waiting for one if it must, and lists
+    /// the stories. Every story and appearance goes into one queue, which each renderer works
+    /// through. Meanwhile it starts more renderers, without ever waiting for a simulator, while
+    /// enough work remains to repay starting them: a Mac renderer process costs a second or two,
+    /// a booted simulator a few seconds, and a cold one about 15 more.
     final class DeviceRun: @unchecked Sendable {
         // Unchecked: `lock` guards the mutable state; the rest is immutable.
 
@@ -19,7 +20,7 @@
         let device: Device
         let mode: RecordMode
         let tolerance: ImageDiff.Tolerance
-        /// The most simulators this run may use.
+        /// The most renderers this run may use: processes on the Mac, simulators otherwise.
         let jobs: Int
 
         private let lock = NSLock()
@@ -31,10 +32,14 @@
         /// Results by their item's place in the queue.
         private var results: [(index: Int, result: TestCommand.Result)] = []
         private var app: RendererHost.App?
+        /// The Mac renderer's executable.
+        private var executable: URL?
         private var counts = (matched: 0, new: 0, rerecorded: 0, failed: 0, glassNoise: 0)
         private var failed = false
 
-        /// Roughly how long starting a renderer takes in a booted simulator, and in a cold one.
+        /// Roughly how long starting a renderer takes: a process on the Mac, and an app in a
+        /// booted simulator and in a cold one.
+        static let macStart = 2.0
         static let warmStart = 5.0
         static let coldStart = 20.0
 
@@ -50,14 +55,22 @@
         }
 
         func run() throws -> (results: [TestCommand.Result], failed: Bool) {
-            let app = try Renderers.buildApp(for: project, on: device)
-            lock.withLock { self.app = app }
-            Renderers.progress("Starting the simulator…")
-            let first = try Renderers.start(
-                app,
-                in: SimulatorPool.lease(
-                    for: device, waiting: Renderers.progress,
-                    keepWarm: SimulatorIdleCommand.start))
+            let first: RestartingRenderer
+            if device == .mac {
+                Renderers.progress("Building the renderer…")
+                let executable = try RendererHost(package: project.root).build()
+                lock.withLock { self.executable = executable }
+                first = try Self.macRenderer(executable)
+            } else {
+                let app = try Renderers.buildApp(for: project, on: device)
+                lock.withLock { self.app = app }
+                Renderers.progress("Starting the simulator…")
+                first = try Renderers.start(
+                    app,
+                    in: SimulatorPool.lease(
+                        for: device, waiting: Renderers.progress,
+                        keepWarm: SimulatorIdleCommand.start))
+            }
             let stories = try first.stories().filter(\.isTested)
             lock.withLock {
                 items = stories.flatMap { story in
@@ -69,7 +82,7 @@
 
             let workers = DispatchGroup()
             work(with: first, in: workers)
-            // Take more simulators while it pays; stop once the queue is drained.
+            // Start more renderers while it pays; stop once the queue is drained.
             while jobs > 1, !isDrained {
                 if lock.withLock({ renderers.count }) < jobs, let renderer = recruit() {
                     lock.withLock { renderers.append(renderer) }
@@ -87,8 +100,13 @@
             return lock.withLock {
                 let glass =
                     counts.glassNoise > 0 ? " (\(counts.glassNoise) ignoring glass noise)" : ""
+                let one = renderers.count == 1
+                let kind =
+                    device == .mac
+                    ? (one ? "renderer process" : "renderer processes")
+                    : (one ? "simulator" : "simulators")
                 print(
-                    "\(device): \(results.count) snapshots on \(renderers.count) simulator\(renderers.count == 1 ? "" : "s"): \(counts.matched) matched\(glass), \(counts.new) new, \(counts.rerecorded) re-recorded, \(counts.failed) failed."
+                    "\(device): \(results.count) snapshots on \(renderers.count) \(kind): \(counts.matched) matched\(glass), \(counts.new) new, \(counts.rerecorded) re-recorded, \(counts.failed) failed."
                         + (restarts > 0
                             ? " The renderer crashed or hung and was restarted \(restarts) times:\n"
                                 + incidents.map { "  \($0)" }.joined(separator: "\n")
@@ -115,8 +133,13 @@
             }
         }
 
-        /// Another simulator and renderer, if one is free and the remaining work repays starting
-        /// it.
+        /// A Mac renderer process, restarted when it crashes or hangs.
+        static func macRenderer(_ executable: URL) throws -> RestartingRenderer {
+            try RestartingRenderer { try RendererProcess(executable: executable) }
+        }
+
+        /// Another renderer, if the remaining work repays starting it and, for a simulated
+        /// device, a simulator is free.
         private func recruit() -> RestartingRenderer? {
             let (remaining, perItem, count) = lock.withLock {
                 () -> (Int, Double?, Int) in
@@ -127,6 +150,18 @@
                 return (items.count - next, pace, renderers.count)
             }
             guard let perItem else { return nil }
+            if device == .mac {
+                guard
+                    Self.worthStarting(
+                        remaining: remaining, perItem: perItem, renderers: count,
+                        startCost: Self.macStart),
+                    let executable = lock.withLock({ self.executable })
+                else { return nil }
+                do { return try Self.macRenderer(executable) } catch {
+                    Renderers.progress("Couldn't start another renderer: \(error)")
+                    return nil
+                }
+            }
             do {
                 guard
                     let lease = try SimulatorPool.tryLease(
@@ -134,7 +169,7 @@
                         accept: { warm in
                             Self.worthStarting(
                                 remaining: remaining, perItem: perItem, renderers: count,
-                                warm: warm)
+                                startCost: warm ? Self.warmStart : Self.coldStart)
                         })
                 else { return nil }
                 guard let app = lock.withLock({ self.app }) else {
@@ -148,13 +183,12 @@
             }
         }
 
-        /// Whether another simulator repays starting it: the work left, shared by the `renderers`
-        /// already at it, takes at least twice as long as starting one, warm or cold.
-        static func worthStarting(remaining: Int, perItem: Double, renderers: Int, warm: Bool)
-            -> Bool
-        {
-            Double(remaining) * perItem / Double(max(renderers, 1))
-                > 2 * (warm ? warmStart : coldStart)
+        /// Whether another renderer repays starting it: the work left, shared by the `renderers`
+        /// already at it, takes at least twice `startCost`, in seconds.
+        static func worthStarting(
+            remaining: Int, perItem: Double, renderers: Int, startCost: Double
+        ) -> Bool {
+            Double(remaining) * perItem / Double(max(renderers, 1)) > 2 * startCost
         }
 
         /// Renders `item`, verifies it, and records and prints the outcome.

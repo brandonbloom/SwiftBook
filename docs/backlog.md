@@ -14,7 +14,7 @@ The first adopter has 632 references (about 300 on iPhone), checked by many agen
   - `swiftbook flakes --from-ci <log>`, taking the failing stories from a test log.
 - **Throughput as suites grow.** Full Mac and iPhone runs take minutes and grow linearly. Simulated devices now spread across the pool (`parallel-devices`). Ideas:
   - Render only previews whose source files (or their dependencies) changed since their references were recorded, with a full run nightly. The viewer's source-changed pass is a start.
-  - Parallel window-server capture. Emulated Mac renders run four at a time under `swift test`; window-server ones still run one at a time, until captures of several windows on screen at once are checked against captures made alone.
+  - Parallel window-server capture. Emulated Mac renders run in several renderer processes in `swiftbook test`; window-server ones still run one at a time, until captures of several windows on screen at once are checked against captures made alone.
   - `--shard i/n` to split a run across CI machines.
   - Give extra simulators back when another run is waiting, if one run starves the others.
   - Recruit fewer simulators when the machine is already loaded. The first adopter's CI ran a Mac `swift test` next to an iPhone run that recruited 3–4 simulators, with load averages over 100; slow captures failed Mac snapshots as "still changing" after a single capture, until renders took at least 5 captures. `--jobs` caps it by hand.

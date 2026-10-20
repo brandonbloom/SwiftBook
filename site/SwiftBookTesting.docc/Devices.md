@@ -5,7 +5,9 @@ Render the same stories on every device.
 ## Overview
 
 `swift test` renders stories on the Mac. `swiftbook test` renders them on the Mac, iPhone, iPad,
-and Apple TV, light and dark, and compares each with its reference:
+and Apple TV, light and dark, and compares each with its reference. On the Mac it renders in
+several renderer processes at once, which is faster than `swift test` for a large package;
+`#SwiftBookTests`' arguments apply only under `swift test`:
 
 ```sh
 swift run swiftbook test --device iphone --device ipad --device tv

@@ -32,14 +32,23 @@
         @Test func startsAnotherSimulatorOnlyWhenItPays() {
             // An adopter's iPhone run: 394 snapshots at about 0.34 s each.
             #expect(
-                DeviceRun.worthStarting(remaining: 390, perItem: 0.34, renderers: 1, warm: false))
+                DeviceRun.worthStarting(
+                    remaining: 390, perItem: 0.34, renderers: 1, startCost: DeviceRun.coldStart))
             // The zoo's: 72 at the same pace repays a booted simulator, not a cold one.
-            #expect(DeviceRun.worthStarting(remaining: 68, perItem: 0.34, renderers: 1, warm: true))
             #expect(
-                !DeviceRun.worthStarting(remaining: 68, perItem: 0.34, renderers: 1, warm: false))
+                DeviceRun.worthStarting(
+                    remaining: 68, perItem: 0.34, renderers: 1, startCost: DeviceRun.warmStart))
+            #expect(
+                !DeviceRun.worthStarting(
+                    remaining: 68, perItem: 0.34, renderers: 1, startCost: DeviceRun.coldStart))
+            // A Mac renderer process is cheap enough to start for the zoo's 74.
+            #expect(
+                DeviceRun.worthStarting(
+                    remaining: 68, perItem: 0.15, renderers: 1, startCost: DeviceRun.macStart))
             // A short tail isn't worth even a warm one.
             #expect(
-                !DeviceRun.worthStarting(remaining: 20, perItem: 0.34, renderers: 2, warm: true))
+                !DeviceRun.worthStarting(
+                    remaining: 20, perItem: 0.34, renderers: 2, startCost: DeviceRun.warmStart))
         }
 
         @Test func failsOutsideAProject() {

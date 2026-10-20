@@ -37,12 +37,20 @@ too.
 
 ### Rendering several at once
 
-Under `swift test`, emulated captures render four stories at a time, each in a window of its
-own, since most of a render is waiting for it to settle. Their images are the same as when
-they render one at a time. Window-server captures still render one at a time.
-`SWIFTBOOK_MAC_RENDERS` sets how many render at once, for either method. A story whose
+Most of a render is drawing on the main thread, so one process gains little from rendering
+several stories at once. `swiftbook test --device mac` instead renders in several renderer
+processes, each with a main thread of its own: by default half the Mac's performance cores'
+worth, starting more while enough stories remain to repay it. `--jobs` sets the most. Their
+images are the same as `swift test`'s.
+
+Under `swift test`, emulated captures still render up to four stories at a time, each in a
+window of its own, which helps a little; `SWIFTBOOK_MAC_RENDERS` sets how many. A story whose
 environment sets another time zone renders while no other does, because `Date.formatted()` reads
 the process's time zone.
+
+Window-server captures render one at a time, in one process, unless `--jobs` or
+`SWIFTBOOK_MAC_RENDERS` says otherwise: captures of several windows on screen at once haven't
+been checked against captures made alone.
 
 ### Inactive windows
 

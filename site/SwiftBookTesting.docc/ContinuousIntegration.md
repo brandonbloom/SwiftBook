@@ -9,6 +9,14 @@ SWIFTBOOK_RECORD=never SWIFTBOOK_CAPTURE=emulated swift test
 swift run swiftbook test --device iphone --record never   # and ipad, tv, as you have references
 ```
 
+For a large package, Mac snapshots finish sooner through `swiftbook test`, which renders them in
+several processes at once, than under `swift test`. Skip them in `swift test` with
+`--skip SwiftBookSnapshots`, and add `--device mac`:
+
+```sh
+SWIFTBOOK_CAPTURE=emulated swift run swiftbook test --device mac --device iphone --record never
+```
+
 - `never` turns a missing reference into a failure, instead of an unreviewed recording.
 - `emulated` makes CI independent of Screen Recording permission and the screen lock. References
   must be recorded the same way; see <doc:Capture>.

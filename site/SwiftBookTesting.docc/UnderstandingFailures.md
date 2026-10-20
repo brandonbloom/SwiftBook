@@ -71,9 +71,8 @@ A snapshot that fails anyway says how many more pixels differed only as glass no
 
 ### Adjusting tolerance
 
-`#SwiftBookTests(tolerance:)` adjusts comparisons under `swift test`, which is how
-`swiftbook test` tests the Mac. For iPhone, iPad, and Apple TV, `swiftbook test` takes
-`--delta-e`, `--changed-ratio`, `--noise-pixels`, and `--noise-delta-e`. After loosening or
+`#SwiftBookTests(tolerance:)` adjusts comparisons under `swift test`. `swiftbook test` takes
+`--delta-e`, `--changed-ratio`, `--noise-pixels`, and `--noise-delta-e`, on every device. After loosening or
 tightening tolerance, re-record with `SWIFTBOOK_RECORD=all`.
 
 ## See Also
