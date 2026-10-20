@@ -196,10 +196,13 @@ public struct SnapshotStore: Sendable {
         return image
     }
 
+    /// Writes `png` as a reference, compacted. Only references are compacted: they're kept in
+    /// Git LFS for good, while renders are compared and thrown away, and compacting takes
+    /// about half a second for an iPhone screen.
     private func write(_ png: Data, to url: URL) throws {
         try FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try png.write(to: url, options: .atomic)
+        try PNG.compact(png).write(to: url, options: .atomic)
     }
 
     // MARK: Names

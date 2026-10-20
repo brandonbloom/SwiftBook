@@ -97,7 +97,7 @@ enum PNG {
         guard CGImageDestinationFinalize(destination) else {
             throw Error(description: "can't encode PNG")
         }
-        return try compact(insert(text: text, into: data as Data))
+        return try insert(text: text, into: data as Data)
     }
 
     /// The `tEXt` chunks in a PNG.

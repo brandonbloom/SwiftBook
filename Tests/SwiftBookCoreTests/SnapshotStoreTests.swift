@@ -141,7 +141,7 @@ import Testing
             return
         }
         #expect(previous?.changedPixels == 16)
-        #expect(replaced == (try snapshot(gray: 100).pngData()))
+        #expect(replaced == (try PNG.compact(snapshot(gray: 100).pngData())))
         guard case .matched = try store.verify(snapshot(gray: 200), mode: .never) else {
             Issue.record("expected the new reference to match")
             return
@@ -168,7 +168,7 @@ import Testing
         }
         #expect(previous?.matches == true)
         #expect(previous?.isIdentical == false)
-        #expect(replaced == (try snapshot(gray: 100).pngData()))
+        #expect(replaced == (try PNG.compact(snapshot(gray: 100).pngData())))
     }
 
     @Test func leavesIdenticalReferencesAloneInAllMode() throws {
