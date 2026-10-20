@@ -18,6 +18,7 @@
                 RenderCommand.self,
                 FlakesCommand.self,
                 PruneCommand.self,
+                CompressCommand.self,
                 InitCommand.self,
                 DoctorCommand.self,
                 SimulatorIdleCommand.self,

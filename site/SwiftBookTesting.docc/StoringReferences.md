@@ -51,9 +51,29 @@ swift run swiftbook prune
 
 Only modules the renderer links are pruned, so references for code SwiftBook can't see are kept.
 
+### Size
+
+References are compact PNGs: each row is filtered the way that compresses best, the image is
+deflated at zlib's highest level, and an opaque image is stored without an alpha channel. That
+keeps the Git LFS history small, because every changed reference adds a new copy of the file.
+
+References recorded before SwiftBook 0.3 were stored less compactly. Shrink them once with:
+
+```sh
+swift run swiftbook compress --dry-run   # see how much they'd shrink
+swift run swiftbook compress
+```
+
+It renders nothing. It checks that each new file decodes to the same pixels, with the same
+metadata, before replacing it, so the commit needs no review. Running it again changes nothing.
+Copies already in your Git LFS history stay there.
+
+Re-recording with `all` rewrites only references whose pixels differ, so upgrading SwiftBook or
+macOS doesn't rewrite every reference.
+
 ## See Also
 
 - <doc:ComparingHistory>
 
-<!-- sources: Sources/SwiftBookCore/Storage Sources/SwiftBookCLI/InitCommand.swift Sources/SwiftBookCLI/PruneCommand.swift Sources/SwiftBookCLI/DoctorCommand.swift Sources/SwiftBookCLI/TestCommand.swift Sources/SwiftBookMacros/SwiftBookTestsMacro.swift -->
+<!-- sources: Sources/SwiftBookCore/Storage Sources/SwiftBookCore/Rendering/PNGCompaction.swift Sources/SwiftBookCLI/CompressCommand.swift Sources/SwiftBookCLI/InitCommand.swift Sources/SwiftBookCLI/PruneCommand.swift Sources/SwiftBookCLI/DoctorCommand.swift Sources/SwiftBookCLI/TestCommand.swift Sources/SwiftBookMacros/SwiftBookTestsMacro.swift -->
 <!-- checked: 10b6ab0 -->

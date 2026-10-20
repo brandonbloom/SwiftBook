@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import ImageIO
 import Testing
 
 @testable import SwiftBookCore
@@ -191,6 +192,32 @@ import Testing
             return
         }
         #expect(try Data(contentsOf: url) == older)
+    }
+
+    @Test func compactsReferencesInPlace() throws {
+        let url = store.url(for: story, device: .mac, environment: RenderEnvironment())
+        _ = try store.verify(snapshot(gray: 100), mode: .missing)
+        let recorded = try Data(contentsOf: url)
+        // Recorded references are already compact.
+        #expect(try store.compact(url).after == recorded.count)
+
+        // As SwiftBook 0.2 wrote them: ImageIO's encoding, with the same text.
+        let image = try SnapshotStore.image(recorded, at: url.path)
+        let data = NSMutableData()
+        let destination = try #require(
+            CGImageDestinationCreateWithData(data, "public.png" as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, image, nil)
+        try #require(CGImageDestinationFinalize(destination))
+        try (data as Data).write(to: url)
+        let dryRun = try store.compact(url, dryRun: true)
+        #expect(dryRun.after < dryRun.before)
+        #expect(try Data(contentsOf: url) == data as Data)
+        let compaction = try store.compact(url)
+        #expect(try Data(contentsOf: url).count == compaction.after)
+        guard case .matched = try store.verify(snapshot(gray: 100), mode: .never) else {
+            Issue.record("expected the compacted reference to match")
+            return
+        }
     }
 
     @Test func explainsGitLFSPointers() throws {
