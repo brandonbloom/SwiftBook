@@ -72,14 +72,14 @@
                     window, size: size, scale: environment.scale)
                 image = try await stableCapture(
                     of: host, settling: .windowServer, timeout: timeout,
-                    hold: ProjectConfiguration.hold(for: story.id), error: error
+                    hold: Hold(duration: ProjectConfiguration.hold(for: story.id)), error: error
                 ) {
                     try await capture.capture()
                 }
             case .emulated:
                 image = try await stableCapture(
                     of: host, settling: .emulated, timeout: timeout,
-                    hold: ProjectConfiguration.hold(for: story.id), error: error
+                    hold: Hold(duration: ProjectConfiguration.hold(for: story.id)), error: error
                 ) {
                     try capture(host, size: size, scale: environment.scale, error: error)
                 }
@@ -168,13 +168,15 @@
         static let minimumCaptures = 5
 
         /// Captures `host` until it holds still: as many identical captures in a row as
-        /// `settling` needs, the first of them at least `hold` before the last.
+        /// `settling` needs, and as `hold` does, the first of them at least `hold`'s duration
+        /// before the last.
         private static func stableCapture(
-            of host: NSView, settling: Settling, timeout: Duration, hold: Duration,
+            of host: NSView, settling: Settling, timeout: Duration, hold: Hold,
             error: (String) -> RenderError, capture: () async throws -> CGImage
         ) async throws -> CGImage {
             let clock = ContinuousClock()
-            let deadline = clock.now + settling.initialDelay + timeout + hold
+            let timeout = hold.timeout(otherwise: timeout)
+            let deadline = clock.now + settling.initialDelay + timeout
             host.layoutSubtreeIfNeeded()
             host.displayIfNeeded()
             try await Task.sleep(for: settling.initialDelay)
@@ -198,7 +200,11 @@
                     matches = 1
                     stableSince = taken
                 }
-                if matches >= settling.matches, taken - stableSince >= hold { return image }
+                if matches >= settling.matches,
+                    hold.isSatisfied(stable: taken - stableSince, identical: matches)
+                {
+                    return image
+                }
                 previous = pixels
                 guard clock.now < deadline || captures < minimumCaptures else {
                     throw error("still changing after \(captures) captures over \(timeout)")

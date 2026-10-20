@@ -114,7 +114,7 @@
 
             let image = try await stableCapture(
                 of: window, scale: scale, timeout: timeout,
-                hold: ProjectConfiguration.hold(for: story.id), error: error)
+                hold: Hold(duration: ProjectConfiguration.hold(for: story.id)), error: error)
             let os = ProcessInfo.processInfo.operatingSystemVersion
             let device = Self.device
             var snapshot = Snapshot(
@@ -210,20 +210,22 @@
         }
 
         /// Captures `window` until it holds still: two captures in a row identical, held for long
-        /// enough for what the capture shows, and for at least `hold`.
+        /// enough for what the capture shows, and as `hold` needs.
         private static func stableCapture(
-            of window: UIWindow, scale: Double, timeout: Duration, hold: Duration,
+            of window: UIWindow, scale: Double, timeout: Duration, hold: Hold,
             error: (String) -> RenderError
         ) async throws -> CGImage {
             let start = ContinuousClock.now
-            let deadline = start + timeout + max(uniformSettling, hold)
+            let timeout = hold.timeout(otherwise: timeout)
+            let deadline = start + timeout + uniformSettling
             let format = UIGraphicsImageRendererFormat()
             format.scale = scale
             format.opaque = true
             var previous: Data?
             var previousTime = start
-            // When the current run of identical captures began.
+            // When the current run of identical captures began, and how many it has.
             var stableSince: ContinuousClock.Instant?
+            var identical = 1
             var captures = 0
             while true {
                 window.layoutIfNeeded()
@@ -240,10 +242,16 @@
                 if pixels == previous {
                     let since = stableSince ?? previousTime
                     stableSince = since
-                    let needed = max(Self.isUniform(pixels) ? uniformSettling : .zero, hold)
-                    if now - since >= needed { return normalized }
+                    identical += 1
+                    let needed = Self.isUniform(pixels) ? uniformSettling : .zero
+                    if now - since >= needed,
+                        hold.isSatisfied(stable: now - since, identical: identical)
+                    {
+                        return normalized
+                    }
                 } else {
                     stableSince = nil
+                    identical = 1
                 }
                 previous = pixels
                 previousTime = now
