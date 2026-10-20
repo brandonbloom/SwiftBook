@@ -8,7 +8,7 @@ public enum RecordMode: String, Hashable, Sendable, CaseIterable {
     case missing
     /// Also re-record references that no longer match.
     case changed
-    /// Re-record every reference.
+    /// Re-record every reference whose pixels differ at all.
     case all
     /// Never record; a missing reference is a failure. For CI.
     case never
@@ -151,14 +151,12 @@ public struct SnapshotStore: Sendable {
             throw StorageError(description: GitLFS.pointerProblem(at: url.path))
         }
         if mode == .all {
-            // An identical reference needs no rewrite, so it isn't reported as recorded.
-            if reference == png {
-                return .matched(
-                    try compare(
-                        snapshot, toReference: reference, at: url, tolerance: tolerance))
-            }
+            // A reference with the same pixels needs no rewrite, so it isn't reported as
+            // recorded, even if its metadata, such as the SwiftBook or OS version, differs.
+            // Rewriting it would churn every reference after each upgrade.
             let previous = try? compare(
                 snapshot, toReference: reference, at: url, tolerance: tolerance)
+            if let previous, previous.isIdentical { return .matched(previous) }
             try write(png, to: url)
             return .recorded(url, previous: previous, replaced: reference)
         }

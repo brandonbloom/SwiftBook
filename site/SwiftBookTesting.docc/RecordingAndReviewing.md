@@ -17,7 +17,7 @@ values with `--record`.
 |---|---|---|---|
 | `missing` (default) | Recorded; the test fails until you review it | Fails | Day-to-day work |
 | `changed` | Recorded | Re-recorded, with a warning | Accepting intended changes |
-| `all` | Recorded | Every reference that differs at all is re-recorded, with a warning | After changing tolerance or the rendering environment |
+| `all` | Recorded | Every reference whose pixels differ at all is re-recorded, with a warning. Only metadata differing, such as the SwiftBook or OS version, doesn't count | After changing tolerance or the rendering environment |
 | `never` | Fails | Fails | CI |
 
 Re-recordings pass, but each one is reported as a warning, with a diff image showing what

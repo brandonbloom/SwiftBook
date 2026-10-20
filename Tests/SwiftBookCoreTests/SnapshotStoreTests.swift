@@ -179,6 +179,20 @@ import Testing
         #expect(diff.isIdentical)
     }
 
+    @Test func leavesReferencesWhoseOnlyDifferenceIsMetadataAloneInAllMode() throws {
+        // As after a SwiftBook or OS upgrade: the same pixels, recorded with other metadata.
+        let url = store.url(for: story, device: .mac, environment: RenderEnvironment())
+        _ = try store.verify(snapshot(gray: 100), mode: .missing)
+        let image = try SnapshotStore.image(Data(contentsOf: url), at: url.path)
+        let older = try PNG.encode(image, text: ["SwiftBook": "{}"])
+        try older.write(to: url)
+        guard case .matched = try store.verify(snapshot(gray: 100), mode: .all) else {
+            Issue.record("expected a match")
+            return
+        }
+        #expect(try Data(contentsOf: url) == older)
+    }
+
     @Test func explainsGitLFSPointers() throws {
         let url = store.url(for: story, device: .mac, environment: RenderEnvironment())
         try FileManager.default.createDirectory(
