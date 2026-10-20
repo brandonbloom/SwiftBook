@@ -58,7 +58,7 @@
                 in: SimulatorPool.lease(
                     for: device, waiting: Renderers.progress,
                     keepWarm: SimulatorIdleCommand.start))
-            let stories = try first.stories()
+            let stories = try first.stories().filter(\.isTested)
             lock.withLock {
                 items = stories.flatMap { story in
                     RenderEnvironment.Appearance.allCases.map { (story.id, $0) }

@@ -121,6 +121,12 @@ public struct StoryInfo: Codable, Hashable, Sendable {
     public var line: Int?
     /// Why the story's view couldn't be built, from a `list` with `check`.
     public var error: String?
+    /// Whether the package's ``SwiftBookConfiguration`` leaves the story out of snapshot tests.
+    /// Optional so that a renderer's response needn't mention it.
+    public var excluded: Bool?
+
+    /// Whether `swiftbook test` checks the story.
+    public var isTested: Bool { excluded != true }
 
     /// `Module/Group/Name`.
     public var id: StoryID { StoryID(module: module, group: group, name: name) }

@@ -28,8 +28,16 @@ public protocol SwiftBookConfiguration {
     /// Set this to the same color so controls in snapshots look as they do in the app. A color
     /// from an asset catalog keeps its light and dark appearances.
     @MainActor static var tint: Color? { get }
+
+    /// Stories to leave out of snapshot tests, as `Module/Group/Name`, on every device: under
+    /// `swift test` and in `swiftbook test`. They still render in the viewer and in Xcode.
+    ///
+    /// Use it for a preview that can't render the same way twice, such as one whose view draws
+    /// progressively, like a `PDFView`.
+    @MainActor static var excluded: Set<String> { get }
 }
 
 extension SwiftBookConfiguration {
     public static var tint: Color? { nil }
+    public static var excluded: Set<String> { [] }
 }

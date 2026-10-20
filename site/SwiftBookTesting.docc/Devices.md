@@ -82,7 +82,8 @@ with `✗`, and give the `swiftbook render` command for the failed stories on ea
 ### Limitations
 
 - On iPhone, iPad, and Apple TV, `swiftbook test` checks light and dark only, and doesn't apply
-  `#SwiftBookTests`' `excluding:`.
+  `#SwiftBookTests`' `excluding:`. To leave a story out on every device, use
+  `SwiftBookConfiguration.excluded`.
 
 ## See Also
 

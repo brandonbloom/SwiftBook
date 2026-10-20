@@ -176,7 +176,11 @@ public enum RendererServer {
                             error = String(describing: failure)
                         }
                     }
-                    infos.append(StoryInfo(story: story, error: error))
+                    var info = StoryInfo(story: story, error: error)
+                    if ProjectConfiguration.excluded.contains(story.id.description) {
+                        info.excluded = true
+                    }
+                    infos.append(info)
                 }
                 channel.send(RendererResponse(id: request.id, stories: infos))
             case .render:

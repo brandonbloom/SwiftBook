@@ -63,9 +63,21 @@ asynchronously, and animations that don't start from a fixed state.
 
 ### Leave a preview out
 
+Some previews can't render the same way twice, such as a `PDFView`, which draws a page's tiles
+progressively. Keep them for Xcode and the viewer, and leave them out of snapshot tests on every
+device, in your package's `SwiftBookConfiguration`:
+
 ```swift
-#SwiftBookTests(excluding: ["MyUI/Group/Name"])
+import SwiftBook
+
+struct Snapshots: SwiftBookConfiguration {
+    static var excluded: Set<String> { ["MyUI/Document/PDF page"] }
+}
 ```
+
+`swiftbook list` marks them "not snapshot-tested", and `swiftbook flakes` skips them unless you
+name them. `#SwiftBookTests(excluding:)` leaves stories out too, but only under `swift test` on
+the Mac.
 
 ## See Also
 

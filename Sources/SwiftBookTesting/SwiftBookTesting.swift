@@ -86,10 +86,13 @@ public enum SwiftBook {
     /// Checked once per file per run: the scan reads every reference.
     private static let lfsProblems = Mutex<[String: String?]>([:])
 
-    /// Every story in this process, except `excluded` ones (as `Module/Group/Name`).
+    /// Every story in this process, except `excluded` ones (as `Module/Group/Name`) and those
+    /// the package's `SwiftBookConfiguration` excludes.
     public static func stories(excluding excluded: Set<String> = []) async -> [TestStory] {
         await MainActor.run {
-            Story.all().filter { !excluded.contains($0.id.description) }.map(TestStory.init)
+            let excluded = excluded.union(ProjectConfiguration.excluded)
+            return Story.all().filter { !excluded.contains($0.id.description) }
+                .map(TestStory.init)
         }
     }
 

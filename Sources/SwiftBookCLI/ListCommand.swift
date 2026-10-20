@@ -39,7 +39,9 @@
                 print(String(decoding: try encoder.encode(stories), as: UTF8.self))
             } else {
                 for story in stories {
-                    print(story.id.description + (story.error.map { "  ✗ \($0)" } ?? ""))
+                    print(
+                        story.id.description + (story.isTested ? "" : "  (not snapshot-tested)")
+                            + (story.error.map { "  ✗ \($0)" } ?? ""))
                 }
             }
             if stories.contains(where: { $0.error != nil }) { throw Exit.broken.code }

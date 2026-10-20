@@ -29,6 +29,9 @@ import SwiftUI
     /// The tint around every story, if the package sets one.
     public static var tint: Color? { declaration?.tint }
 
+    /// The stories the package leaves out of snapshot tests, as `Module/Group/Name`.
+    public static var excluded: Set<String> { declaration?.excluded ?? [] }
+
     /// The tint as rendered in `appearance`, as `#RRGGBB` or `#RRGGBBAA`, for snapshot metadata.
     /// `nil` if the package sets none.
     static func tintDescription(in appearance: RenderEnvironment.Appearance) -> String? {

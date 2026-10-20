@@ -98,10 +98,12 @@
                 let renderer = try start()
                 defer { renderer.shutdown() }
                 if selected.isEmpty {
-                    let all = try renderer.stories().map(\.id)
+                    let infos = try renderer.stories()
+                    let all = infos.map(\.id)
+                    // Excluded stories are known not to render the same way twice, unless named.
                     selected =
                         stories.isEmpty
-                        ? all
+                        ? infos.filter(\.isTested).map(\.id)
                         : try stories.map { name in
                             guard let story = all.first(where: { $0.description == name }) else {
                                 throw Failure(description: "no story \(name)")

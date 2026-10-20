@@ -249,6 +249,11 @@
             let renderer = try RendererProcess(
                 executable: executable, environment: ["SWIFTBOOK_CAPTURE": "emulated"])
             defer { renderer.shutdown() }
+            // The configuration also leaves a story out of snapshot tests.
+            #expect(
+                try renderer.stories().map { "\($0.id) \($0.isTested)" } == [
+                    "TintZoo/Tint/Tinted true", "TintZoo/Tint/Viewer only false",
+                ])
             let story = StoryID(module: "TintZoo", group: "Tint", name: "Tinted")
             // The asset catalog's AccentColor, light and dark.
             for (appearance, tint) in [
