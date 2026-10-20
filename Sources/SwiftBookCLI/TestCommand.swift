@@ -188,7 +188,18 @@
                 let plain = CharacterSet.alphanumerics.union(
                     CharacterSet(charactersIn: "/._-+=:,@%"))
                 guard !text.isEmpty, text.unicodeScalars.allSatisfy(plain.contains) else {
-                    return "'" + text.replacingOccurrences(of: "'", with: #"'\''"#) + "'"
+                    // By scalar: a quote followed by a combining mark is one Character, which a
+                    // replacement of the Character "'" would miss.
+                    var quoted = String.UnicodeScalarView(["'"])
+                    for scalar in text.unicodeScalars {
+                        if scalar == "'" {
+                            quoted.append(contentsOf: #"'\''"#.unicodeScalars)
+                        } else {
+                            quoted.append(scalar)
+                        }
+                    }
+                    quoted.append("'")
+                    return String(quoted)
                 }
                 return text
             }

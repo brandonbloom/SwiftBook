@@ -55,7 +55,8 @@
         @Test func shellQuotingSurvivesTheShell() async {
             // Arguments can't hold NUL.
             let text = String.arbitrary(Unicode.Scalar.arbitrary.filter { $0 != "\0" })
-            await forAll(text) { text in
+            // A quote and a combining mark make one Character, which quoting once missed.
+            await forAll(text, examples: ["'\u{301}"]) { text in
                 let process = Process()
                 process.executableURL = URL(filePath: "/bin/sh")
                 process.arguments = [
