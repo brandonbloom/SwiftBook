@@ -140,10 +140,9 @@ public struct SnapshotStore: Sendable {
     {
         let url = url(
             for: snapshot.story, device: snapshot.device, environment: snapshot.environment)
-        let png = try snapshot.pngData()
         guard let reference = try? Data(contentsOf: url) else {
             guard mode != .never else { return .missing(url) }
-            try write(png, to: url)
+            try write(snapshot.pngData(), to: url)
             return .recorded(url, previous: nil, replaced: nil)
         }
         // In every mode: recording over a pointer would replace a reference nobody has seen.
@@ -157,14 +156,14 @@ public struct SnapshotStore: Sendable {
             let previous = try? compare(
                 snapshot, toReference: reference, at: url, tolerance: tolerance)
             if let previous, previous.isIdentical { return .matched(previous) }
-            try write(png, to: url)
+            try write(snapshot.pngData(), to: url)
             return .recorded(url, previous: previous, replaced: reference)
         }
         let diff = try compare(
             snapshot, toReference: reference, at: url, tolerance: tolerance)
         if diff.matches { return .matched(diff) }
         if mode == .changed {
-            try write(png, to: url)
+            try write(snapshot.pngData(), to: url)
             return .recorded(url, previous: diff, replaced: reference)
         }
         return .mismatched(

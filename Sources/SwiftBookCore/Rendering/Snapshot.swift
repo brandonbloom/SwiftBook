@@ -15,16 +15,20 @@ public struct Snapshot: @unchecked Sendable {
     /// Where the image has Liquid Glass, in pixels, for comparing it (``ImageDiff/compare(expected:actual:tolerance:glass:)``).
     /// Not saved: references stay exactly the image.
     public var glassRegions: [ImageDiff.PixelRect] = []
+    /// The PNG the snapshot arrived as, if it came from a renderer: ``pngData()`` without
+    /// encoding it again.
+    private let encoded: Data?
 
     init(
         story: StoryID, device: Device, environment: RenderEnvironment, image: CGImage,
-        metadata: SnapshotMetadata
+        metadata: SnapshotMetadata, encoded: Data? = nil
     ) {
         self.story = story
         self.device = device
         self.environment = environment
         self.image = image
         self.metadata = metadata
+        self.encoded = encoded
     }
 
     /// A snapshot a renderer sent as PNG, with its metadata.
@@ -34,12 +38,13 @@ public struct Snapshot: @unchecked Sendable {
         }
         self.init(
             story: story, device: device, environment: environment,
-            image: try SnapshotStore.image(png, at: story.description), metadata: metadata)
+            image: try SnapshotStore.image(png, at: story.description), metadata: metadata,
+            encoded: png)
     }
 
     /// The image as a PNG, with ``metadata`` in a `SwiftBook` text chunk.
     public func pngData() throws -> Data {
-        try PNG.encode(image, text: ["SwiftBook": try metadata.json()])
+        try encoded ?? PNG.encode(image, text: ["SwiftBook": try metadata.json()])
     }
 }
 

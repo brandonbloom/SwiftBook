@@ -121,14 +121,27 @@
         private func work(with renderer: RestartingRenderer, in group: DispatchGroup) {
             group.enter()
             Thread.detachNewThread { [self] in
-                defer { group.leave() }
+                // Each render is verified on a thread of its own while the renderer draws the
+                // next, one at a time, so a renderer never waits for a comparison.
+                let verifying = DispatchGroup()
+                defer {
+                    verifying.wait()
+                    group.leave()
+                }
                 while let index = lock.withLock({ () -> Int? in
                     guard next < items.count else { return nil }
                     defer { next += 1 }
                     return next
                 }) {
-                    check(items[index], at: index, with: renderer)
-                    lock.withLock { finished += 1 }
+                    let item = items[index]
+                    let rendered = render(item, with: renderer)
+                    verifying.wait()
+                    verifying.enter()
+                    Thread.detachNewThread { [self] in
+                        defer { verifying.leave() }
+                        verify(item, at: index, rendered: rendered)
+                        lock.withLock { finished += 1 }
+                    }
                 }
             }
         }
@@ -191,10 +204,30 @@
             Double(remaining) * perItem / Double(max(renderers, 1)) > 2 * startCost
         }
 
-        /// Renders `item`, verifies it, and records and prints the outcome.
-        private func check(_ item: Item, at index: Int, with renderer: RestartingRenderer) {
+        /// The environment `item` renders in.
+        private func environment(for item: Item) -> RenderEnvironment {
             var environment = RenderEnvironment.standard(for: device)
             environment.appearance = item.appearance
+            return environment
+        }
+
+        /// Renders `item` with `renderer`.
+        private func render(_ item: Item, with renderer: RestartingRenderer) -> Result<
+            Snapshot, any Error
+        > {
+            Result {
+                let environment = environment(for: item)
+                let rendered = try renderer.renderImage(item.story, in: environment)
+                var snapshot = try Snapshot(
+                    png: rendered.png, story: item.story, device: device, environment: environment)
+                snapshot.glassRegions = rendered.glassRegions
+                return snapshot
+            }
+        }
+
+        /// Verifies `item`'s render, and records and prints the outcome.
+        private func verify(_ item: Item, at index: Int, rendered: Result<Snapshot, any Error>) {
+            let environment = environment(for: item)
             let subject =
                 "\(item.story) (\(SnapshotStore.variantName(device: device, environment: environment)))"
             func record(_ result: TestCommand.Result, output: String?, _ count: () -> Void) {
@@ -207,10 +240,7 @@
             }
             let result = TestCommand.Result(device: device, subject: subject, story: item.story)
             do {
-                let rendered = try renderer.renderImage(item.story, in: environment)
-                var snapshot = try Snapshot(
-                    png: rendered.png, story: item.story, device: device, environment: environment)
-                snapshot.glassRegions = rendered.glassRegions
+                let snapshot = try rendered.get()
                 let verification = try project.store.verify(
                     snapshot, mode: mode, tolerance: tolerance)
                 // Reports write artifacts and the review page, which are shared.

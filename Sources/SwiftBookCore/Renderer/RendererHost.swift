@@ -38,6 +38,10 @@
                         "couldn't build the renderer for \(package.path):\n\(Self.diagnostics(in: output))"
                 )
             }
+            // Where SwiftPM puts a debug build. Asking it with --show-bin-path takes most of a
+            // second, so only if the product isn't there.
+            let usual = directory.appending(path: ".build/debug/\(Self.name)")
+            if FileManager.default.isExecutableFile(atPath: usual.path) { return usual }
             guard
                 let binPath = Shell.run(
                     ["swift", "build", "--package-path", directory.path, "--show-bin-path"]),
