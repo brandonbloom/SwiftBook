@@ -45,6 +45,10 @@ struct Snapshots: SwiftBookConfiguration {
 }
 ```
 
+The hold stretches with load. The story must also hold still through as many captures as its
+duration spans on an idle machine, and a busy machine captures more slowly, just as it draws
+more slowly. A held story fails as still changing only after 30 seconds.
+
 ### Size deliberately
 
 Use `.sizeThatFitsLayout` for components and `.fixedLayout(width:height:)` for windows and

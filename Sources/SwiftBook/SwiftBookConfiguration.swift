@@ -42,6 +42,10 @@ public protocol SwiftBookConfiguration {
     /// SwiftBook captures a render once two captures in a row match. A view that draws in
     /// stages can hold still between them: a `PDFView` draws a blurry page first and sharp tiles
     /// later. A hold of a second or so waits out such stages. Other stories don't wait.
+    ///
+    /// A hold stretches with load: the story must also hold still through as many captures as
+    /// its duration spans on an idle machine, and captures come slower on a busy one. A held
+    /// story fails as still changing only after 30 s.
     @MainActor static var settling: [String: Duration] { get }
 }
 
