@@ -20,7 +20,7 @@ SwiftBook needs macOS 27 and Xcode 27, and [Git LFS](https://git-lfs.com) for re
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/brandonbloom/SwiftBook.git", exact: "0.6.0"),
+    .package(url: "https://github.com/brandonbloom/SwiftBook.git", exact: "0.6.1"),
 ],
 targets: [
     .testTarget(
