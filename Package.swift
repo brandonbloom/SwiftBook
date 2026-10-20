@@ -31,7 +31,11 @@ let package = Package(
     ],
     targets: [
         .target(name: "SwiftBook", swiftSettings: strict),
-        .target(name: "SwiftBookCore", dependencies: ["SwiftBook"], swiftSettings: strict),
+        .target(
+            name: "SwiftBookCore", dependencies: ["SwiftBook", "SwiftBookPNGFilters"],
+            swiftSettings: strict),
+        // PNG row filters, in C so recording stays fast in debug builds.
+        .target(name: "SwiftBookPNGFilters"),
         .target(
             name: "SwiftBookTesting", dependencies: ["SwiftBookCore", "SwiftBookMacros"],
             swiftSettings: strict),

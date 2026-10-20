@@ -97,7 +97,7 @@ enum PNG {
         guard CGImageDestinationFinalize(destination) else {
             throw Error(description: "can't encode PNG")
         }
-        return try insert(text: text, into: data as Data)
+        return try compact(insert(text: text, into: data as Data))
     }
 
     /// The `tEXt` chunks in a PNG.
@@ -111,16 +111,16 @@ enum PNG {
         return text
     }
 
-    private static let signature = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
+    static let signature = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
 
-    private struct Chunk {
+    struct Chunk {
         let type: String
         let data: Data
         /// The chunk's full encoding: length, type, data, and CRC.
         let range: Range<Int>
     }
 
-    private static func chunks(_ png: Data) throws -> [Chunk] {
+    static func chunks(_ png: Data) throws -> [Chunk] {
         let bytes = [UInt8](png)
         guard bytes.starts(with: signature) else { throw Error(description: "not a PNG") }
         var chunks: [Chunk] = []
@@ -152,7 +152,7 @@ enum PNG {
         return Data(result)
     }
 
-    private static func chunk(type: String, data: Data) -> Data {
+    static func chunk(type: String, data: Data) -> Data {
         let typeAndData = Data(type.utf8) + data
         return bigEndian(UInt32(data.count)) + typeAndData + bigEndian(crc32(typeAndData))
     }
