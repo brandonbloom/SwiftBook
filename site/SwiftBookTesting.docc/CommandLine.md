@@ -43,4 +43,4 @@ package; later ones are incremental.
 - <doc:ContinuousIntegration>
 
 <!-- sources: Sources/SwiftBookCLI -->
-<!-- checked: 6947dad -->
+<!-- checked: 00c1729 -->

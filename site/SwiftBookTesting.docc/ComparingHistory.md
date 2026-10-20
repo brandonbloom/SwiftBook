@@ -56,4 +56,4 @@ images full-size. About 20 to 40 KB per changed reference is typical. `--device`
 - <doc:ContinuousIntegration>
 
 <!-- sources: Sources/SwiftBookCLI/DiffCommand.swift Sources/SwiftBookCore/Git Sources/SwiftBookCore/Storage/ReferenceChanges.swift -->
-<!-- checked: 6947dad -->
+<!-- checked: 00c1729 -->
