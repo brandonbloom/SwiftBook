@@ -85,6 +85,31 @@
             #expect(changes[2].previous == (try png(gray: 100)))
         }
 
+        @Test func setsReencodedReferencesAside() throws {
+            let (project, repository) = try changedProject()
+            // As swiftbook compress leaves it: the same image, encoded differently.
+            let kept = directory.appending(path: "Snapshots/M/G/Kept/mac.light.png")
+            let compaction = try project.store.compact(kept)
+            try #require(compaction.after < compaction.before)
+
+            let changes = try project.store.changes(since: "HEAD", in: repository)
+            #expect(changes.first { $0.story == "M/G/Kept" }?.kind == .reencoded)
+            #expect(changes.first { $0.story == "M/G/Nudged" }?.kind == .modified)
+            let human = DiffCommand.human(changes, against: "HEAD (abc)")
+            #expect(human.hasPrefix("4 references changed against HEAD (abc):"))
+            #expect(!human.contains("M/G/Kept"))
+            #expect(
+                human.hasSuffix(
+                    "\n1 more reference was re-encoded, with the same pixels and metadata."))
+            #expect(
+                DiffCommand.human(changes.filter { $0.kind == .reencoded }, against: "HEAD")
+                    == "No references changed against HEAD.\n1 reference was re-encoded, with the same pixels and metadata."
+            )
+            #expect(
+                try DiffCommand.json(changes, revision: "HEAD", commit: "abc").contains("reencoded")
+            )
+        }
+
         @Test func comparesAgainstTheMergeBase() throws {
             let (_, repository) = try changedProject()
             try git("checkout", "-q", "-b", "feature")

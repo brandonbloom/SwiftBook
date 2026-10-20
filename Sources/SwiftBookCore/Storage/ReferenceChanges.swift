@@ -7,6 +7,9 @@
     public struct ReferenceChange: Sendable {
         public enum Kind: String, Sendable, Codable {
             case added, modified, deleted
+            /// Modified, but only in its encoding: the image decodes to the same pixels, with
+            /// the same metadata, as by `swiftbook compress`.
+            case reencoded
         }
 
         /// The path relative to the repository's top level.
@@ -63,8 +66,13 @@
                         let diff = try ImageDiff.compare(
                             expected: Self.image(previous ?? Data(), at: change.path),
                             actual: Self.image(current, at: change.path))
+                        let reencoded =
+                            diff.isIdentical
+                            && (try? PNG.text(in: previous ?? Data()))
+                                == (try? PNG.text(in: current))
                         return ReferenceChange(
-                            path: change.path, story: story, variant: variant, kind: .modified,
+                            path: change.path, story: story, variant: variant,
+                            kind: reencoded ? .reencoded : .modified,
                             diff: diff, previous: previous, current: current)
                     }
                 }

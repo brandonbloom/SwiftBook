@@ -74,15 +74,18 @@
                 throw Exit.broken.code
             }
             let label = "\(mergeBase ? "merge base with " : "")\(revision) (\(basis.prefix(9)))"
+            // Re-encoded references, as after swiftbook compress, look the same, so only JSON,
+            // for machines, lists them; the rest just count them.
+            let listed = changes.filter { $0.kind != .reencoded }
             switch format {
             case .human: print(Self.human(changes, against: label))
             case .json: print(try Self.json(changes, revision: revision, commit: basis))
-            case .junit: print(Self.junit(changes, against: label))
+            case .junit: print(Self.junit(listed, against: label))
             }
             if open || export != nil {
                 do {
                     let page = try Self.writePage(
-                        changes, project: project, against: label,
+                        listed, project: project, against: label,
                         export: export.map { URL(filePath: $0) })
                     if open, Shell.run(["open", page.path])?.succeeded != true {
                         warn("swiftbook: couldn't open \(page.path)")
@@ -110,8 +113,20 @@
                 "\(diff.changedPixels) pixels (\(percent)%), max ΔE \(Int(diff.maxDeltaE.rounded()))"
         }
 
-        static func human(_ changes: [ReferenceChange], against label: String) -> String {
-            guard !changes.isEmpty else { return "No references changed against \(label)." }
+        static func human(_ all: [ReferenceChange], against label: String) -> String {
+            let changes = all.filter { $0.kind != .reencoded }
+            let reencoded = all.count - changes.count
+            func note(more: Bool) -> String {
+                guard reencoded > 0 else { return "" }
+                let count =
+                    reencoded == 1
+                    ? "1\(more ? " more" : "") reference was"
+                    : "\(reencoded)\(more ? " more" : "") references were"
+                return "\n\(count) re-encoded, with the same pixels and metadata."
+            }
+            guard !changes.isEmpty else {
+                return "No references changed against \(label).\(note(more: false))"
+            }
             let count = changes.count == 1 ? "1 reference" : "\(changes.count) references"
             var lines = ["\(count) changed against \(label):"]
             let width = changes.map(\.story.count).max() ?? 0
@@ -122,7 +137,7 @@
                     "  \(kind)  \(story)  \(change.variant)  \(summary(of: change))"
                         .replacing(/\s+$/, with: ""))
             }
-            return lines.joined(separator: "\n")
+            return lines.joined(separator: "\n") + note(more: true)
         }
 
         struct JSONChange: Encodable {
@@ -221,7 +236,7 @@
                 let kind: ReviewEntry.Kind =
                     switch change.kind {
                     case .added: .new
-                    case .modified: .changed
+                    case .modified, .reencoded: .changed
                     case .deleted: .deleted
                     }
                 entries.append(

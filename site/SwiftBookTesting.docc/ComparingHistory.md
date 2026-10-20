@@ -15,7 +15,9 @@ swift run swiftbook diff --merge-base main  # against where this branch left mai
 ```
 
 Modified references within tolerance are listed, but don't count as changes. The command exits
-with status 1 when something changed.
+with status 1 when something changed. References that were only re-encoded, with the same pixels
+and metadata, as by `swiftbook compress`, are counted in one line instead of listed; JSON output
+lists them as `reencoded`.
 
 After accepting a change to Wander's weather card:
 
