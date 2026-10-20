@@ -93,4 +93,4 @@ Your previews run in a separate renderer process, so nothing they do can take th
 - <doc:CommandLine>
 
 <!-- sources: Sources/SwiftBookViewer Sources/SwiftBookCLI/ViewCommand.swift Sources/SwiftBookCore/Storage/SnapshotStore.swift Sources/SwiftBookCore/Storage/GitLFS.swift -->
-<!-- checked: 239a814 -->
+<!-- checked: 6947dad -->

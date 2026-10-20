@@ -76,4 +76,4 @@ macOS doesn't rewrite every reference.
 - <doc:ComparingHistory>
 
 <!-- sources: Sources/SwiftBookCore/Storage Sources/SwiftBookCore/Rendering/PNGCompaction.swift Sources/SwiftBookCLI/CompressCommand.swift Sources/SwiftBookCLI/InitCommand.swift Sources/SwiftBookCLI/PruneCommand.swift Sources/SwiftBookCLI/DoctorCommand.swift Sources/SwiftBookCLI/TestCommand.swift Sources/SwiftBookMacros/SwiftBookTestsMacro.swift -->
-<!-- checked: 239a814 -->
+<!-- checked: 6947dad -->
