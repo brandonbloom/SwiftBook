@@ -32,12 +32,21 @@ public protocol SwiftBookConfiguration {
     /// Stories to leave out of snapshot tests, as `Module/Group/Name`, on every device: under
     /// `swift test` and in `swiftbook test`. They still render in the viewer and in Xcode.
     ///
-    /// Use it for a preview that can't render the same way twice, such as one whose view draws
-    /// progressively, like a `PDFView`.
+    /// Use it for a preview that can't render the same way twice, such as a map that loads its
+    /// tiles from the network. For one that draws in stages, ``settling`` may be enough.
     @MainActor static var excluded: Set<String> { get }
+
+    /// How long each listed story, as `Module/Group/Name`, must hold still before it's
+    /// captured, on every device.
+    ///
+    /// SwiftBook captures a render once two captures in a row match. A view that draws in
+    /// stages can hold still between them: a `PDFView` draws a blurry page first and sharp tiles
+    /// later. A hold of a second or so waits out such stages. Other stories don't wait.
+    @MainActor static var settling: [String: Duration] { get }
 }
 
 extension SwiftBookConfiguration {
     public static var tint: Color? { nil }
     public static var excluded: Set<String> { [] }
+    public static var settling: [String: Duration] { [:] }
 }

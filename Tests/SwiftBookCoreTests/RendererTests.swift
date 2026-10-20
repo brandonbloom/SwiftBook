@@ -253,7 +253,12 @@
             #expect(
                 try renderer.stories().map { "\($0.id) \($0.isTested)" } == [
                     "TintZoo/Tint/Tinted true", "TintZoo/Tint/Viewer only false",
+                    "TintZoo/Tint/Held true",
                 ])
+            // And makes a story hold still before it's captured.
+            let start = ContinuousClock.now
+            _ = try renderer.render(StoryID(module: "TintZoo", group: "Tint", name: "Held"))
+            #expect(ContinuousClock.now - start >= .milliseconds(700))
             let story = StoryID(module: "TintZoo", group: "Tint", name: "Tinted")
             // The asset catalog's AccentColor, light and dark.
             for (appearance, tint) in [

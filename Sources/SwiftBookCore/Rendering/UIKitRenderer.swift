@@ -113,7 +113,8 @@
             #endif
 
             let image = try await stableCapture(
-                of: window, scale: scale, timeout: timeout, error: error)
+                of: window, scale: scale, timeout: timeout,
+                hold: ProjectConfiguration.hold(for: story.id), error: error)
             let os = ProcessInfo.processInfo.operatingSystemVersion
             let device = Self.device
             var snapshot = Snapshot(
@@ -209,12 +210,13 @@
         }
 
         /// Captures `window` until it holds still: two captures in a row identical, held for long
-        /// enough for what the capture shows.
+        /// enough for what the capture shows, and for at least `hold`.
         private static func stableCapture(
-            of window: UIWindow, scale: Double, timeout: Duration, error: (String) -> RenderError
+            of window: UIWindow, scale: Double, timeout: Duration, hold: Duration,
+            error: (String) -> RenderError
         ) async throws -> CGImage {
             let start = ContinuousClock.now
-            let deadline = start + timeout + uniformSettling
+            let deadline = start + timeout + max(uniformSettling, hold)
             let format = UIGraphicsImageRendererFormat()
             format.scale = scale
             format.opaque = true
@@ -238,7 +240,7 @@
                 if pixels == previous {
                     let since = stableSince ?? previousTime
                     stableSince = since
-                    let needed = Self.isUniform(pixels) ? uniformSettling : .zero
+                    let needed = max(Self.isUniform(pixels) ? uniformSettling : .zero, hold)
                     if now - since >= needed { return normalized }
                 } else {
                     stableSince = nil

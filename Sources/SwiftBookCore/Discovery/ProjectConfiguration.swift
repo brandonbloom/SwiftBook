@@ -32,6 +32,11 @@ import SwiftUI
     /// The stories the package leaves out of snapshot tests, as `Module/Group/Name`.
     public static var excluded: Set<String> { declaration?.excluded ?? [] }
 
+    /// How long `story` must hold still before it's captured: zero unless the package sets one.
+    public static func hold(for story: StoryID) -> Duration {
+        declaration?.settling[story.description] ?? .zero
+    }
+
     /// The tint as rendered in `appearance`, as `#RRGGBB` or `#RRGGBBAA`, for snapshot metadata.
     /// `nil` if the package sets none.
     static func tintDescription(in appearance: RenderEnvironment.Appearance) -> String? {

@@ -79,13 +79,15 @@
                 let capture = try await WindowServerCapture.prepare(
                     window, size: size, scale: environment.scale)
                 image = try await stableCapture(
-                    of: host, settling: .windowServer, timeout: timeout, error: error
+                    of: host, settling: .windowServer, timeout: timeout,
+                    hold: ProjectConfiguration.hold(for: story.id), error: error
                 ) {
                     try await capture.capture()
                 }
             case .emulated:
                 image = try await stableCapture(
-                    of: host, settling: .emulated, timeout: timeout, error: error
+                    of: host, settling: .emulated, timeout: timeout,
+                    hold: ProjectConfiguration.hold(for: story.id), error: error
                 ) {
                     try capture(host, size: size, scale: environment.scale, error: error)
                 }
@@ -173,28 +175,38 @@
         /// on a loaded machine, one capture can take the whole timeout.
         static let minimumCaptures = 5
 
+        /// Captures `host` until it holds still: as many identical captures in a row as
+        /// `settling` needs, the first of them at least `hold` before the last.
         private static func stableCapture(
-            of host: NSView, settling: Settling, timeout: Duration, error: (String) -> RenderError,
-            capture: () async throws -> CGImage
+            of host: NSView, settling: Settling, timeout: Duration, hold: Duration,
+            error: (String) -> RenderError, capture: () async throws -> CGImage
         ) async throws -> CGImage {
             let clock = ContinuousClock()
-            let deadline = clock.now + settling.initialDelay + timeout
+            let deadline = clock.now + settling.initialDelay + timeout + hold
             host.layoutSubtreeIfNeeded()
             host.displayIfNeeded()
             try await Task.sleep(for: settling.initialDelay)
             var previous: Data?
             var matches = 1
+            // When the first of the current run of identical captures was taken.
+            var stableSince = clock.now
             var captures = 0
             while true {
                 host.layoutSubtreeIfNeeded()
                 host.displayIfNeeded()
+                let taken = clock.now
                 let image = try await capture()
                 captures += 1
                 guard let pixels = image.dataProvider?.data as Data? else {
                     throw error("capture has no pixels")
                 }
-                matches = pixels == previous ? matches + 1 : 1
-                if matches >= settling.matches { return image }
+                if pixels == previous {
+                    matches += 1
+                } else {
+                    matches = 1
+                    stableSince = taken
+                }
+                if matches >= settling.matches, taken - stableSince >= hold { return image }
                 previous = pixels
                 guard clock.now < deadline || captures < minimumCaptures else {
                     throw error("still changing after \(captures) captures over \(timeout)")

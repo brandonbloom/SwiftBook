@@ -33,6 +33,18 @@ capturing through the window server. On a loaded machine, a render gets at least
 however long they take. Previews that animate forever, poll, or load asynchronously fail as
 "still changing".
 
+A view that draws in stages can hold still between them, and be captured too early. A `PDFView`
+draws a blurry page, then sharp tiles. Make such a story hold still longer before it's
+captured, in your package's `SwiftBookConfiguration`:
+
+```swift
+import SwiftBook
+
+struct Snapshots: SwiftBookConfiguration {
+    static var settling: [String: Duration] { ["MyUI/Document/PDF page": .seconds(1)] }
+}
+```
+
 ### Size deliberately
 
 Use `.sizeThatFitsLayout` for components and `.fixedLayout(width:height:)` for windows and
@@ -63,15 +75,15 @@ asynchronously, and animations that don't start from a fixed state.
 
 ### Leave a preview out
 
-Some previews can't render the same way twice, such as a `PDFView`, which draws a page's tiles
-progressively. Keep them for Xcode and the viewer, and leave them out of snapshot tests on every
+Some previews can't render the same way twice, such as a map that loads its tiles from the
+network. Keep them for Xcode and the viewer, and leave them out of snapshot tests on every
 device, in your package's `SwiftBookConfiguration`:
 
 ```swift
 import SwiftBook
 
 struct Snapshots: SwiftBookConfiguration {
-    static var excluded: Set<String> { ["MyUI/Document/PDF page"] }
+    static var excluded: Set<String> { ["MyUI/Places/Live map"] }
 }
 ```
 
