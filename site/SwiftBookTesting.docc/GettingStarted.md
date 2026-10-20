@@ -13,7 +13,7 @@ Pin an exact version. Until 1.0, every release may change alpha features:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/brandonbloom/SwiftBook.git", exact: "0.3.1"),
+    .package(url: "https://github.com/brandonbloom/SwiftBook.git", exact: "0.4.0"),
 ],
 ```
 
