@@ -35,6 +35,15 @@ Set `SWIFTBOOK_CAPTURE` to `windowServer` or `emulated`. References must be reco
 same capture method that verifies them, so a team whose CI runs emulated should record emulated
 too.
 
+### Rendering several at once
+
+Under `swift test`, emulated captures render four stories at a time, each in a window of its
+own, since most of a render is waiting for it to settle. Their images are the same as when
+they render one at a time. Window-server captures still render one at a time.
+`SWIFTBOOK_MAC_RENDERS` sets how many render at once, for either method. A story whose
+environment sets another time zone renders while no other does, because `Date.formatted()` reads
+the process's time zone.
+
 ### Inactive windows
 
 Windows render in their inactive style, as when another app is in front. For example, sidebar

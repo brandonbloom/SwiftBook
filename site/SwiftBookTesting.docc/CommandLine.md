@@ -36,6 +36,7 @@ package; later ones are incremental.
 | `SWIFTBOOK_CAPTURE` | How Mac renders are captured: `windowServer` or `emulated`. See <doc:Capture>. |
 | `SWIFTBOOK_ARTIFACTS` | Where actual images, diffs, and the review page go, instead of `.build/swiftbook`. |
 | `SWIFTBOOK_SIMULATORS` | How many simulators `swiftbook test` may use per device. See <doc:Devices>. |
+| `SWIFTBOOK_MAC_RENDERS` | How many Mac stories render at once under `swift test`: 4 by default with emulated capture, 1 through the window server. See <doc:Capture>. |
 
 ## See Also
 

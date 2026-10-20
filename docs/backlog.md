@@ -14,10 +14,11 @@ The first adopter has 632 references (about 300 on iPhone), checked by many agen
   - `swiftbook flakes --from-ci <log>`, taking the failing stories from a test log.
 - **Throughput as suites grow.** Full Mac and iPhone runs take minutes and grow linearly. Simulated devices now spread across the pool (`parallel-devices`). Ideas:
   - Render only previews whose source files (or their dependencies) changed since their references were recorded, with a full run nightly. The viewer's source-changed pass is a start.
-  - Parallel Mac rendering under `swift test` (84 s for the first adopter). Renders are serialized because they set process-wide state, such as the time zone.
+  - Parallel window-server capture. Emulated Mac renders run four at a time under `swift test`; window-server ones still run one at a time, until captures of several windows on screen at once are checked against captures made alone.
   - `--shard i/n` to split a run across CI machines.
   - Give extra simulators back when another run is waiting, if one run starves the others.
   - Recruit fewer simulators when the machine is already loaded. The first adopter's CI ran a Mac `swift test` next to an iPhone run that recruited 3–4 simulators, with load averages over 100; slow captures failed Mac snapshots as "still changing" after a single capture, until renders took at least 5 captures. `--jobs` caps it by hand.
 - **A machine-wide pool size.** Each run reads `SWIFTBOOK_SIMULATORS` for itself, so runs with different values disagree on the pool's size, and the larger one can use simulators beyond the others' pool. Documented for now; recording the size in the shared cache directory would enforce one.
+- **Window toolbars on the Mac.** Mac stories render as a content view, without window chrome, so toolbar items, such as those on pushed views, never appear in Mac snapshots. Rendering in a real titled window with its toolbar would need its own capture path.
 - **Date-dependent previews.** A compact `DatePicker`'s width changed at midnight. Ideas: a fixed clock in snapshot mode, or a lint for `Date.now` in previews.
 - **Read the accent color from the app target.** `SwiftBookConfiguration.tint` (`project-tint`) sets it by hand. SwiftBook could instead find the app target that uses the package and read its `ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME` color.

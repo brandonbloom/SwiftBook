@@ -119,7 +119,13 @@ public enum SwiftBook {
             let mode = try mode ?? RecordMode.fromEnvironment()
             for environment in variants.environments {
                 let snapshot = try await MacRenderer.render(story.story, in: environment)
-                let verification = try store.verify(snapshot, mode: mode, tolerance: tolerance)
+                // Compared off the main actor, where other stories render meanwhile: decoding
+                // and comparing take about as long as rendering. Reported here, because issues
+                // are attributed to the test through task-local values, which a detached task
+                // doesn't inherit.
+                let verification = try await Task.detached {
+                    try store.verify(snapshot, mode: mode, tolerance: tolerance)
+                }.value
                 try report(
                     verification, of: snapshot, mode: mode, store: store,
                     sourceLocation: sourceLocation)

@@ -15,19 +15,15 @@
             _ story: Story, in environment: RenderEnvironment = RenderEnvironment(),
             timeout: Duration = .seconds(2)
         ) async throws -> Snapshot {
-            // One render at a time: each sets process-wide state (the time zone) and suspends
-            // while waiting to settle, so concurrent renders would see each other's settings.
-            let previous = queue
-            let current = Task { @MainActor () throws -> Snapshot in
-                await previous.value
-                return try await renderAlone(story, in: environment, timeout: timeout)
+            // Several at once, each in a window of its own: most of a render is waiting for it
+            // to settle. The gate keeps the process's time zone, which `Date.formatted()` reads,
+            // the same for every render running.
+            try await gate.run(in: environment.timeZoneIdentifier) {
+                try await renderAlone(story, in: environment, timeout: timeout)
             }
-            queue = Task { _ = try? await current.value }
-            return try await current.value
         }
 
-        /// The last render in line.
-        private static var queue = Task<Void, Never> {}
+        private static let gate = RenderGate(limit: RenderGate.macLimit())
 
         private static func renderAlone(
             _ story: Story, in environment: RenderEnvironment, timeout: Duration
@@ -41,10 +37,6 @@
                 // with a Dock tile that can outlive it. (A regular app can't become prohibited.)
                 NSApplication.shared.setActivationPolicy(.accessory)
             }
-
-            // `Date.formatted()` and friends read the process's time zone, not SwiftUI's.
-            let processTimeZone = ProcessTimeZone.set(environment.timeZoneIdentifier)
-            defer { ProcessTimeZone.restore(processTimeZone) }
 
             let view = AnyView(try await story.makeView().pinned(to: environment))
             let window = makeWindow(appearance: environment.appearance)
