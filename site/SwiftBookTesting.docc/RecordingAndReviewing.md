@@ -67,4 +67,4 @@ Actual images, diffs, and the review page go under `.build/swiftbook`. Set
 - <doc:ComparingHistory>
 
 <!-- sources: Sources/SwiftBookCore/Storage Sources/SwiftBookCore/Review Sources/SwiftBookCLI/ReviewCommand.swift -->
-<!-- checked: c0fcd54 -->
+<!-- checked: 239a814 -->

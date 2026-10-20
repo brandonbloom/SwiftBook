@@ -74,4 +74,4 @@ permission, simulators, and that SwiftBook can read every preview. See <doc:Trou
 - <doc:Devices>
 
 <!-- sources: README.md Sources/SwiftBookTesting Sources/SwiftBookCLI/InitCommand.swift Sources/SwiftBookCLI/ReviewCommand.swift Sources/SwiftBookCLI/DoctorCommand.swift -->
-<!-- checked: c0fcd54 -->
+<!-- checked: 239a814 -->

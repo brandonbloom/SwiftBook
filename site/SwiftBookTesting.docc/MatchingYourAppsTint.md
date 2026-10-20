@@ -80,4 +80,4 @@ module-qualified type name and prints a warning.
 - <doc:RecordingAndReviewing>
 
 <!-- sources: Sources/SwiftBook Sources/SwiftBookCore/Discovery/ProjectConfiguration.swift Sources/SwiftBookCore/Rendering/RenderEnvironment.swift Sources/SwiftBookCore/Storage/SnapshotReport.swift -->
-<!-- checked: c0fcd54 -->
+<!-- checked: 239a814 -->
