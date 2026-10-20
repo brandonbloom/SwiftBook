@@ -47,4 +47,4 @@ app.
 - <doc:Troubleshooting>
 
 <!-- sources: Sources/SwiftBookCore/Rendering/MacRenderer.swift Sources/SwiftBookCore/Rendering/Vibrancy.swift Sources/SwiftBookCore/Rendering/WindowServerCapture.swift -->
-<!-- checked: 194f83b -->
+<!-- checked: 6ff54eb -->

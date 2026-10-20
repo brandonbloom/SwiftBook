@@ -71,4 +71,4 @@ format unrecognized". Rename the directory your package copies as a resource to 
 - <doc:CommandLine>
 
 <!-- sources: Sources/SwiftBookCLI/DoctorCommand.swift Sources/SwiftBookCore/Renderer/RendererHost.swift Sources/SwiftBookCore/Renderer/RendererProcess.swift Sources/SwiftBookCore/Renderer/RestartingRenderer.swift Sources/SwiftBookCLI/DeviceRun.swift Sources/SwiftBookCLI/FlakesCommand.swift -->
-<!-- checked: 194f83b -->
+<!-- checked: 6ff54eb -->

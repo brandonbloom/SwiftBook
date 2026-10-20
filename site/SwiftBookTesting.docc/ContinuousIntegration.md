@@ -49,4 +49,4 @@ Every `swiftbook` command exits with:
 - <doc:CommandLine>
 
 <!-- sources: Sources/SwiftBookCLI Sources/SwiftBookCore/Storage Sources/SwiftBookMacros/SwiftBookTestsMacro.swift -->
-<!-- checked: 194f83b -->
+<!-- checked: 6ff54eb -->
