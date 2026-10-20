@@ -23,6 +23,16 @@
                 valueName: "file"))
         var export: String?
 
+        @Option(
+            name: [.customLong("device"), .customLong("platform")],
+            help: ArgumentHelp(
+                "With --export, only this device's references: mac, iphone, ipad, or tv. Repeat for several.",
+                valueName: "device"))
+        var devices: [Device] = []
+
+        @Option(help: "With --export, only light or dark references.")
+        var appearance: RenderEnvironment.Appearance?
+
         func run() throws {
             let page: URL
             do {
@@ -41,7 +51,10 @@
                 let artifacts = page.deletingLastPathComponent().deletingLastPathComponent()
                 do {
                     try ReviewPage.write(
-                        ReviewPage.savedEntries(under: artifacts), to: URL(filePath: export),
+                        ReviewPage.savedEntries(under: artifacts).filter {
+                            VariantFilter(devices: devices, appearance: appearance)
+                                .includes($0.variant)
+                        }, to: URL(filePath: export),
                         inlineImages: true)
                 } catch {
                     warn("swiftbook: couldn't write \(export): \(error)")

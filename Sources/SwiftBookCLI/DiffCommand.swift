@@ -40,6 +40,16 @@
                 valueName: "file"))
         var export: String?
 
+        @Option(
+            name: [.customLong("device"), .customLong("platform")],
+            help: ArgumentHelp(
+                "Only this device's references: mac, iphone, ipad, or tv. Repeat for several.",
+                valueName: "device"))
+        var devices: [Device] = []
+
+        @Option(help: "Only light or dark references.")
+        var appearance: RenderEnvironment.Appearance?
+
         func run() throws {
             let project: Project
             let repository: GitRepository
@@ -53,7 +63,9 @@
                 repository = found
                 basis =
                     try mergeBase ? repository.mergeBase(revision) : repository.resolve(revision)
-                changes = try project.store.changes(since: basis, in: repository)
+                changes = try project.store.changes(since: basis, in: repository).filter {
+                    VariantFilter(devices: devices, appearance: appearance).includes($0.variant)
+                }
             } catch let failure as Failure {
                 warn("swiftbook: \(failure)")
                 throw Exit.broken.code

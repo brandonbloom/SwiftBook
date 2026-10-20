@@ -39,6 +39,11 @@ open on a phone:
 swift run swiftbook diff main --merge-base --export changes.html
 ```
 
+To keep the file small, it stores before and after images 700 pixels wide, as JPEG, and diff
+images full-size. About 20 to 40 KB per changed reference is typical. `--device` and
+`--appearance` narrow what's listed, exported, and counted, such as to `--device iphone
+--appearance dark`.
+
 ### Output for machines
 
 `--format json` and `--format junit` write the same comparison for scripts and CI systems.

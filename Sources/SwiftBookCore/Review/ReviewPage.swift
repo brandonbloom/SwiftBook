@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 
 /// A reference that needs a person's review: recorded, re-recorded, failed, or missing.
 public struct ReviewEntry: Codable, Hashable, Sendable {
@@ -220,7 +221,7 @@ public enum ReviewPage {
             if inline {
                 let source =
                     (try? Data(contentsOf: URL(filePath: image.path))).map {
-                        "data:image/png;base64,\($0.base64EncodedString())"
+                        Self.inlineSource(png: $0, role: image.role)
                     } ?? image.path
                 return "<img src=\"\(source)\">"
             }
@@ -228,6 +229,51 @@ public enum ReviewPage {
                 relativePath(to: URL(filePath: image.path), from: directory)
                 .addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? image.path
             return "<a href=\"\(source)\"><img loading=\"lazy\" src=\"\(source)\"></a>"
+        }
+
+        /// The widest an inlined image other than a diff is, in pixels: a phone shows images
+        /// side by side at about this size.
+        static let inlineWidth = 700
+
+        /// A data URL for `png`, to keep a page that holds its own images small enough to send.
+        /// Diff images stay full-size PNGs, so a change of a pixel or two stays visible. Others
+        /// are scaled down to ``inlineWidth`` and stored as JPEG.
+        static func inlineSource(png: Data, role: String) -> String {
+            guard role != "diff",
+                let source = CGImageSourceCreateWithData(png as CFData, nil),
+                let jpeg = CGImageSourceCreateThumbnailAtIndex(
+                    source, 0,
+                    [
+                        kCGImageSourceCreateThumbnailFromImageAlways: true,
+                        kCGImageSourceThumbnailMaxPixelSize: inlineMaxPixelSize(source),
+                        kCGImageSourceCreateThumbnailWithTransform: true,
+                    ] as CFDictionary
+                ).flatMap(jpegData)
+            else { return "data:image/png;base64,\(png.base64EncodedString())" }
+            return "data:image/jpeg;base64,\(jpeg.base64EncodedString())"
+        }
+
+        /// The longest side that makes the image ``inlineWidth`` wide, or its own size if
+        /// it's narrower.
+        private static func inlineMaxPixelSize(_ source: CGImageSource) -> Int {
+            let properties =
+                CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] ?? [:]
+            let width = properties[kCGImagePropertyPixelWidth] as? Int ?? inlineWidth
+            let height = properties[kCGImagePropertyPixelHeight] as? Int ?? inlineWidth
+            guard width > inlineWidth else { return max(width, height) }
+            return max(inlineWidth, height * inlineWidth / width)
+        }
+
+        private static func jpegData(_ image: CGImage) -> Data? {
+            let data = NSMutableData()
+            guard
+                let destination = CGImageDestinationCreateWithData(
+                    data, "public.jpeg" as CFString, 1, nil)
+            else { return nil }
+            CGImageDestinationAddImage(
+                destination, image,
+                [kCGImageDestinationLossyCompressionQuality: 0.85] as CFDictionary)
+            return CGImageDestinationFinalize(destination) ? data as Data : nil
         }
     }
 

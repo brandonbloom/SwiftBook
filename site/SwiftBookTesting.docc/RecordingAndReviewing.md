@@ -51,6 +51,9 @@ inside it:
 swift run swiftbook review --export review.html
 ```
 
+As with `swiftbook diff --export`, images other than diffs are scaled down and stored as JPEG,
+and `--device` and `--appearance` narrow what's included.
+
 @Image(source: review-page.png, alt: "The review page, showing reference, actual, and diff images for a failed weather card in light and dark.")
 
 ### Where artifacts go

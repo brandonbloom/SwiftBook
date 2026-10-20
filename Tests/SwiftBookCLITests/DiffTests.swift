@@ -128,5 +128,18 @@
             #expect(html.contains("images/M/G/Changed/mac.light.before.png"))
             #expect(html.contains("images/M/G/Changed/mac.light.diff.png"))
         }
+
+        @Test func filtersVariantsByDeviceAndAppearance() {
+            let all = VariantFilter(devices: [], appearance: nil)
+            #expect(all.includes("mac.light"))
+            let iPhoneDark = VariantFilter(devices: [.iphone], appearance: .dark)
+            #expect(iPhoneDark.includes("iphone.dark"))
+            #expect(iPhoneDark.includes("iphone.dark.rtl"))
+            #expect(!iPhoneDark.includes("iphone.light"))
+            #expect(!iPhoneDark.includes("mac.dark"))
+            let macOrTV = VariantFilter(devices: [.mac, .tv], appearance: nil)
+            #expect(macOrTV.includes("tv.light") && macOrTV.includes("mac.dark"))
+            #expect(!macOrTV.includes("ipad.dark"))
+        }
     }
 #endif
