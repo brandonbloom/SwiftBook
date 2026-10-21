@@ -40,14 +40,55 @@
             }
             // Where SwiftPM puts a debug build. Asking it with --show-bin-path takes most of a
             // second, so only if the product isn't there.
-            let usual = directory.appending(path: ".build/debug/\(Self.name)")
-            if FileManager.default.isExecutableFile(atPath: usual.path) { return usual }
-            guard
-                let binPath = Shell.run(
-                    ["swift", "build", "--package-path", directory.path, "--show-bin-path"]),
-                binPath.succeeded
-            else { throw RendererError(description: "can't find the renderer's build directory") }
-            return URL(filePath: binPath.output).appending(path: Self.name)
+            var products = directory.appending(path: ".build/debug", directoryHint: .isDirectory)
+            if !FileManager.default.isExecutableFile(
+                atPath: products.appending(path: Self.name).path)
+            {
+                guard
+                    let binPath = Shell.run(
+                        ["swift", "build", "--package-path", directory.path, "--show-bin-path"]),
+                    binPath.succeeded
+                else {
+                    throw RendererError(description: "can't find the renderer's build directory")
+                }
+                products = URL(filePath: binPath.output, directoryHint: .isDirectory)
+            }
+            return try macApp(around: products).appending(path: "Contents/MacOS/\(Self.name)")
+        }
+
+        /// Makes the Mac renderer an app around the build's `products`, returning the app.
+        ///
+        /// A bare executable started by an app registers with macOS as that app, a regular one
+        /// with its icon, until it changes its activation policy, and macOS can leave that Dock
+        /// tile behind after it exits. An app of its own, as a UI element, never gets a tile
+        /// yet can still show interactive windows and take focus. Its executable and resources
+        /// are the build's, by symbolic links, so it needs no copying and finds resource
+        /// bundles and frameworks where SwiftPM put them.
+        func macApp(around products: URL) throws -> URL {
+            let app = directory.appending(path: ".build/swiftbook-macOS/\(Self.name).app")
+            let contents = app.appending(path: "Contents")
+            let plist: [String: Any] = [
+                "CFBundleIdentifier": bundleID,
+                "CFBundleExecutable": Self.name,
+                "CFBundleName": "SwiftBook Renderer",
+                "CFBundlePackageType": "APPL",
+                "LSUIElement": true,
+            ]
+            let data = try PropertyListSerialization.data(
+                fromPropertyList: plist, format: .xml, options: 0)
+            try Self.write(
+                String(decoding: data, as: UTF8.self), to: contents.appending(path: "Info.plist"))
+            // Resolved, since SwiftPM repoints .build/debug at whichever platform built last.
+            let resolved = products.resolvingSymlinksInPath()
+            for name in ["MacOS", "Resources"] {
+                try Self.link(contents.appending(path: name), to: resolved)
+            }
+            return app
+        }
+
+        /// The renderer's bundle identifier, on every platform.
+        var bundleID: String {
+            "dev.swiftbook.renderer." + Self.bundleIDComponent(package.lastPathComponent)
         }
 
         /// A simulator platform the renderer app can be built for.
@@ -165,8 +206,6 @@
                 }
                 try manager.copyItem(at: bundle, to: app.appending(path: bundle.lastPathComponent))
             }
-            let bundleID =
-                "dev.swiftbook.renderer." + Self.bundleIDComponent(package.lastPathComponent)
             let plist: [String: Any] = [
                 "CFBundleIdentifier": bundleID,
                 "CFBundleExecutable": Self.name,
@@ -393,6 +432,18 @@
             try FileManager.default.createDirectory(
                 at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             try text.write(to: url, atomically: true, encoding: .utf8)
+        }
+
+        /// Makes `url` a symbolic link to `destination`, unless it already is.
+        private static func link(_ url: URL, to destination: URL) throws {
+            let manager = FileManager.default
+            if (try? manager.destinationOfSymbolicLink(atPath: url.path)) == destination.path {
+                return
+            }
+            try? manager.removeItem(at: url)
+            try manager.createDirectory(
+                at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try manager.createSymbolicLink(at: url, withDestinationURL: destination)
         }
 
         /// `text` as a Swift string literal.
