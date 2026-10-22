@@ -20,6 +20,8 @@ SWIFTBOOK_CAPTURE=emulated swift run swiftbook test --device mac --device iphone
 - `never` turns a missing reference into a failure, instead of an unreviewed recording.
 - `emulated` makes CI independent of Screen Recording permission and the screen lock. References
   must be recorded the same way; see <doc:Capture>.
+- Leave out `--changed`: CI is where every snapshot runs, to catch what `--changed` can't see.
+  See <doc:RenderingWhatChanged>.
 
 ### Checking out references
 
@@ -57,4 +59,4 @@ Every `swiftbook` command exits with:
 - <doc:CommandLine>
 
 <!-- sources: Sources/SwiftBookCLI Sources/SwiftBookCore/Storage Sources/SwiftBookMacros/SwiftBookTestsMacro.swift -->
-<!-- checked: 00c1729 -->
+<!-- checked: d5f23c7 -->
