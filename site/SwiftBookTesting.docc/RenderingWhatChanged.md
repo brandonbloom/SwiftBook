@@ -62,4 +62,4 @@ live with the build, so clearing `.build` clears them, and the next run renders 
 - <doc:CommandLine>
 
 <!-- sources: Sources/SwiftBookCLI/ChangedSnapshots.swift Sources/SwiftBookCLI/DeviceRun.swift Sources/SwiftBookCore/Renderer/RenderRecording+Probe.swift Sources/SwiftBookCore/Adapter/PreviewModifiers.swift -->
-<!-- checked: d5f23c7 -->
+<!-- checked: 216d836 -->
