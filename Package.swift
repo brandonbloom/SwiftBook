@@ -28,11 +28,18 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.5.0"),
         // Tests only. Every 0.x release may change alpha features, so pin exactly.
         .package(url: "https://github.com/brandonbloom/Swiftpothesis.git", exact: "0.1.1"),
+        // Records what each snapshot renders, so `swiftbook test --changed` can skip the ones a
+        // change can't affect. Experimental.
+        .package(url: "https://github.com/brandonbloom/SwiftImpact", from: "0.2.0"),
     ],
     targets: [
         .target(name: "SwiftBook", swiftSettings: strict),
         .target(
-            name: "SwiftBookCore", dependencies: ["SwiftBook", "SwiftBookPNGFilters"],
+            name: "SwiftBookCore",
+            dependencies: [
+                "SwiftBook", "SwiftBookPNGFilters",
+                .product(name: "ImpactProbe", package: "SwiftImpact"),
+            ],
             swiftSettings: strict),
         // PNG row filters, in C so recording stays fast in debug builds.
         .target(name: "SwiftBookPNGFilters"),
@@ -54,6 +61,7 @@ let package = Package(
             dependencies: [
                 "SwiftBookCore",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .product(name: "ImpactAnalysis", package: "SwiftImpact"),
             ],
             swiftSettings: strict),
         // Not named swiftbook: its module would clash with SwiftBook's on case-insensitive disks.

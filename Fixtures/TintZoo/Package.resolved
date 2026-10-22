@@ -18,6 +18,15 @@
         "revision" : "050f1a346fbbac0ca2cfb15a95274f7bd1cf0ccf",
         "version" : "604.0.0"
       }
+    },
+    {
+      "identity" : "swiftimpact",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/brandonbloom/SwiftImpact",
+      "state" : {
+        "revision" : "837b39a6d582ef585d4b8f5d489a06064c98c7de",
+        "version" : "0.2.0"
+      }
     }
   ],
   "version" : 3

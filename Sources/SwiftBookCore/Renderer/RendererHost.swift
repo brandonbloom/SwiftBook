@@ -13,20 +13,35 @@
         public let package: URL
         /// Where the host package lives.
         public var directory: URL { package.appending(path: ".build/swiftbook/renderer") }
+        /// Where SwiftPM builds it: the host package's `.build`, unless given a scratch path.
+        public let buildDirectory: URL
+        /// Arguments naming the scratch path, if there is one.
+        let scratchArguments: [String]
+        /// Arguments added to each `swift build`: the scratch path's, and any others, such as to
+        /// instrument the build.
+        let buildArguments: [String]
 
         static let name = "SwiftBookRendererHost"
 
-        public init(package: URL) {
+        /// A host for `package`. A build with other `buildArguments` takes a `scratchPath` of its
+        /// own, so switching between them doesn't rebuild everything.
+        public init(package: URL, scratchPath: URL? = nil, buildArguments: [String] = []) {
             self.package = package
+            buildDirectory =
+                scratchPath
+                ?? package.appending(
+                    path: ".build/swiftbook/renderer/.build", directoryHint: .isDirectory)
+            scratchArguments = scratchPath.map { ["--scratch-path", $0.path] } ?? []
+            self.buildArguments = scratchArguments + buildArguments
         }
 
         /// Writes the host package if it changed and builds it, returning the renderer
         /// executable. `log` receives the build's output.
         public func build(log: @Sendable (String) -> Void = { _ in }) throws -> URL {
             try write()
-            let arguments = [
-                "swift", "build", "--package-path", directory.path, "--product", Self.name,
-            ]
+            let arguments =
+                ["swift", "build", "--package-path", directory.path, "--product", Self.name]
+                + buildArguments
             guard let result = Shell.run(arguments) else {
                 throw RendererError(description: "swift isn't available")
             }
@@ -40,13 +55,14 @@
             }
             // Where SwiftPM puts a debug build. Asking it with --show-bin-path takes most of a
             // second, so only if the product isn't there.
-            var products = directory.appending(path: ".build/debug", directoryHint: .isDirectory)
+            var products = buildDirectory.appending(path: "debug", directoryHint: .isDirectory)
             if !FileManager.default.isExecutableFile(
                 atPath: products.appending(path: Self.name).path)
             {
                 guard
                     let binPath = Shell.run(
-                        ["swift", "build", "--package-path", directory.path, "--show-bin-path"]),
+                        ["swift", "build", "--package-path", directory.path, "--show-bin-path"]
+                            + buildArguments),
                     binPath.succeeded
                 else {
                     throw RendererError(description: "can't find the renderer's build directory")
@@ -65,7 +81,7 @@
         /// are the build's, by symbolic links, so it needs no copying and finds resource
         /// bundles and frameworks where SwiftPM put them.
         func macApp(around products: URL) throws -> URL {
-            let app = directory.appending(path: ".build/swiftbook-macOS/\(Self.name).app")
+            let app = buildDirectory.appending(path: "swiftbook-macOS/\(Self.name).app")
             let contents = app.appending(path: "Contents")
             let plist: [String: Any] = [
                 "CFBundleIdentifier": bundleID,
@@ -157,10 +173,11 @@
             else {
                 throw RendererError(description: "the \(platform) simulator SDK isn't installed")
             }
-            let target = [
-                "--package-path", directory.path, "--triple", platform.triple, "--sdk",
-                sdkPath.output,
-            ]
+            let target =
+                [
+                    "--package-path", directory.path, "--triple", platform.triple, "--sdk",
+                    sdkPath.output,
+                ] + buildArguments
             guard let result = Shell.run(["swift", "build", "--product", Self.name] + target) else {
                 throw RendererError(description: "swift isn't available")
             }
@@ -176,8 +193,8 @@
             else { throw RendererError(description: "can't find the renderer's build directory") }
             let products = URL(filePath: binPath.output, directoryHint: .isDirectory)
 
-            let app = directory.appending(
-                path: ".build/swiftbook-\(platform.rawValue)/\(Self.name).app")
+            let app = buildDirectory.appending(
+                path: "swiftbook-\(platform.rawValue)/\(Self.name).app")
             let manager = FileManager.default
             try? manager.removeItem(at: app)
             try manager.createDirectory(at: app, withIntermediateDirectories: true)
@@ -283,7 +300,7 @@
 
         /// Puts the host's SwiftBook dependency in edit mode at `path`, unless it already is.
         func edit(at path: String, identity: String) throws {
-            let state = directory.appending(path: ".build/workspace-state.json")
+            let state = buildDirectory.appending(path: "workspace-state.json")
             if let text = try? String(contentsOf: state, encoding: .utf8),
                 text.contains("\"\(path)\"")
             {
@@ -291,10 +308,8 @@
             }
             guard
                 let result = Shell.run(
-                    [
-                        "swift", "package", "--package-path", directory.path, "edit", identity,
-                        "--path", path,
-                    ]),
+                    ["swift", "package", "--package-path", directory.path] + scratchArguments
+                        + ["edit", identity, "--path", path]),
                 result.succeeded
             else {
                 throw RendererError(

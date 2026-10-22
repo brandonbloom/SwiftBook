@@ -146,13 +146,16 @@
             try renderImage(story, in: environment, timeout: timeout).png
         }
 
-        /// Renders `story` in `environment`, returning the snapshot and where it has glass.
+        /// Renders `story` in `environment`, returning the snapshot and where it has glass. With
+        /// `recording`, the renderer records the code the render runs.
         public func renderImage(
             _ story: StoryID, in environment: RenderEnvironment = RenderEnvironment(),
-            timeout: Duration = .seconds(30)
+            recording: RenderRecording? = nil, timeout: Duration = .seconds(30)
         ) throws -> RenderedImage {
             let response = try send(
-                .init(id: 0, method: .render, story: story.description, environment: environment),
+                .init(
+                    id: 0, method: .render, story: story.description, environment: environment,
+                    recording: recording),
                 timeout: timeout)
             guard let png = response.png else {
                 throw RendererError(description: "the renderer sent no image for \(story)")

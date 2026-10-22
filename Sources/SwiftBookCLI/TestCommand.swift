@@ -41,6 +41,14 @@
         @Option(help: "Write a JUnit report of every snapshot to this file.")
         var junit: String?
 
+        @Flag(
+            help: ArgumentHelp(
+                "Experimental: render only the snapshots a change may have affected.",
+                discussion:
+                    "Builds the renderer instrumented, in .build/swiftbook/changed, and records what each snapshot's render runs. Each run then renders the snapshots whose code changed since, that failed last time, whose reference changed, or that have no past result, and skips the rest. It can't see some kinds of change, such as to resources, so keep a full run somewhere, such as in CI."
+            ))
+        var changed = false
+
         @Option(help: "The largest CIEDE2000 difference a pixel may have and still match.")
         var deltaE = ImageDiff.Tolerance().deltaE
 
@@ -99,7 +107,8 @@
                 do {
                     try results.add(
                         Self.test(
-                            project, on: device, mode: mode, tolerance: tolerance, jobs: jobs))
+                            project, on: device, mode: mode, tolerance: tolerance, jobs: jobs,
+                            changed: changed))
                 } catch {
                     warn("swiftbook: \(device): \(error)")
                     throw Exit.broken.code
@@ -245,13 +254,15 @@
         /// reference, on up to `jobs` pooled simulators at once.
         static func test(
             _ project: Project, on device: Device, mode: RecordMode,
-            tolerance: ImageDiff.Tolerance = ImageDiff.Tolerance(), jobs: Int? = nil
+            tolerance: ImageDiff.Tolerance = ImageDiff.Tolerance(), jobs: Int? = nil,
+            changed: Bool = false
         ) throws
             -> (results: [Result], failed: Bool)
         {
             try DeviceRun(
                 project: project, device: device, mode: mode, tolerance: tolerance,
-                jobs: jobs ?? (device == .mac ? macJobs() : SimulatorPool.size())
+                jobs: jobs ?? (device == .mac ? macJobs() : SimulatorPool.size()),
+                changed: changed
             ).run()
         }
 

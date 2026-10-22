@@ -1,5 +1,5 @@
 {
-  "originHash" : "f41f4862bbc954245cf4ccab3cd04bcc7e2fc30425c19b39a90a955c36e8966e",
+  "originHash" : "40e515d324be04e2b8b4b37360a34526c6b5d85dc982f5e234efcfda9f9a4b0f",
   "pins" : [
     {
       "identity" : "swift-argument-parser",
@@ -17,6 +17,15 @@
       "state" : {
         "revision" : "050f1a346fbbac0ca2cfb15a95274f7bd1cf0ccf",
         "version" : "604.0.0"
+      }
+    },
+    {
+      "identity" : "swiftimpact",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/brandonbloom/SwiftImpact",
+      "state" : {
+        "revision" : "837b39a6d582ef585d4b8f5d489a06064c98c7de",
+        "version" : "0.2.0"
       }
     }
   ],

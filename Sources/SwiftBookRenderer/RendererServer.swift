@@ -85,10 +85,12 @@ public enum RendererServer {
     /// after `shutdown` or the end of input.
     static func serve(input: FileHandle, output: FileHandle) {
         let channel = Channel(output: output)
+        let os = ProcessInfo.processInfo.operatingSystemVersion
         channel.send(
             RendererHello(
                 protocolVersion: RendererProtocol.version,
-                swiftBookVersion: SwiftBookInfo.version, platform: Server.platform))
+                swiftBookVersion: SwiftBookInfo.version, platform: Server.platform,
+                osVersion: "\(os.majorVersion).\(os.minorVersion).\(os.patchVersion)"))
         let (requests, continuation) = AsyncStream.makeStream(of: Data.self)
         Thread.detachNewThread {
             var buffer = Data()
@@ -222,20 +224,31 @@ public enum RendererServer {
                     id: request.id, error: "no story \(request.story ?? "(none)")")
             }
             do {
-                #if os(macOS)
-                    let snapshot = try await MacRenderer.render(
-                        story, in: request.environment ?? RenderEnvironment())
-                #else
-                    let snapshot = try await UIKitRenderer.render(
-                        story,
-                        in: request.environment ?? .standard(for: UIKitRenderer.device))
-                #endif
+                let snapshot = try await record(request.recording, declaredIn: story.fileID) {
+                    #if os(macOS)
+                        try await MacRenderer.render(
+                            story, in: request.environment ?? RenderEnvironment())
+                    #else
+                        try await UIKitRenderer.render(
+                            story,
+                            in: request.environment ?? .standard(for: UIKitRenderer.device))
+                    #endif
+                }
                 return RendererResponse(
                     id: request.id, png: try snapshot.pngData(),
                     glassRegions: snapshot.glassRegions.isEmpty ? nil : snapshot.glassRegions)
             } catch {
                 return RendererResponse(id: request.id, error: String(describing: error))
             }
+        }
+
+        /// Runs `render`, recording the code it runs if the request asks.
+        private func record(
+            _ recording: RenderRecording?, declaredIn fileID: String?,
+            _ render: () async throws -> Snapshot
+        ) async throws -> Snapshot {
+            guard let recording else { return try await render() }
+            return try await recording.record(declaredIn: fileID, render)
         }
     }
 }

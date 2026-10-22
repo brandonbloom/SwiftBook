@@ -52,19 +52,26 @@
 
         /// Builds the renderer app for `device`, a simulated one.
         static func buildApp(for project: Project, on device: Device) throws -> RendererHost.App {
-            progress("Building the \(device == .tv ? "tvOS" : "iOS") renderer…")
-            return try RendererHost(package: project.root).buildApp(
-                for: device == .tv ? .tvOS : .iOS)
+            try buildApp(with: RendererHost(package: project.root), on: device)
         }
 
-        /// Starts `app` in `lease`'s simulator, giving the lease back when the renderer shuts
-        /// down.
-        static func start(_ app: RendererHost.App, in lease: SimulatorLease) throws
-            -> RestartingRenderer
+        /// Builds the renderer app for `device`, a simulated one, with `host`.
+        static func buildApp(with host: RendererHost, on device: Device) throws -> RendererHost.App
         {
+            progress("Building the \(device == .tv ? "tvOS" : "iOS") renderer…")
+            return try host.buildApp(for: device == .tv ? .tvOS : .iOS)
+        }
+
+        /// Starts `app` in `lease`'s simulator, launched with `environment`, giving the lease back
+        /// when the renderer shuts down.
+        static func start(
+            _ app: RendererHost.App, in lease: SimulatorLease, environment: [String: String] = [:]
+        ) throws -> RestartingRenderer {
             do {
                 return try RestartingRenderer {
-                    try RendererProcess(app: app.url, bundleID: app.bundleID, in: lease.simulator)
+                    try RendererProcess(
+                        app: app.url, bundleID: app.bundleID, in: lease.simulator,
+                        environment: environment)
                 } onShutdown: {
                     lease.release()
                 }

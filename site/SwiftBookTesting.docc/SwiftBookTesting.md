@@ -56,6 +56,7 @@ code compiles.
 - <doc:PreviewsThatSnapshotWell>
 - <doc:MatchingYourAppsTint>
 - <doc:Capture>
+- <doc:RenderingWhatChanged>
 
 ### References in git
 

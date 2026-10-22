@@ -1,3 +1,4 @@
+import ImpactProbe
 import SwiftUI
 
 /// Applies `PreviewModifier`s, which have no public way to be applied outside Xcode.
@@ -9,6 +10,13 @@ import SwiftUI
 @MainActor enum PreviewModifiers {
     /// Shared contexts by modifier type. Like Xcode, each is made once and reused across previews.
     private static var contexts: [ObjectIdentifier: Any] = [:]
+    /// The render being recorded, if any, and what its shared contexts are recorded under.
+    static var recording: (probe: ImpactProbe, scope: String)?
+
+    /// The recording of the shared context for the modifier type named `type`.
+    static func sharedContextRecording(_ type: String, scope: String) -> String {
+        "\(scope)/shared/\(type)"
+    }
 
     static func apply(_ modifier: any PreviewModifier, to content: AnyView) async throws -> AnyView
     {
@@ -34,8 +42,17 @@ import SwiftUI
     }
 
     private static func context<M: PreviewModifier>(for _: M.Type) async throws -> M.Context {
+        // Made once and reused, so the stories that use it later don't run it. It's recorded on
+        // its own, and each render that uses it depends on that recording. One made before
+        // recording began has none, so the renders that use it always render again.
+        let name = recording.map {
+            sharedContextRecording(String(reflecting: M.self), scope: $0.scope)
+        }
+        if let name { recording?.probe.addDependency(name) }
         if let context = contexts[ObjectIdentifier(M.self)] as? M.Context { return context }
+        let probe = name.map { ImpactProbe.start(test: $0, declaredIn: nil) }
         let context = try await M.makeSharedContext()
+        probe?.stop()
         contexts[ObjectIdentifier(M.self)] = context
         return context
     }

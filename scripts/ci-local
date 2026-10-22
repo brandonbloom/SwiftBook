@@ -17,6 +17,14 @@ SWIFTBOOK_RECORD=never SWIFTBOOK_CAPTURE=emulated swift test --package-path Fixt
 # swift test does, and iPhone, iPad, and Apple TV in SwiftBook's own simulators.
 swiftbook="$(swift build --show-bin-path)/swiftbook"
 (cd Fixtures/PreviewZoo && SWIFTBOOK_CAPTURE=emulated "$swiftbook" test --device mac --device iphone --device ipad --device tv --record never)
+# Experimental --changed: from scratch it renders every snapshot, then none when nothing changed.
+rm -rf Fixtures/PreviewZoo/.build/swiftbook/changed
+(cd Fixtures/PreviewZoo && SWIFTBOOK_CAPTURE=emulated "$swiftbook" test --device mac --record never --changed >/dev/null)
+(cd Fixtures/PreviewZoo && SWIFTBOOK_CAPTURE=emulated "$swiftbook" test --device mac --record never --changed) |
+  grep -q '^mac: no change could affect a snapshot' || {
+  echo "ci-local: swiftbook test --changed rendered snapshots when nothing changed" >&2
+  exit 1
+}
 # The viewer opens on the zoo, finds its stories, and renders one. It draws its window to a PNG
 # and describes what it shows in JSON beside it, then quits.
 snapshot="$(mktemp -d)/viewer.png"

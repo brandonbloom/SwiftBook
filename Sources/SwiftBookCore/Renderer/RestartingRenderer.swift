@@ -49,21 +49,24 @@
             try renderImage(story, in: environment, timeout: timeout).png
         }
 
-        /// Like ``render(_:in:timeout:)``, with where the snapshot has glass.
+        /// Like ``render(_:in:timeout:)``, with where the snapshot has glass. With `recording`,
+        /// the renderer records the code the render runs.
         public func renderImage(
             _ story: StoryID, in environment: RenderEnvironment = RenderEnvironment(),
-            timeout: Duration = .seconds(30)
+            recording: RenderRecording? = nil, timeout: Duration = .seconds(30)
         ) throws -> RenderedImage {
             try lock.withLock {
                 let first = try running()
                 do {
-                    return try first.renderImage(story, in: environment, timeout: timeout)
+                    return try first.renderImage(
+                        story, in: environment, recording: recording, timeout: timeout)
                 } catch {
                     // An error the renderer reported leaves it running; that's the story's fault.
                     guard !first.isRunning else { throw error }
                     incidents.append("\(story): \(error)")
                     do {
-                        return try running().renderImage(story, in: environment, timeout: timeout)
+                        return try running().renderImage(
+                            story, in: environment, recording: recording, timeout: timeout)
                     } catch let retry {
                         throw RendererError(
                             description:

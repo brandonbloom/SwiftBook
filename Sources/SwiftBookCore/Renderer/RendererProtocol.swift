@@ -16,11 +16,29 @@ public struct RendererHello: Codable, Hashable, Sendable {
     public var swiftBookVersion: String
     /// Such as `macOS`.
     public var platform: String
+    /// The version of the OS the renderer runs on, such as `27.0.1`.
+    public var osVersion: String?
 
-    public init(protocolVersion: Int, swiftBookVersion: String, platform: String) {
+    public init(
+        protocolVersion: Int, swiftBookVersion: String, platform: String, osVersion: String? = nil
+    ) {
         self.protocolVersion = protocolVersion
         self.swiftBookVersion = swiftBookVersion
         self.platform = platform
+        self.osVersion = osVersion
+    }
+}
+
+/// What a render should record of the code it runs, for `swiftbook test --changed`.
+public struct RenderRecording: Codable, Hashable, Sendable {
+    /// The snapshot's identifier, stable from run to run.
+    public var test: String
+    /// What the snapshot's shared contexts are recorded under, such as the device.
+    public var scope: String
+
+    public init(test: String, scope: String) {
+        self.test = test
+        self.scope = scope
     }
 }
 
@@ -46,16 +64,19 @@ public struct RendererRequest: Codable, Hashable, Sendable {
     /// The story ID, as `Module/Group/Name`.
     public var story: String?
     public var environment: RenderEnvironment?
+    /// For `render`: what to record of the code the render runs, if anything.
+    public var recording: RenderRecording?
 
     public init(
         id: Int, method: Method, check: Bool? = nil, story: String? = nil,
-        environment: RenderEnvironment? = nil
+        environment: RenderEnvironment? = nil, recording: RenderRecording? = nil
     ) {
         self.id = id
         self.method = method
         self.check = check
         self.story = story
         self.environment = environment
+        self.recording = recording
     }
 }
 

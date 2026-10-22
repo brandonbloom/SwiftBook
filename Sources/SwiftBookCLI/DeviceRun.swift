@@ -1,5 +1,6 @@
 #if os(macOS)
     import Foundation
+    import ImpactAnalysis
     import SwiftBookCore
 
     /// One `swiftbook test` pass over a device, spread across as many renderers as are worth
@@ -22,6 +23,8 @@
         let tolerance: ImageDiff.Tolerance
         /// The most renderers this run may use: processes on the Mac, simulators otherwise.
         let jobs: Int
+        /// With `--changed`, which snapshots to render. Experimental.
+        let changed: ChangedSnapshots?
 
         private let lock = NSLock()
         private var items: [Item] = []
@@ -45,37 +48,48 @@
 
         init(
             project: Project, device: Device, mode: RecordMode, tolerance: ImageDiff.Tolerance,
-            jobs: Int
+            jobs: Int, changed: Bool = false
         ) {
             self.project = project
             self.device = device
             self.mode = mode
             self.tolerance = tolerance
             self.jobs = max(jobs, 1)
+            self.changed = changed ? ChangedSnapshots(project: project, device: device) : nil
         }
+
+        /// What renderers are launched with.
+        private var rendererEnvironment: [String: String] { changed?.environment ?? [:] }
 
         func run() throws -> (results: [TestCommand.Result], failed: Bool) {
             let first: RestartingRenderer
+            let host = changed?.host ?? RendererHost(package: project.root)
             if device == .mac {
                 Renderers.progress("Building the renderer…")
-                let executable = try RendererHost(package: project.root).build()
+                let executable = try host.build()
                 lock.withLock { self.executable = executable }
-                first = try Self.macRenderer(executable)
+                first = try Self.macRenderer(executable, environment: rendererEnvironment)
             } else {
-                let app = try Renderers.buildApp(for: project, on: device)
+                let app = try Renderers.buildApp(with: host, on: device)
                 lock.withLock { self.app = app }
                 Renderers.progress("Starting the simulator…")
                 first = try Renderers.start(
                     app,
                     in: SimulatorPool.lease(
                         for: device, waiting: Renderers.progress,
-                        keepWarm: SimulatorIdleCommand.start))
+                        keepWarm: SimulatorIdleCommand.start),
+                    environment: rendererEnvironment)
             }
             let stories = try first.stories().filter(\.isTested)
+            var all = stories.flatMap { story in
+                RenderEnvironment.Appearance.allCases.map { (story: story.id, appearance: $0) }
+            }
+            let settings = ChangedSnapshots.settings(
+                osVersion: first.hello.osVersion, tolerance: tolerance)
+            let past = changed?.past()
+            if let changed { all = select(all, with: changed, past: past, settings: settings) }
             lock.withLock {
-                items = stories.flatMap { story in
-                    RenderEnvironment.Appearance.allCases.map { (story.id, $0) }
-                }
+                items = all
                 renderers = [first]
                 started = .now
             }
@@ -97,6 +111,10 @@
             for renderer in renderers { renderer.shutdown() }
             let restarts = renderers.reduce(0) { $0 + $1.restarts }
             let incidents = renderers.flatMap(\.incidents)
+            if let changed {
+                try remember(
+                    stories: stories.map(\.id), with: changed, past: past, settings: settings)
+            }
             return lock.withLock {
                 let glass =
                     counts.glassNoise > 0 ? " (\(counts.glassNoise) ignoring glass noise)" : ""
@@ -117,6 +135,86 @@
         }
 
         private var isDrained: Bool { lock.withLock { next >= items.count } }
+
+        /// The items of `all` that `--changed` renders, after saying how many and why.
+        private func select(
+            _ all: [Item], with changed: ChangedSnapshots, past: ChangedSnapshots.Past?,
+            settings: String
+        ) -> [Item] {
+            let analysis: ImpactAnalysis?
+            do { analysis = try ImpactAnalysis.analyze(changed.buildDirectory) } catch {
+                print("\(device): couldn't tell what changed, so every snapshot renders: \(error)")
+                analysis = nil
+            }
+            let settingsChanged = past.map { $0.settings != settings } ?? false
+            var reasons: [String: Int] = [:]
+            let selected = all.filter { item in
+                let test = changed.recording(item.story, item.appearance).test
+                let impact =
+                    analysis.map { $0.isImpacted(test) ? $0.explain(test) : nil }
+                    ?? "the build couldn't be analyzed"
+                guard
+                    let reason = ChangedSnapshots.reason(
+                        impact: impact, past: past?.outcomes[test],
+                        reference: ChangedSnapshots.referenceHash(reference(for: item)),
+                        settingsChanged: settingsChanged)
+                else { return false }
+                reasons[reason, default: 0] += 1
+                return true
+            }
+            let skipped = all.count - selected.count
+            let summary =
+                switch skipped {
+                case 0: "rendering all \(all.count) snapshots"
+                case all.count:
+                    "no change could affect a snapshot, so none render; their last results still hold"
+                default:
+                    "rendering \(selected.count) of \(all.count) snapshots; the other \(skipped)'s last results still hold"
+                }
+            print("\(device): \(summary). (--changed is experimental.)")
+            for (reason, count) in reasons.sorted(by: { ($1.value, $0.key) < ($0.value, $1.key) })
+                .prefix(5)
+            {
+                // Reasons can list many files and conformances.
+                let shown = reason.count > 120 ? reason.prefix(119) + "…" : Substring(reason)
+                print("  \(count) because \(shown)")
+            }
+            return selected
+        }
+
+        /// Saves what this run found for each of `stories`' snapshots: the results of those it
+        /// rendered, and the past results of those it didn't.
+        private func remember(
+            stories: [StoryID], with changed: ChangedSnapshots, past: ChangedSnapshots.Past?,
+            settings: String
+        ) throws {
+            var outcomes: [String: ChangedSnapshots.Outcome] = [:]
+            let current = Set(
+                stories.flatMap { story in
+                    RenderEnvironment.Appearance.allCases.map {
+                        changed.recording(story, $0).test
+                    }
+                })
+            // A past result holds for the same settings only.
+            if past?.settings == settings {
+                for (test, outcome) in past?.outcomes ?? [:] where current.contains(test) {
+                    outcomes[test] = outcome
+                }
+            }
+            for (index, result) in lock.withLock({ results }) {
+                let item = items[index]
+                outcomes[changed.recording(item.story, item.appearance).test] =
+                    ChangedSnapshots.Outcome(
+                        passed: result.failure == nil,
+                        reference: ChangedSnapshots.referenceHash(reference(for: item)))
+            }
+            try changed.save(ChangedSnapshots.Past(settings: settings, outcomes: outcomes))
+        }
+
+        /// Where `item`'s reference is kept.
+        private func reference(for item: Item) -> URL {
+            project.store.url(for: item.story, device: device, environment: environment(for: item))
+        }
 
         private func work(with renderer: RestartingRenderer, in group: DispatchGroup) {
             group.enter()
@@ -146,9 +244,14 @@
             }
         }
 
-        /// A Mac renderer process, restarted when it crashes or hangs.
-        static func macRenderer(_ executable: URL) throws -> RestartingRenderer {
-            try RestartingRenderer { try RendererProcess(executable: executable) }
+        /// A Mac renderer process, launched with `environment`, restarted when it crashes or
+        /// hangs.
+        static func macRenderer(_ executable: URL, environment: [String: String] = [:]) throws
+            -> RestartingRenderer
+        {
+            try RestartingRenderer {
+                try RendererProcess(executable: executable, environment: environment)
+            }
         }
 
         /// Another renderer, if the remaining work repays starting it and, for a simulated
@@ -170,7 +273,9 @@
                         startCost: Self.macStart),
                     let executable = lock.withLock({ self.executable })
                 else { return nil }
-                do { return try Self.macRenderer(executable) } catch {
+                do {
+                    return try Self.macRenderer(executable, environment: rendererEnvironment)
+                } catch {
                     Renderers.progress("Couldn't start another renderer: \(error)")
                     return nil
                 }
@@ -189,7 +294,7 @@
                     lease.release()
                     return nil
                 }
-                return try Renderers.start(app, in: lease)
+                return try Renderers.start(app, in: lease, environment: rendererEnvironment)
             } catch {
                 Renderers.progress("Couldn't start another simulator: \(error)")
                 return nil
@@ -217,7 +322,9 @@
         > {
             Result {
                 let environment = environment(for: item)
-                let rendered = try renderer.renderImage(item.story, in: environment)
+                let rendered = try renderer.renderImage(
+                    item.story, in: environment,
+                    recording: changed?.recording(item.story, item.appearance))
                 var snapshot = try Snapshot(
                     png: rendered.png, story: item.story, device: device, environment: environment)
                 snapshot.glassRegions = rendered.glassRegions
