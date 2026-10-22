@@ -5,13 +5,13 @@ Skip the snapshots a change can't affect. Experimental.
 ## Overview
 
 `swiftbook test --changed` renders only the snapshots that something since the last run may have
-affected, and skips the rest, whose last results still hold. In a package with hundreds of
+affected, and skips the rest, which passed last time. In a package with hundreds of
 stories, an edit to one view usually renders a handful, and a change that touches no code your
 stories run renders none.
 
 ```
 $ swiftbook test --device mac --changed
-mac: rendering 16 of 514 snapshots; the other 498's last results still hold. (--changed is experimental.)
+mac: rendering 16 of 514 snapshots; the other 498 passed last time, and nothing they depend on changed. (--changed is experimental.)
   16 because MyAppUI/AccountList.swift changed
 mac: 16 snapshots on 6 renderer processes: 16 matched, 0 new, 0 re-recorded, 0 failed.
 ```

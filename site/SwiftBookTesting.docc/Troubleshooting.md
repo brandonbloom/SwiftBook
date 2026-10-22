@@ -47,8 +47,8 @@ Something in the preview animates, polls, or loads asynchronously. See
 
 ### A story hangs or crashes the renderer
 
-In the viewer and on iPhone, iPad, and Apple TV, stories render in a separate renderer process;
-under `swift test`, they render in the test process. A renderer that takes longer than 30 seconds
+In the viewer and under `swiftbook test`, stories render in separate renderer processes, on the
+Mac and in the simulators; under `swift test`, they render in the test process. A renderer that takes longer than 30 seconds
 is stopped, and SwiftBook samples its threads first: the error names the sample file, which shows
 where the renderer was stuck. `swiftbook test` restarts the renderer and retries the story once,
 and its summary lists the stories that caused restarts.

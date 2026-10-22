@@ -167,9 +167,10 @@
                 switch skipped {
                 case 0: "rendering all \(all.count) snapshots"
                 case all.count:
-                    "no change could affect a snapshot, so none render; their last results still hold"
+                    "no change could affect a snapshot, so none render; all passed last time"
                 default:
-                    "rendering \(selected.count) of \(all.count) snapshots; the other \(skipped)'s last results still hold"
+                    // One that failed last time always renders, so every skipped one passed.
+                    "rendering \(selected.count) of \(all.count) snapshots; the other \(skipped) passed last time, and nothing they depend on changed"
                 }
             print("\(device): \(summary). (--changed is experimental.)")
             for (reason, count) in reasons.sorted(by: { ($1.value, $0.key) < ($0.value, $1.key) })
