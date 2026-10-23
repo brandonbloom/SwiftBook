@@ -45,7 +45,7 @@
 
     /// Captures a window through the window server.
     ///
-    /// The window is ordered behind all others, so nothing flashes on screen and focus isn't
+    /// The window is ordered in below the desktop, so nothing flashes on screen and focus isn't
     /// taken; ScreenCaptureKit captures it identically to a window in front.
     @MainActor struct WindowServerCapture {
         private let filter: SCContentFilter
@@ -57,11 +57,16 @@
             return size.width <= screen.frame.width && size.height <= screen.frame.height
         }
 
-        /// Orders `window` behind all others, on screen, and finds it for ScreenCaptureKit.
+        /// Orders `window` in below the desktop, on screen, and finds it for ScreenCaptureKit.
         static func prepare(_ window: NSWindow, size: CGSize, scale: Double) async throws
             -> WindowServerCapture
         {
             if let screen = NSScreen.main { window.setFrameOrigin(screen.frame.origin) }
+            // Below the desktop, the wallpaper covers the window, yet the window server still
+            // draws it. Out of Mission Control and window cycling, it's ordered in and out
+            // without an animation. Captures are identical either way.
+            window.collectionBehavior = [.transient, .ignoresCycle, .stationary]
+            window.level = NSWindow.Level(Int(CGWindowLevelForKey(.desktopWindow)) - 1)
             window.orderBack(nil)
             let windowID = CGWindowID(window.windowNumber)
             for _ in 0..<50 {
