@@ -11,7 +11,8 @@ reference records which.
 ### Window server
 
 The default when allowed. The window is captured with ScreenCaptureKit, exactly as it appears on
-screen. This needs:
+screen. It sits below the desktop, out of sight and out of Mission Control, so nothing flashes
+while you work. This needs:
 
 - Screen Recording permission for the app running the tests: Terminal, Xcode, or your agent's
   host app.
