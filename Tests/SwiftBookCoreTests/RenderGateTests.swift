@@ -67,7 +67,16 @@ import Testing
         }
         #expect(!log.overlappedZones)
         #expect(!log.wrongZone)
-        #expect(log.started == Array(zones.indices))
+        #expect(log.started.sorted() == Array(zones.indices))
+        // None starts before one that arrived earlier in another time zone. Renders admitted
+        // together may start in either order: one resumed from waiting starts once the main actor
+        // gets to it, while one admitted on arrival starts at once.
+        let position = Dictionary(uniqueKeysWithValues: log.started.enumerated().map { ($1, $0) })
+        for earlier in zones.indices {
+            for later in zones.indices where later > earlier && zones[later] != zones[earlier] {
+                #expect(position[earlier]! < position[later]!, "\(later) started before \(earlier)")
+            }
+        }
         // The process's own time zone comes back once nothing runs.
         #expect(log.zone == "Original")
     }
