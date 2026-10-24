@@ -15,10 +15,11 @@
             _ story: Story, in environment: RenderEnvironment = RenderEnvironment(),
             timeout: Duration = .seconds(2)
         ) async throws -> Snapshot {
+            ScrollerStyle.pinOverlay()
             // Several at once, each in a window of its own: most of a render is waiting for it
             // to settle. The gate keeps the process's time zone, which `Date.formatted()` reads,
             // the same for every render running.
-            try await gate.run(in: environment.timeZoneIdentifier) {
+            return try await gate.run(in: environment.timeZoneIdentifier) {
                 try await renderAlone(story, in: environment, timeout: timeout)
             }
         }

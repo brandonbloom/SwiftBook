@@ -59,10 +59,19 @@ Windows render in their inactive style, as when another app is in front. For exa
 selections are gray rather than the accent color, because the test process is never the active
 app.
 
+### Overlay scrollers
+
+Lists, tables, and scroll views render with overlay scrollers, whatever System Settings says.
+With "Show scroll bars: Automatically", macOS switches to legacy scrollers whenever it thinks a
+mouse is attached, as when a Mac is docked, and they take about 15 points from every scroll view.
+SwiftBook pins overlay scrollers in each process that renders, before the first render. In
+`swift test`, code that reads the scroller style before SwiftBook renders, such as a test that
+makes a scroll view first, fixes the style for that process.
+
 ## See Also
 
 - <doc:ContinuousIntegration>
 - <doc:Troubleshooting>
 
-<!-- sources: Sources/SwiftBookCore/Rendering/MacRenderer.swift Sources/SwiftBookCore/Rendering/RenderGate.swift Sources/SwiftBookCore/Rendering/Vibrancy.swift Sources/SwiftBookCore/Rendering/WindowServerCapture.swift -->
+<!-- sources: Sources/SwiftBookCore/Rendering/MacRenderer.swift Sources/SwiftBookCore/Rendering/RenderGate.swift Sources/SwiftBookCore/Rendering/ScrollerStyle.swift Sources/SwiftBookCore/Rendering/Vibrancy.swift Sources/SwiftBookCore/Rendering/WindowServerCapture.swift -->
 <!-- checked: 003ad8c -->

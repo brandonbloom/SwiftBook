@@ -28,12 +28,15 @@
         private let lock = NSLock()
         private var nextID = 1
 
-        /// Starts `executable` and waits for its hello. `environment` adds to this process's.
+        /// Starts `executable` with `arguments` and waits for its hello. `environment` adds to
+        /// this process's.
         public convenience init(
-            executable: URL, environment: [String: String] = [:], timeout: Duration = .seconds(60)
+            executable: URL, arguments: [String] = [], environment: [String: String] = [:],
+            timeout: Duration = .seconds(60)
         ) throws {
             let process = Process()
             process.executableURL = executable
+            process.arguments = arguments
             process.environment = ProcessInfo.processInfo.environment.merging(environment) { $1 }
             let inputPipe = Pipe()
             let outputPipe = Pipe()

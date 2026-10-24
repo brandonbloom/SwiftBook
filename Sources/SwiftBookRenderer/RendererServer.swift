@@ -24,6 +24,8 @@ public enum RendererServer {
             // the user's code, goes to standard error instead of corrupting the stream.
             let output = FileHandle(fileDescriptor: dup(STDOUT_FILENO))
             dup2(STDERR_FILENO, STDOUT_FILENO)
+            // Before AppKit, or the user's code, reads the scroller style.
+            ScrollerStyle.pinOverlay()
             MainActor.assumeIsolated {
                 // A renderer never shows anything or takes focus.
                 _ = NSApplication.shared.setActivationPolicy(.prohibited)

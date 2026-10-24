@@ -187,6 +187,23 @@
             #expect(try renderer.render(card) == png)
         }
 
+        @Test func pinsOverlayScrollers() throws {
+            let executable = try RendererHost(package: Self.zoo).build()
+            // Legacy scrollers, as macOS picks with a mouse attached, in a domain the pin outranks.
+            let renderer = try RendererProcess(
+                executable: executable, arguments: ["-AppleShowScrollBars", "Always"],
+                environment: ["SWIFTBOOK_CAPTURE": "emulated"])
+            defer { renderer.shutdown() }
+            let story = StoryID(module: "PreviewZoo", group: "Hazards", name: "Scroll view")
+            let store = SnapshotStore(root: Self.zoo.appending(path: "Snapshots"))
+            let reference = try Data(
+                contentsOf: store.url(for: story, device: .mac, environment: RenderEnvironment()))
+            let diff = try ImageDiff.compare(
+                expected: SnapshotStore.image(reference, at: "reference"),
+                actual: SnapshotStore.image(try renderer.render(story), at: "render"))
+            #expect(diff.isIdentical)
+        }
+
         static let iOSRuntimeInstalled =
             Shell.run(["xcrun", "simctl", "list", "runtimes"])?.output
             .split(separator: "\n").contains { $0.hasPrefix("iOS 27") || $0.hasPrefix("iOS 28") }
