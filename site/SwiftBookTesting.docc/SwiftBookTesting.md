@@ -79,4 +79,4 @@ code compiles.
 - ``Variants``
 
 <!-- sources: README.md Sources/SwiftBookTesting -->
-<!-- checked: 003ad8c -->
+<!-- checked: 26107e6 -->
