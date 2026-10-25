@@ -73,6 +73,10 @@ code compiles.
 - <doc:CommandLine>
 - <doc:Troubleshooting>
 
+### Under the hood
+
+- <doc:EdgeCases>
+
 ### Test macro
 
 - ``SwiftBookTests(variants:tolerance:excluding:)``
