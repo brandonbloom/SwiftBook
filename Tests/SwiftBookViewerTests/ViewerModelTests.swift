@@ -387,10 +387,11 @@
             model.compareMode = .twoUp
             model.compareDimension = .layoutDirection
             model.openInteractively(model.cells[1].variant)
-            for _ in 0..<100 where renderer.opened.count < 2 {
+            for _ in 0..<500 where renderer.opened.count < 2 {
                 try? await Task.sleep(for: .milliseconds(10))
             }
-            #expect(renderer.opened == ["M/A/One dark", "M/A/One dark rtl"])
+            // Each opens in a task of its own, so they can arrive in either order.
+            #expect(renderer.opened.sorted() == ["M/A/One dark", "M/A/One dark rtl"])
 
             model.selection = Self.story("M/A/Bad")
             model.openInteractively()
