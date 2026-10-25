@@ -1,5 +1,6 @@
 #if os(macOS)
     import AppKit
+    import SwiftBookCore
     import SwiftUI
 
     /// The SwiftBook viewer: every story of one package, rendered in a process of its own.
@@ -23,6 +24,9 @@
         init() {
             let environment = ProcessInfo.processInfo.environment
             snapshot = environment["SWIFTBOOK_VIEWER_SNAPSHOT"].map { URL(filePath: $0) }
+            // A snapshot is a scripted session that nobody sees, so it stays out of the Dock,
+            // where macOS can leave its tile behind after it quits.
+            if snapshot != nil { OutOfDock.ensure() }
             story = environment["SWIFTBOOK_VIEWER_STORY"]
             compare = environment["SWIFTBOOK_VIEWER_COMPARE"]
             let package = URL(
@@ -107,9 +111,8 @@
 
         func applicationWillFinishLaunching(_ notification: Notification) {
             // Launched from a terminal rather than as a bundle, the app would otherwise have no
-            // Dock icon or menu bar. A snapshot stays out of the Dock: macOS can leave its tile
-            // behind after it quits.
-            NSApplication.shared.setActivationPolicy(isSnapshot ? .accessory : .regular)
+            // Dock icon or menu bar. A snapshot is a UI element already (`ViewerApp.init`).
+            if !isSnapshot { NSApplication.shared.setActivationPolicy(.regular) }
         }
 
         func applicationDidFinishLaunching(_ notification: Notification) {

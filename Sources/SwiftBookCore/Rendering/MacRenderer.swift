@@ -15,6 +15,7 @@
             _ story: Story, in environment: RenderEnvironment = RenderEnvironment(),
             timeout: Duration = .seconds(2)
         ) async throws -> Snapshot {
+            OutOfDock.ensure()
             ScrollerStyle.pinOverlay()
             // Several at once, each in a window of its own: most of a render is waiting for it
             // to settle. The gate keeps the process's time zone, which `Date.formatted()` reads,
@@ -31,14 +32,6 @@
         )
             async throws -> Snapshot
         {
-            if NSApplication.shared.activationPolicy() == .regular,
-                Bundle.main.bundleURL.pathExtension != "app"
-            {
-                // A test process isn't an app. Otherwise macOS lists it as one while it renders,
-                // with a Dock tile that can outlive it. (A regular app can't become prohibited.)
-                NSApplication.shared.setActivationPolicy(.accessory)
-            }
-
             let view = AnyView(try await story.makeView().pinned(to: environment))
             let window = makeWindow(appearance: environment.appearance)
             defer {
@@ -100,6 +93,7 @@
 
         /// A borderless window that never sees the pointer, in `appearance`.
         static func makeWindow(appearance: RenderEnvironment.Appearance) -> NSWindow {
+            OutOfDock.ensure()
             let window = NSWindow(
                 contentRect: CGRect(origin: offscreenOrigin, size: CGSize(width: 1, height: 1)),
                 styleMask: [.borderless], backing: .buffered, defer: false)

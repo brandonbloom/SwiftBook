@@ -65,10 +65,12 @@ You don't need any of this to use SwiftBook. It's here so you know what's covere
 - **Render windows on screen.** Window-server capture needs the window on screen. SwiftBook puts
   it below the desktop, where the wallpaper hides it, and keeps it out of Mission Control and
   window cycling, so nothing flickers and focus isn't taken. Captures are identical.
-- **Dock icons.** A command-line program started from an app registers with macOS as that app,
-  icon and all, and the Dock can keep the tile after the program exits. SwiftBook's renderer runs
-  as an app of its own that never appears in the Dock, and renders in your test process switch
-  it to an accessory app first.
+- **Dock icons.** A command-line program becomes an app as soon as it shows a window, resolves a
+  color through AppKit, or loads a PDF. macOS then lists it as the app that started it, icon and
+  all, such as your terminal, and the Dock can keep the tile after it exits. Switching to a
+  background app afterwards is too late. SwiftBook's renderer runs as an app of its own that never
+  appears in the Dock, and under `swift test` SwiftBook makes your test process a background UI
+  element before anything reaches AppKit.
 - **Orphans.** A renderer whose parent dies notices within a second and exits, instead of leaving
   a window or a hung capture behind.
 

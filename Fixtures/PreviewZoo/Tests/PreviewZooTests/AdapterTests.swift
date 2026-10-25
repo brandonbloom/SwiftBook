@@ -5,6 +5,9 @@ import Testing
 @testable import SwiftBookCore
 
 @MainActor @Suite struct AdapterTests {
+    // Before this suite reaches AppKit, so the test process gets no Dock tile.
+    init() { OutOfDock.ensure() }
+
     let stories = Story.all().filter { $0.id.module == "PreviewZoo" }
 
     func story(_ group: String, _ name: String) throws -> Story {

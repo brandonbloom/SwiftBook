@@ -9,6 +9,9 @@
     /// crash, hang, and dawdle. Serialized: the tests share FaultZoo's renderer build, and one of
     /// them edits a source, which would load the machine and rebuild under the other.
     @MainActor @Suite(.serialized) struct RendererSupervisorTests {
+        // Before this suite reaches AppKit, so the test process gets no Dock tile.
+        init() { OutOfDock.ensure() }
+
         static let faultZoo = URL(filePath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()
             .appending(path: "Fixtures/FaultZoo", directoryHint: .isDirectory)

@@ -27,6 +27,9 @@
     }
 
     @MainActor @Suite struct HistoryTests {
+        // Before this suite reaches AppKit, so the test process gets no Dock tile.
+        init() { OutOfDock.ensure() }
+
         static func png(_ color: NSColor) -> Data {
             let image = NSImage(size: CGSize(width: 40, height: 20), flipped: false) { rect in
                 color.setFill()

@@ -48,6 +48,7 @@ import SwiftUI
         var blue: CGFloat = 0
         var alpha: CGFloat = 0
         #if os(macOS)
+            OutOfDock.ensure()
             let named = NSAppearance(named: appearance == .dark ? .darkAqua : .aqua)
             named?.performAsCurrentDrawingAppearance {
                 NSColor(tint).usingColorSpace(.sRGB)?

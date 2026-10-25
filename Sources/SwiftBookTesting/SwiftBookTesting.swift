@@ -75,9 +75,11 @@ public enum SwiftBook {
     /// they run through `swiftbook test` instead.
     public static var canSnapshot: Bool {
         #if os(macOS)
-            true
+            // The expansion asks this first, before anything reaches AppKit.
+            OutOfDock.ensure()
+            return true
         #else
-            false
+            return false
         #endif
     }
 
@@ -100,7 +102,10 @@ public enum SwiftBook {
     /// Every story in this process, except `excluded` ones (as `Module/Group/Name`) and those
     /// the package's `SwiftBookConfiguration` excludes.
     public static func stories(excluding excluded: Set<String> = []) async -> [TestStory] {
-        await MainActor.run {
+        #if os(macOS)
+            OutOfDock.ensure()
+        #endif
+        return await MainActor.run {
             let excluded = excluded.union(ProjectConfiguration.excluded)
             return Story.all().filter { !excluded.contains($0.id.description) }
                 .map(TestStory.init)

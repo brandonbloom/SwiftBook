@@ -109,6 +109,9 @@
     }
 
     @MainActor @Suite struct ViewerModelTests {
+        // Before this suite reaches AppKit, so the test process gets no Dock tile.
+        init() { OutOfDock.ensure() }
+
         /// A model of `renderer`'s stories. Rendering ahead is off unless asked for, so tests can
         /// check exactly what renders.
         func model(_ renderer: FakeRenderer, rendersAhead: Bool = false) -> ViewerModel {

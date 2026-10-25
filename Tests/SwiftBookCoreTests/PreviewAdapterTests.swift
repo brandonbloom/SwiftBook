@@ -4,6 +4,9 @@ import Testing
 @testable import SwiftBookCore
 
 @MainActor @Suite struct PreviewAdapterTests {
+    // Before this suite reaches AppKit, so the test process gets no Dock tile.
+    init() { OutOfDock.ensure() }
+
     func drafts(_ preview: Preview) -> [PreviewAdapter.Draft] {
         PreviewAdapter.drafts(
             from: preview, module: "M", group: "File", fileID: "M/File.swift", line: 7,
