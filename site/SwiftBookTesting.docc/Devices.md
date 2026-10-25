@@ -97,4 +97,4 @@ with `✗`, and give the `swiftbook render` command for the failed stories on ea
 - <doc:ContinuousIntegration>
 
 <!-- sources: Sources/SwiftBookCLI/TestCommand.swift Sources/SwiftBookCLI/RenderCommand.swift Sources/SwiftBookCLI/DeviceRun.swift Sources/SwiftBookCore/Renderer Sources/SwiftBookCore/Rendering/Device.swift Sources/SwiftBookCore/Rendering/UIKitRenderer.swift -->
-<!-- checked: 3ba2bf6 -->
+<!-- checked: 7eb3458 -->
