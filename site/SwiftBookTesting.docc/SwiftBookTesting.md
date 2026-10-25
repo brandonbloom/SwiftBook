@@ -84,4 +84,4 @@ code compiles.
 - ``ImageDiff/Tolerance``
 
 <!-- sources: README.md Sources/SwiftBookTesting -->
-<!-- checked: d2f96ed -->
+<!-- checked: d835c68 -->

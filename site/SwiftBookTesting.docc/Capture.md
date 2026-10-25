@@ -74,4 +74,4 @@ makes a scroll view first, fixes the style for that process.
 - <doc:Troubleshooting>
 
 <!-- sources: Sources/SwiftBookCore/Rendering/MacRenderer.swift Sources/SwiftBookCore/Rendering/RenderGate.swift Sources/SwiftBookCore/Rendering/ScrollerStyle.swift Sources/SwiftBookCore/Rendering/Vibrancy.swift Sources/SwiftBookCore/Rendering/WindowServerCapture.swift -->
-<!-- checked: 3ba2bf6 -->
+<!-- checked: d835c68 -->
