@@ -6,9 +6,9 @@
     /// A simulator's services can crash over and over, as PosterBoard does when its data goes bad,
     /// each crash writing a report. Erasing the simulator stops it. A service that crashes now and
     /// then, as some do every 20 minutes or so, isn't looping.
-    public enum SimulatorCrashes {
+    package enum SimulatorCrashes {
         /// Where macOS writes crash reports, including those of simulated processes.
-        public static var reports: URL {
+        package static var reports: URL {
             FileManager.default.homeDirectoryForCurrentUser
                 .appending(path: "Library/Logs/DiagnosticReports", directoryHint: .isDirectory)
         }
@@ -21,7 +21,7 @@
         /// The processes that crashed at least ``threshold`` times in simulator `udid` since
         /// `since`, or in the last ``window`` if that's later, most crashes first. SwiftBook's own
         /// renderer is left out: it crashes with the stories it renders.
-        public static func loops(
+        package static func loops(
             udid: String, since: Date = .distantPast, now: Date = Date(),
             in directory: URL = reports
         ) -> [String] {

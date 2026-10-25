@@ -5,21 +5,21 @@ import SwiftUI
 ///
 /// Messages are JSON objects, one per line. The renderer first sends a ``RendererHello``, then
 /// answers each ``RendererRequest`` with a ``RendererResponse`` carrying the same `id`, in order.
-public enum RendererProtocol {
+package enum RendererProtocol {
     /// Bumped whenever a message changes incompatibly.
-    public static let version = 1
+    package static let version = 1
 }
 
 /// The renderer's first message.
-public struct RendererHello: Codable, Hashable, Sendable {
-    public var protocolVersion: Int
-    public var swiftBookVersion: String
+package struct RendererHello: Codable, Hashable, Sendable {
+    package var protocolVersion: Int
+    package var swiftBookVersion: String
     /// Such as `macOS`.
-    public var platform: String
+    package var platform: String
     /// The version of the OS the renderer runs on, such as `27.0.1`.
-    public var osVersion: String?
+    package var osVersion: String?
 
-    public init(
+    package init(
         protocolVersion: Int, swiftBookVersion: String, platform: String, osVersion: String? = nil
     ) {
         self.protocolVersion = protocolVersion
@@ -30,21 +30,21 @@ public struct RendererHello: Codable, Hashable, Sendable {
 }
 
 /// What a render should record of the code it runs, for `swiftbook test --changed`.
-public struct RenderRecording: Codable, Hashable, Sendable {
+package struct RenderRecording: Codable, Hashable, Sendable {
     /// The snapshot's identifier, stable from run to run.
-    public var test: String
+    package var test: String
     /// What the snapshot's shared contexts are recorded under, such as the device.
-    public var scope: String
+    package var scope: String
 
-    public init(test: String, scope: String) {
+    package init(test: String, scope: String) {
         self.test = test
         self.scope = scope
     }
 }
 
 /// A request to a renderer.
-public struct RendererRequest: Codable, Hashable, Sendable {
-    public enum Method: String, Codable, Sendable {
+package struct RendererRequest: Codable, Hashable, Sendable {
+    package enum Method: String, Codable, Sendable {
         /// List every story. With `check`, also build each one's view and report failures.
         case list
         /// Render `story` in `environment`.
@@ -58,16 +58,16 @@ public struct RendererRequest: Codable, Hashable, Sendable {
         case shutdown
     }
 
-    public var id: Int
-    public var method: Method
-    public var check: Bool?
+    package var id: Int
+    package var method: Method
+    package var check: Bool?
     /// The story ID, as `Module/Group/Name`.
-    public var story: String?
-    public var environment: RenderEnvironment?
+    package var story: String?
+    package var environment: RenderEnvironment?
     /// For `render`: what to record of the code the render runs, if anything.
-    public var recording: RenderRecording?
+    package var recording: RenderRecording?
 
-    public init(
+    package init(
         id: Int, method: Method, check: Bool? = nil, story: String? = nil,
         environment: RenderEnvironment? = nil, recording: RenderRecording? = nil
     ) {
@@ -81,20 +81,20 @@ public struct RendererRequest: Codable, Hashable, Sendable {
 }
 
 /// A renderer's answer to the request with the same `id`.
-public struct RendererResponse: Codable, Hashable, Sendable {
-    public var id: Int
+package struct RendererResponse: Codable, Hashable, Sendable {
+    package var id: Int
     /// For `list`.
-    public var stories: [StoryInfo]?
+    package var stories: [StoryInfo]?
     /// For `render`: the snapshot as PNG, with its metadata.
-    public var png: Data?
+    package var png: Data?
     /// For `render`: where the snapshot has Liquid Glass, in pixels, if anywhere.
-    public var glassRegions: [ImageDiff.PixelRect]?
+    package var glassRegions: [ImageDiff.PixelRect]?
     /// For `windows`.
-    public var windows: [RendererWindow]?
+    package var windows: [RendererWindow]?
     /// Why the request failed.
-    public var error: String?
+    package var error: String?
 
-    public init(
+    package init(
         id: Int, stories: [StoryInfo]? = nil, png: Data? = nil,
         glassRegions: [ImageDiff.PixelRect]? = nil, windows: [RendererWindow]? = nil,
         error: String? = nil
@@ -109,50 +109,50 @@ public struct RendererResponse: Codable, Hashable, Sendable {
 }
 
 /// A rendered snapshot as it crosses the protocol.
-public struct RenderedImage: Sendable {
+package struct RenderedImage: Sendable {
     /// The snapshot as PNG, with its metadata.
-    public let png: Data
+    package let png: Data
     /// Where it has Liquid Glass, in pixels.
-    public let glassRegions: [ImageDiff.PixelRect]
+    package let glassRegions: [ImageDiff.PixelRect]
 
-    public init(png: Data, glassRegions: [ImageDiff.PixelRect] = []) {
+    package init(png: Data, glassRegions: [ImageDiff.PixelRect] = []) {
         self.png = png
         self.glassRegions = glassRegions
     }
 }
 
 /// A story's interactive window, as `open` showed it.
-public struct RendererWindow: Codable, Hashable, Sendable {
+package struct RendererWindow: Codable, Hashable, Sendable {
     /// The story ID, as `Module/Group/Name`.
-    public var story: String
-    public var environment: RenderEnvironment
+    package var story: String
+    package var environment: RenderEnvironment
 
-    public init(story: String, environment: RenderEnvironment) {
+    package init(story: String, environment: RenderEnvironment) {
         self.story = story
         self.environment = environment
     }
 }
 
 /// A story as a renderer lists it.
-public struct StoryInfo: Codable, Hashable, Sendable {
-    public var module: String
-    public var group: String
-    public var name: String
-    public var fileID: String?
-    public var line: Int?
+package struct StoryInfo: Codable, Hashable, Sendable {
+    package var module: String
+    package var group: String
+    package var name: String
+    package var fileID: String?
+    package var line: Int?
     /// Why the story's view couldn't be built, from a `list` with `check`.
-    public var error: String?
+    package var error: String?
     /// Whether the package's ``SwiftBookConfiguration`` leaves the story out of snapshot tests.
     /// Optional so that a renderer's response needn't mention it.
-    public var excluded: Bool?
+    package var excluded: Bool?
 
     /// Whether `swiftbook test` checks the story.
-    public var isTested: Bool { excluded != true }
+    package var isTested: Bool { excluded != true }
 
     /// `Module/Group/Name`.
-    public var id: StoryID { StoryID(module: module, group: group, name: name) }
+    package var id: StoryID { StoryID(module: module, group: group, name: name) }
 
-    public init(id: StoryID, fileID: String? = nil, line: Int? = nil, error: String? = nil) {
+    package init(id: StoryID, fileID: String? = nil, line: Int? = nil, error: String? = nil) {
         module = id.module
         group = id.group
         name = id.name
@@ -161,7 +161,7 @@ public struct StoryInfo: Codable, Hashable, Sendable {
         self.error = error
     }
 
-    public init(story: Story, error: String? = nil) {
+    package init(story: Story, error: String? = nil) {
         module = story.id.module
         group = story.id.group
         name = story.id.name
@@ -177,7 +177,7 @@ extension RenderEnvironment: Codable {
         case deviceWidth, deviceHeight
     }
 
-    public init(from decoder: any Decoder) throws {
+    package init(from decoder: any Decoder) throws {
         self.init()
         let container = try decoder.container(keyedBy: CodingKeys.self)
         appearance = try container.decode(Appearance.self, forKey: .appearance)
@@ -199,7 +199,7 @@ extension RenderEnvironment: Codable {
         deviceHeight = try container.decode(Double.self, forKey: .deviceHeight)
     }
 
-    public func encode(to encoder: any Encoder) throws {
+    package func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(appearance, forKey: .appearance)
         try container.encode(scale, forKey: .scale)

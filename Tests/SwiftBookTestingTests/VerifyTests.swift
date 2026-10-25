@@ -1,5 +1,6 @@
 #if os(macOS)
     import Foundation
+    import SwiftBookCore
     import SwiftBookTesting
     import Testing
 
@@ -10,7 +11,10 @@
                 path: "VerifyTests-\(UUID())/Snapshots"))
 
         func story(_ group: String, _ name: String) async throws -> TestStory {
-            try #require(await SwiftBook.stories().first { $0.id == "PreviewZoo/\(group)/\(name)" })
+            try #require(
+                await SwiftBook.stories().first {
+                    $0.id == "SwiftBookTestingTests/\(group)/\(name)"
+                })
         }
 
         @Test func recordsThenMatchesThenReportsChanges() async throws {
@@ -38,7 +42,8 @@
                     card, filePath: #filePath, variants: light, store: store, mode: .never)
             } matching: { issue in
                 issue.comments.contains { comment in
-                    comment.rawValue.contains("PreviewZoo/Card/Card (mac.light) doesn't match")
+                    comment.rawValue.contains(
+                        "SwiftBookTestingTests/Card/Card (mac.light) doesn't match")
                         && comment.rawValue.contains("pixels changed")
                         && comment.rawValue.contains("SWIFTBOOK_RECORD=changed")
                 }
@@ -62,7 +67,8 @@
             } matching: { issue in
                 issue.severity == .warning
                     && issue.comments.contains { comment in
-                        comment.rawValue.contains("Re-recorded PreviewZoo/Card/Card (mac.light)")
+                        comment.rawValue.contains(
+                            "Re-recorded SwiftBookTestingTests/Card/Card (mac.light)")
                             && comment.rawValue.contains("pixels changed")
                             && comment.rawValue.contains("Diff image:")
                     }

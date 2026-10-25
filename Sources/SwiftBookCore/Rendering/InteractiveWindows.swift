@@ -5,14 +5,14 @@
     /// Stories shown live in windows of their own, for someone to click, type, and scroll in.
     ///
     /// Unlike captures, they keep animations on, and they take the pointer and focus.
-    @MainActor public enum InteractiveWindows {
+    @MainActor package enum InteractiveWindows {
         /// Set to order windows behind others without taking focus, for tests.
-        public static let behindVariable = "SWIFTBOOK_INTERACTIVE_BEHIND"
+        package static let behindVariable = "SWIFTBOOK_INTERACTIVE_BEHIND"
 
         private static var shown: [(window: NSWindow, record: RendererWindow)] = []
 
         /// Shows `story` in `environment` in a new window, in front.
-        public static func open(_ story: Story, in environment: RenderEnvironment) async throws {
+        package static func open(_ story: Story, in environment: RenderEnvironment) async throws {
             let view = AnyView(try await story.makeView().live(in: environment))
             let content: AnyView
             switch story.layout {
@@ -49,7 +49,7 @@
         }
 
         /// The windows still open.
-        public static var open: [RendererWindow] {
+        package static var open: [RendererWindow] {
             shown.removeAll { !$0.window.isVisible }
             return shown.map(\.record)
         }

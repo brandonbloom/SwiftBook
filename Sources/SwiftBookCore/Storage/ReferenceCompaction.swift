@@ -2,18 +2,18 @@ import Foundation
 
 extension SnapshotStore {
     /// The outcome of compacting one reference.
-    public struct Compaction: Sendable {
-        public let url: URL
+    package struct Compaction: Sendable {
+        package let url: URL
         /// The file's size before and after, the same if it was already compact.
-        public let before: Int
-        public let after: Int
+        package let before: Int
+        package let after: Int
     }
 
     /// Re-encodes the reference at `url` as a compact PNG, unless `dryRun`, if that's smaller.
     ///
     /// Before replacing the file, this checks that the new encoding decodes to the same pixels
     /// and carries the same metadata, and throws if it doesn't, leaving the file as it was.
-    public func compact(_ url: URL, dryRun: Bool = false) throws -> Compaction {
+    package func compact(_ url: URL, dryRun: Bool = false) throws -> Compaction {
         let original = try Data(contentsOf: url)
         if GitLFS.isPointer(original) {
             throw StorageError(description: GitLFS.pointerProblem(at: url.path))

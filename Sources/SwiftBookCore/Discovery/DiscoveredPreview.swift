@@ -1,29 +1,29 @@
 import SwiftUI
 
 /// A preview found in the running process, before its contents are read.
-public struct DiscoveredPreview: @unchecked Sendable {
+package struct DiscoveredPreview: @unchecked Sendable {
     // Unchecked: metatypes are immutable, but the conformances' main-actor isolation keeps the
     // compiler from proving these are Sendable.
 
     /// Where a preview was declared.
-    public enum Source {
+    package enum Source {
         /// A `#Preview`, which expands to a type conforming to `PreviewRegistry`.
         case registry(any PreviewRegistry.Type)
         /// A type conforming to the legacy `PreviewProvider` protocol.
         case provider(any PreviewProvider.Type)
     }
 
-    public let source: Source
+    package let source: Source
     /// The module that declares the preview.
-    public let module: String
+    package let module: String
     /// The declaring file as `Module/File.swift`, for `#Preview`. Unknown for `PreviewProvider`.
-    public let fileID: String?
+    package let fileID: String?
     /// The 1-based line of the `#Preview`. Unknown for `PreviewProvider`.
-    public let line: Int?
+    package let line: Int?
     /// The 1-based column of the `#Preview`. Unknown for `PreviewProvider`.
-    public let column: Int?
+    package let column: Int?
     /// The `PreviewProvider` type's name, for legacy previews.
-    public let providerName: String?
+    package let providerName: String?
 }
 
 extension DiscoveredPreview {
@@ -31,7 +31,7 @@ extension DiscoveredPreview {
     ///
     /// Results are sorted by module, then by `#Preview` source location, then by `PreviewProvider`
     /// type name, so the order is stable across runs.
-    public static func all() -> [DiscoveredPreview] {
+    package static func all() -> [DiscoveredPreview] {
         let matches = ConformanceScanner.scan(protocolNames: ["PreviewRegistry", "PreviewProvider"])
         let previews = matches.compactMap { match -> DiscoveredPreview? in
             // The cast, not the name check, is authoritative: another module may declare a

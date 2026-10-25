@@ -4,16 +4,16 @@ import Foundation
 ///
 /// Identities survive moving a preview within its file. They change when the preview is renamed,
 /// moved to another file, or reordered relative to unnamed or same-named previews in its file.
-public struct StoryID: Hashable, Sendable, CustomStringConvertible {
-    public let module: String
+package struct StoryID: Hashable, Sendable, CustomStringConvertible {
+    package let module: String
     /// The declaring file's name without extension, or the `PreviewProvider` type's name.
-    public let group: String
+    package let group: String
     /// The display name, made unique within the group.
-    public let name: String
+    package let name: String
 
-    public var description: String { "\(module)/\(group)/\(name)" }
+    package var description: String { "\(module)/\(group)/\(name)" }
 
-    public init(module: String, group: String, name: String) {
+    package init(module: String, group: String, name: String) {
         self.module = module
         self.group = group
         self.name = name
@@ -27,7 +27,7 @@ public struct StoryID: Hashable, Sendable, CustomStringConvertible {
     ///
     /// Names count as the same when their references would share a path on a case- and
     /// normalization-insensitive disk, such as `Dark` and `dark`, or `Row:` and `Row?`.
-    public static func assign(_ stories: [(module: String, group: String, displayName: String?)])
+    package static func assign(_ stories: [(module: String, group: String, displayName: String?)])
         -> [StoryID]
     {
         var taken: Set<[String]> = []
@@ -56,7 +56,7 @@ public struct StoryID: Hashable, Sendable, CustomStringConvertible {
 
     /// The group for a `#Preview` declared in `fileID` (`Module/File.swift`): the file name
     /// without its extension.
-    public static func group(forFileID fileID: String) -> String {
+    package static func group(forFileID fileID: String) -> String {
         let file = fileID.split(separator: "/").last.map(String.init) ?? fileID
         guard let dot = file.lastIndex(of: "."), dot != file.startIndex else { return file }
         return String(file[..<dot])

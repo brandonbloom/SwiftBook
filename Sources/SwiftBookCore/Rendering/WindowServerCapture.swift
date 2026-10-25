@@ -3,7 +3,7 @@
     import ScreenCaptureKit
 
     /// How a macOS render was captured.
-    public enum CaptureMethod: String, Hashable, Sendable, CaseIterable {
+    package enum CaptureMethod: String, Hashable, Sendable, CaseIterable {
         /// Captured from the window server with ScreenCaptureKit: exactly what's on screen,
         /// including vibrancy and Liquid Glass. Needs Screen Recording permission.
         case windowServer
@@ -12,11 +12,11 @@
         case emulated
 
         /// The variable that forces a capture method.
-        public static let environmentVariable = "SWIFTBOOK_CAPTURE"
+        package static let environmentVariable = "SWIFTBOOK_CAPTURE"
 
         /// The method set by `SWIFTBOOK_CAPTURE`, or else ``windowServer`` when this process may
         /// record the screen and the screen is unlocked, and ``emulated`` otherwise.
-        public static func current(
+        package static func current(
             _ environment: [String: String] = ProcessInfo.processInfo.environment
         )
             throws -> CaptureMethod
@@ -33,7 +33,7 @@
         }
 
         /// Whether the console session is locked, when the window server captures nothing.
-        public static var screenIsLocked: Bool {
+        package static var screenIsLocked: Bool {
             let session = CGSessionCopyCurrentDictionary() as? [String: Any]
             return session?["CGSSessionScreenIsLocked"] as? Bool ?? false
         }

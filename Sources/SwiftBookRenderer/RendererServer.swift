@@ -15,7 +15,7 @@ import SwiftBookCore
 /// over a TCP connection to the port in `SWIFTBOOK_RENDERER_PORT` on the host.
 public enum RendererServer {
     /// The variable that gives an iOS or tvOS renderer the port to connect to.
-    public static let portVariable = "SWIFTBOOK_RENDERER_PORT"
+    package static let portVariable = "SWIFTBOOK_RENDERER_PORT"
 
     #if os(macOS)
         /// Serves requests until `shutdown` or the end of input, then exits.

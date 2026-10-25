@@ -6,23 +6,23 @@
     /// A render that ends the renderer (a crash, or a hang it was stopped for) is tried once more
     /// on a fresh one: hangs can be transient, such as on a loaded machine. If it fails again,
     /// the error says so, and the next request still gets a working renderer.
-    public final class RestartingRenderer: @unchecked Sendable {
+    package final class RestartingRenderer: @unchecked Sendable {
         // Unchecked: `lock` guards `process` and `restarts`.
 
         private let start: @Sendable () throws -> RendererProcess
         private let lock = NSLock()
         private var process: RendererProcess
         /// How many times the renderer has been restarted.
-        public private(set) var restarts = 0
+        package private(set) var restarts = 0
         /// What ended each renderer that was restarted mid-render: the story, and the error.
-        public private(set) var incidents: [String] = []
+        package private(set) var incidents: [String] = []
 
         /// Starts a renderer with `start`, which also starts each replacement.
         private let onShutdown: @Sendable () -> Void
 
         /// Starts a renderer with `start`, which also restarts it. `onShutdown` runs after
         /// ``shutdown()``, to release what the renderer used, such as its simulator.
-        public init(
+        package init(
             start: @escaping @Sendable () throws -> RendererProcess,
             onShutdown: @escaping @Sendable () -> Void = {}
         ) throws {
@@ -32,9 +32,9 @@
         }
 
         /// What the current renderer said when it started.
-        public var hello: RendererHello { lock.withLock { process.hello } }
+        package var hello: RendererHello { lock.withLock { process.hello } }
 
-        public func stories(check: Bool = false, timeout: Duration = .seconds(120)) throws
+        package func stories(check: Bool = false, timeout: Duration = .seconds(120)) throws
             -> [StoryInfo]
         {
             try lock.withLock { try running().stories(check: check, timeout: timeout) }
@@ -42,7 +42,7 @@
 
         /// Renders `story`, retrying once on a fresh renderer if the first attempt ended the
         /// renderer.
-        public func render(
+        package func render(
             _ story: StoryID, in environment: RenderEnvironment = RenderEnvironment(),
             timeout: Duration = .seconds(30)
         ) throws -> Data {
@@ -51,7 +51,7 @@
 
         /// Like ``render(_:in:timeout:)``, with where the snapshot has glass. With `recording`,
         /// the renderer records the code the render runs.
-        public func renderImage(
+        package func renderImage(
             _ story: StoryID, in environment: RenderEnvironment = RenderEnvironment(),
             recording: RenderRecording? = nil, timeout: Duration = .seconds(30)
         ) throws -> RenderedImage {
@@ -77,7 +77,7 @@
             }
         }
 
-        public func shutdown() {
+        package func shutdown() {
             lock.withLock { process.shutdown() }
             onShutdown()
         }

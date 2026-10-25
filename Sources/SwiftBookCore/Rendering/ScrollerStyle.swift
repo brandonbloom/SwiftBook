@@ -8,10 +8,10 @@
     /// from every list, table, and scroll view, so text rewraps and layouts move. AppKit reads the
     /// style once per process, so it's pinned before the first render, in the argument domain,
     /// where it outranks the user's setting.
-    public enum ScrollerStyle {
+    package enum ScrollerStyle {
         /// Pins overlay scrollers for this process, keeping the argument domain's other entries.
         /// Takes effect only if AppKit hasn't read the style yet.
-        public static func pinOverlay() { _ = pinned }
+        package static func pinOverlay() { _ = pinned }
 
         /// The `AppleShowScrollBars` value that means overlay scrollers.
         static let overlay = "WhenScrolling"

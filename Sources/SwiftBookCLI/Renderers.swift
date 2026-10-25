@@ -9,7 +9,7 @@
         valueName: "device")
 
     extension Device: ExpressibleByArgument {
-        public init?(argument: String) {
+        package init?(argument: String) {
             switch argument.lowercased() {
             case "mac", "macos": self = .mac
             case "iphone", "ios": self = .iphone
@@ -19,7 +19,7 @@
             }
         }
 
-        public static var allValueStrings: [String] { ["mac", "iphone", "ipad", "tv"] }
+        package static var allValueStrings: [String] { ["mac", "iphone", "ipad", "tv"] }
     }
 
     /// Starting renderers for the CLI.

@@ -3,15 +3,15 @@
     import SwiftUI
 
     /// Renders stories on macOS by hosting them in an offscreen window.
-    @MainActor public enum MacRenderer {
+    @MainActor package enum MacRenderer {
         /// The largest canvas, in points, on either axis.
-        public static let maximumSize: Double = 4096
+        package static let maximumSize: Double = 4096
 
         /// Renders `story` once it's stable: two consecutive captures identical.
         ///
         /// Throws ``AdapterError`` if the story can't be read and ``RenderError`` if it never
         /// settles within `timeout` or has an unusable size.
-        public static func render(
+        package static func render(
             _ story: Story, in environment: RenderEnvironment = RenderEnvironment(),
             timeout: Duration = .seconds(2)
         ) async throws -> Snapshot {

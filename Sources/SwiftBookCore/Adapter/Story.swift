@@ -2,17 +2,17 @@ import SwiftUI
 
 /// A renderable story: one `#Preview`, one argument of a `#Preview(arguments:)`, or one child of a
 /// `PreviewProvider`.
-public struct Story: Identifiable, @unchecked Sendable {
+package struct Story: Identifiable, @unchecked Sendable {
     // Unchecked: `make` is main-actor isolated and only ever called there.
 
-    public let id: StoryID
+    package let id: StoryID
     /// The declaring file as `Module/File.swift`, for `#Preview`. Unknown for `PreviewProvider`.
-    public let fileID: String?
+    package let fileID: String?
     /// The 1-based line of the `#Preview`. Unknown for `PreviewProvider`.
-    public let line: Int?
-    public let layout: StoryLayout
+    package let line: Int?
+    package let layout: StoryLayout
     /// The orientation the preview asks for, or `nil` for the default.
-    public let orientation: StoryOrientation?
+    package let orientation: StoryOrientation?
 
     let make: @MainActor () async throws -> AnyView
 
@@ -20,13 +20,13 @@ public struct Story: Identifiable, @unchecked Sendable {
     ///
     /// Throws ``AdapterError`` when the preview couldn't be read, and rethrows errors from
     /// `PreviewModifier.makeSharedContext()`.
-    @MainActor public func makeView() async throws -> AnyView {
+    @MainActor package func makeView() async throws -> AnyView {
         try await make()
     }
 }
 
 /// How a story is sized, from its layout trait.
-public enum StoryLayout: Hashable, Sendable {
+package enum StoryLayout: Hashable, Sendable {
     /// The full screen or window of the device.
     case device
     /// The view's ideal size.
@@ -36,7 +36,7 @@ public enum StoryLayout: Hashable, Sendable {
 }
 
 /// An interface orientation requested by a preview.
-public enum StoryOrientation: String, Hashable, Sendable {
+package enum StoryOrientation: String, Hashable, Sendable {
     case portrait
     case portraitUpsideDown
     case landscapeLeft
@@ -48,7 +48,7 @@ extension Story {
     ///
     /// A preview that the adapter can't read still yields a story, whose ``makeView()`` throws.
     /// Previews whose `makePreview()` throws `PreviewUnavailable` are left out, as in Xcode.
-    @MainActor public static func all() -> [Story] {
+    @MainActor package static func all() -> [Story] {
         stories(from: DiscoveredPreview.all())
     }
 

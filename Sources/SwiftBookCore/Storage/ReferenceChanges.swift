@@ -4,8 +4,8 @@
     import ImageIO
 
     /// A reference that differs between a revision and the working tree.
-    public struct ReferenceChange: Sendable {
-        public enum Kind: String, Sendable, Codable {
+    package struct ReferenceChange: Sendable {
+        package enum Kind: String, Sendable, Codable {
             case added, modified, deleted
             /// Modified, but only in its encoding: the image decodes to the same pixels, with
             /// the same metadata, as by `swiftbook compress`.
@@ -13,27 +13,27 @@
         }
 
         /// The path relative to the repository's top level.
-        public let path: String
+        package let path: String
         /// The story, as `Module/Group/Name`, from the reference's place in `Snapshots/`.
-        public let story: String
+        package let story: String
         /// The variant, such as `mac.light`.
-        public let variant: String
-        public let kind: Kind
+        package let variant: String
+        package let kind: Kind
         /// For a modified reference, how its image changed.
-        public let diff: ImageDiff?
+        package let diff: ImageDiff?
         /// The reference as of the revision, for a modified or deleted reference.
-        public let previous: Data?
+        package let previous: Data?
         /// The reference in the working tree, for an added or modified reference.
-        public let current: Data?
+        package let current: Data?
 
         /// Whether the change matters: anything but a modified reference whose image is within
         /// tolerance of the old one.
-        public var isSignificant: Bool { diff.map { !$0.matches } ?? true }
+        package var isSignificant: Bool { diff.map { !$0.matches } ?? true }
     }
 
     extension SnapshotStore {
         /// The references that differ between `revision` and the working tree.
-        public func changes(since revision: String, in repository: GitRepository) throws
+        package func changes(since revision: String, in repository: GitRepository) throws
             -> [ReferenceChange]
         {
             guard let directory = repository.relativePath(of: root) else {

@@ -2,12 +2,12 @@
     import Foundation
 
     /// A Git error, with what Git said.
-    public struct GitError: Error, CustomStringConvertible, Sendable {
-        public let description: String
+    package struct GitError: Error, CustomStringConvertible, Sendable {
+        package let description: String
     }
 
     /// The revision to compare the working tree against.
-    public enum Basis: Hashable, Sendable {
+    package enum Basis: Hashable, Sendable {
         /// The last commit: uncommitted changes.
         case head
         /// The commit before the last: the last commit and uncommitted changes.
@@ -20,26 +20,26 @@
     }
 
     /// A file that differs between a revision and the working tree.
-    public struct Change: Hashable, Sendable {
-        public enum Kind: Hashable, Sendable {
+    package struct Change: Hashable, Sendable {
+        package enum Kind: Hashable, Sendable {
             case added, modified, deleted
         }
 
         /// The path relative to the repository's top level.
-        public let path: String
-        public let kind: Kind
+        package let path: String
+        package let kind: Kind
     }
 
     /// A Git repository, read through the `git` command.
     ///
     /// Paths are relative to the repository's top level. Renames appear as a deletion and an
     /// addition.
-    public struct GitRepository: Sendable {
+    package struct GitRepository: Sendable {
         /// The top level of the working tree.
-        public let root: URL
+        package let root: URL
 
         /// The repository containing `directory`.
-        public init(containing directory: URL) throws {
+        package init(containing directory: URL) throws {
             var isDirectory: ObjCBool = false
             guard FileManager.default.fileExists(atPath: directory.path, isDirectory: &isDirectory),
                 isDirectory.boolValue
@@ -49,18 +49,18 @@
         }
 
         /// The full commit hash `revision` names.
-        public func resolve(_ revision: String) throws -> String {
+        package func resolve(_ revision: String) throws -> String {
             try git(["rev-parse", "--verify", "--end-of-options", "\(revision)^{commit}"]).output
         }
 
         /// The best common ancestor of two commits.
-        public func mergeBase(_ revision: String, _ other: String = "HEAD") throws -> String {
+        package func mergeBase(_ revision: String, _ other: String = "HEAD") throws -> String {
             try git(["merge-base", "--end-of-options", revision, other]).output
         }
 
         /// The branch others branch from: the remote's default branch if known, else a local
         /// `main` or `master`.
-        public func defaultBranch() throws -> String {
+        package func defaultBranch() throws -> String {
             if let result = try? git(["symbolic-ref", "--short", "refs/remotes/origin/HEAD"]) {
                 return result.output
             }
@@ -74,7 +74,7 @@
         }
 
         /// The commit `basis` compares against.
-        public func revision(for basis: Basis) throws -> String {
+        package func revision(for basis: Basis) throws -> String {
             switch basis {
             case .head: try resolve("HEAD")
             case .lastCommit: try resolve("HEAD~1")
@@ -87,7 +87,7 @@
         ///
         /// Git's filters apply, so a Git LFS file comes back as its image, downloaded if this
         /// clone doesn't have it.
-        public func contents(of path: String, at revision: String) throws -> Data? {
+        package func contents(of path: String, at revision: String) throws -> Data? {
             let object = "\(revision):\(path)"
             guard (try? git(["cat-file", "-e", object])) != nil else { return nil }
             let data: Data
@@ -110,7 +110,7 @@
 
         /// The files that differ between `revision` and the working tree, including staged and
         /// untracked files, under `directory` if given.
-        public func changes(since revision: String, under directory: String? = nil) throws
+        package func changes(since revision: String, under directory: String? = nil) throws
             -> [Change]
         {
             let pathspec = ["--", directory ?? "."]
@@ -135,7 +135,7 @@
         }
 
         /// `url`'s path relative to the top level, or `nil` if it's outside the working tree.
-        public func relativePath(of url: URL) -> String? {
+        package func relativePath(of url: URL) -> String? {
             let file = url.standardizedFileURL.resolvingSymlinksInPath().path
             let top = root.standardizedFileURL.resolvingSymlinksInPath().path
             guard file.hasPrefix(top + "/") else { return nil }

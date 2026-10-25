@@ -4,10 +4,10 @@ import Foundation
 /// changed the private internals it depends on.
 ///
 /// Never swallowed: a story that can't be read fails loudly wherever it's rendered.
-public struct AdapterError: Error, CustomStringConvertible, Sendable {
-    public let problem: String
+package struct AdapterError: Error, CustomStringConvertible, Sendable {
+    package let problem: String
     /// Where the preview is declared, when known: `Module/File.swift:line`.
-    public var location: String?
+    package var location: String?
 
     static func unexpectedShape(_ problem: String) -> AdapterError {
         AdapterError(problem: "unexpected shape: \(problem)")
@@ -27,7 +27,7 @@ public struct AdapterError: Error, CustomStringConvertible, Sendable {
         return error
     }
 
-    public var description: String {
+    package var description: String {
         """
         SwiftBook couldn't read the preview\(location.map { " at \($0)" } ?? ""): \(problem).
         This usually means an Xcode or SDK release changed the private structure of previews, which \

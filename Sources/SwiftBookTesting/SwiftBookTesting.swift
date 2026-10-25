@@ -28,37 +28,48 @@ public macro SwiftBookTests(
     excluding: Set<String> = []
 ) = #externalMacro(module: "SwiftBookMacros", type: "SwiftBookTestsMacro")
 
-/// The rendering environments recorded for each story.
+/// The variants recorded for each story.
 public struct Variants: Sendable {
-    public let environments: [RenderEnvironment]
+    /// A color scheme to render in.
+    public enum Appearance: Sendable {
+        case light, dark
+    }
 
-    public init(_ environments: [RenderEnvironment]) {
+    package let environments: [RenderEnvironment]
+
+    package init(_ environments: [RenderEnvironment]) {
         self.environments = environments
     }
 
+    /// One variant per appearance.
+    public init(appearances: [Appearance]) {
+        self.init(appearances: appearances, base: RenderEnvironment())
+    }
+
     /// One variant per appearance, otherwise like `base`.
-    public init(
-        appearances: [RenderEnvironment.Appearance], base: RenderEnvironment = RenderEnvironment()
-    ) {
+    package init(appearances: [Appearance], base: RenderEnvironment) {
         self.init(
             appearances.map { appearance in
                 var environment = base
-                environment.appearance = appearance
+                environment.appearance = appearance == .dark ? .dark : .light
                 return environment
             })
     }
 
+    /// Light and dark, the default.
     public static let lightAndDark = Variants(appearances: [.light, .dark])
 }
 
-/// A story as a Swift Testing argument.
+/// A story as a Swift Testing argument, for `#SwiftBookTests`.
+@_documentation(visibility: internal)
 public struct TestStory: Sendable, Identifiable, CustomTestStringConvertible {
-    public let story: Story
+    package let story: Story
     public var id: String { story.id.description }
     public var testDescription: String { story.id.description }
 }
 
 /// The functions `#SwiftBookTests` expands to call.
+@_documentation(visibility: internal)
 public enum SwiftBook {
     /// Whether snapshots can be taken in this process. iOS and tvOS snapshots need a host app, so
     /// they run through `swiftbook test` instead.
@@ -105,14 +116,23 @@ public enum SwiftBook {
     ///   - variants: The variants to render and verify.
     ///   - tolerance: What counts as a change.
     ///   - excluding: Ignored here; `#SwiftBookTests` passes it to ``stories(excluding:)``.
-    ///   - store: Overrides where references live.
-    ///   - mode: Overrides `SWIFTBOOK_RECORD`.
     ///   - sourceLocation: Where to report failures.
     @MainActor public static func verify(
         _ story: TestStory, filePath: String, variants: Variants = .lightAndDark,
         tolerance: ImageDiff.Tolerance = ImageDiff.Tolerance(), excluding _: Set<String> = [],
-        store: SnapshotStore? = nil, mode: RecordMode? = nil,
         sourceLocation: SourceLocation = #_sourceLocation
+    ) async throws {
+        try await verify(
+            story, filePath: filePath, variants: variants, tolerance: tolerance, store: nil,
+            mode: nil, sourceLocation: sourceLocation)
+    }
+
+    /// ``verify(_:filePath:variants:tolerance:excluding:sourceLocation:)``, with `store`
+    /// overriding where references live and `mode` overriding `SWIFTBOOK_RECORD`.
+    @MainActor package static func verify(
+        _ story: TestStory, filePath: String, variants: Variants = .lightAndDark,
+        tolerance: ImageDiff.Tolerance = ImageDiff.Tolerance(), store: SnapshotStore?,
+        mode: RecordMode?, sourceLocation: SourceLocation = #_sourceLocation
     ) async throws {
         #if os(macOS)
             let store = try store ?? SnapshotStore.forProject(containing: filePath)

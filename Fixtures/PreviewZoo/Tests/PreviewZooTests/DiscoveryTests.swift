@@ -1,7 +1,8 @@
 import Foundation
 import PreviewZoo
-import SwiftBookCore
 import Testing
+
+@testable import SwiftBookCore
 
 @Suite struct DiscoveryTests {
     let previews = DiscoveredPreview.all().filter { $0.module == "PreviewZoo" }

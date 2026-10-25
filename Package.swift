@@ -14,7 +14,6 @@ let package = Package(
         // Declarations for a package's own code, such as `SwiftBookConfiguration`. Safe to link
         // into apps: it depends only on SwiftUI.
         .library(name: "SwiftBook", targets: ["SwiftBook"]),
-        .library(name: "SwiftBookCore", targets: ["SwiftBookCore"]),
         .library(name: "SwiftBookTesting", targets: ["SwiftBookTesting"]),
         // Linked by the hidden host package that renders a user's stories in its own process.
         .library(name: "SwiftBookRenderer", targets: ["SwiftBookRenderer"]),
@@ -84,6 +83,9 @@ let package = Package(
                 "SwiftBookCLI", "SwiftBookCore",
                 .product(name: "Swiftpothesis", package: "Swiftpothesis"),
             ],
+            swiftSettings: strict),
+        .testTarget(
+            name: "SwiftBookTestingTests", dependencies: ["SwiftBookTesting", "SwiftBookCore"],
             swiftSettings: strict),
         .testTarget(
             name: "SwiftBookMacrosTests",

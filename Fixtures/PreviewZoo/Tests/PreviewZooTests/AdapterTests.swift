@@ -1,8 +1,8 @@
-import SwiftBookCore
 import SwiftUI
 import Testing
 
 @testable import PreviewZoo
+@testable import SwiftBookCore
 
 @MainActor @Suite struct AdapterTests {
     let stories = Story.all().filter { $0.id.module == "PreviewZoo" }

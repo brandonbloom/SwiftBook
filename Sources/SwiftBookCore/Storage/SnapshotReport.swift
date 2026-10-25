@@ -3,8 +3,8 @@ import Synchronization
 
 /// What a person should hear about a verification: a failure or a warning, with images to look at
 /// and an entry on the review page.
-public struct SnapshotReport: Sendable {
-    public enum Severity: Sendable {
+package struct SnapshotReport: Sendable {
+    package enum Severity: Sendable {
         /// The snapshot fails.
         case failure
         /// The snapshot passes, but someone should review what changed.
@@ -12,38 +12,38 @@ public struct SnapshotReport: Sendable {
     }
 
     /// The commands a message suggests, which depend on the tool that ran.
-    public struct Hints: Sendable {
+    package struct Hints: Sendable {
         /// How to accept a changed snapshot.
-        public var accept: String
+        package var accept: String
         /// How to record a missing reference.
-        public var record: String
+        package var record: String
 
-        public init(accept: String, record: String) {
+        package init(accept: String, record: String) {
             self.accept = accept
             self.record = record
         }
 
         /// For `swift test`.
-        public static let swiftTest = Hints(
+        package static let swiftTest = Hints(
             accept: "\(RecordMode.environmentVariable)=changed swift test",
             record: "\(RecordMode.environmentVariable)=missing")
     }
 
     /// The story and variant, as `Module/Group/Name (mac.light)`.
-    public let subject: String
+    package let subject: String
     /// The variant's file name, such as `mac.light`.
-    public let variant: String
-    public let severity: Severity
+    package let variant: String
+    package let severity: Severity
     /// What happened to the reference.
-    public let kind: ReviewEntry.Kind
+    package let kind: ReviewEntry.Kind
     /// What happened and what to do, ending with the review page's path.
-    public let message: String
+    package let message: String
     /// Images written for review: reference, actual, diff, and so on.
-    public let images: [ReviewEntry.Image]
+    package let images: [ReviewEntry.Image]
 
     /// Reports `verification`, writing its images and review entry, or returns `nil` if the
     /// snapshot matched.
-    public init?(
+    package init?(
         _ verification: Verification, of snapshot: Snapshot, mode: RecordMode,
         store: SnapshotStore, hints: Hints
     ) throws {

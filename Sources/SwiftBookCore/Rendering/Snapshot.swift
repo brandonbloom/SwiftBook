@@ -4,17 +4,17 @@ import ImageIO
 import UniformTypeIdentifiers
 
 /// A rendered story: its image and how it was rendered.
-public struct Snapshot: @unchecked Sendable {
+package struct Snapshot: @unchecked Sendable {
     // Unchecked: CGImage is immutable.
 
-    public let story: StoryID
-    public let device: Device
-    public let environment: RenderEnvironment
-    public let image: CGImage
-    public let metadata: SnapshotMetadata
+    package let story: StoryID
+    package let device: Device
+    package let environment: RenderEnvironment
+    package let image: CGImage
+    package let metadata: SnapshotMetadata
     /// Where the image has Liquid Glass, in pixels, for comparing it (``ImageDiff/compare(expected:actual:tolerance:glass:)``).
     /// Not saved: references stay exactly the image.
-    public var glassRegions: [ImageDiff.PixelRect] = []
+    package var glassRegions: [ImageDiff.PixelRect] = []
     /// The PNG the snapshot arrived as, if it came from a renderer: ``pngData()`` without
     /// encoding it again.
     private let encoded: Data?
@@ -32,7 +32,7 @@ public struct Snapshot: @unchecked Sendable {
     }
 
     /// A snapshot a renderer sent as PNG, with its metadata.
-    public init(png: Data, story: StoryID, device: Device, environment: RenderEnvironment) throws {
+    package init(png: Data, story: StoryID, device: Device, environment: RenderEnvironment) throws {
         guard let metadata = try SnapshotMetadata.read(fromPNG: png) else {
             throw StorageError(description: "the render of \(story) has no SwiftBook metadata")
         }
@@ -43,30 +43,30 @@ public struct Snapshot: @unchecked Sendable {
     }
 
     /// The image as a PNG, with ``metadata`` in a `SwiftBook` text chunk.
-    public func pngData() throws -> Data {
+    package func pngData() throws -> Data {
         try encoded ?? PNG.encode(image, text: ["SwiftBook": try metadata.json()])
     }
 }
 
 /// How a snapshot was rendered. Stored in its PNG, so a mismatch on verify can be explained.
-public struct SnapshotMetadata: Codable, Hashable, Sendable {
+package struct SnapshotMetadata: Codable, Hashable, Sendable {
     /// The story, as `Module/Group/Name`.
-    public var story: String
-    public var device: String
-    public var platform: String
-    public var osVersion: String
-    public var scale: Double
-    public var appearance: String
-    public var locale: String
-    public var timeZone: String
-    public var dynamicTypeSize: String
-    public var layoutDirection: String
-    public var swiftBookVersion: String
+    package var story: String
+    package var device: String
+    package var platform: String
+    package var osVersion: String
+    package var scale: Double
+    package var appearance: String
+    package var locale: String
+    package var timeZone: String
+    package var dynamicTypeSize: String
+    package var layoutDirection: String
+    package var swiftBookVersion: String
     /// The ``CaptureMethod``, `nil` in references recorded before capture methods existed.
-    public var capture: String?
+    package var capture: String?
     /// The package's tint (``ProjectConfiguration``) as rendered, as `#RRGGBB`, or `nil` for the
     /// system's.
-    public var tint: String?
+    package var tint: String?
 
     func json() throws -> String {
         let encoder = JSONEncoder()
@@ -75,15 +75,15 @@ public struct SnapshotMetadata: Codable, Hashable, Sendable {
     }
 
     /// Reads the metadata from a PNG written by ``Snapshot/pngData()``.
-    public static func read(fromPNG data: Data) throws -> SnapshotMetadata? {
+    package static func read(fromPNG data: Data) throws -> SnapshotMetadata? {
         guard let json = try PNG.text(in: data)["SwiftBook"] else { return nil }
         return try JSONDecoder().decode(SnapshotMetadata.self, from: Data(json.utf8))
     }
 }
 
-public enum SwiftBookInfo {
+package enum SwiftBookInfo {
     /// Recorded in snapshot metadata.
-    public static let version = "0.1.0"
+    package static let version = "0.1.0"
 }
 
 /// PNG encoding with `tEXt` chunks, which ImageIO can't write for arbitrary keys.

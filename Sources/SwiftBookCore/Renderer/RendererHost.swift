@@ -8,13 +8,13 @@
     /// renderer, which discovers the stories at runtime. It depends on SwiftBook exactly as the
     /// user's package resolved it, so the two can't disagree. Nothing in it is specific to the
     /// user's code, so it's rewritten only when the package's products or dependencies change.
-    public struct RendererHost: Sendable {
+    package struct RendererHost: Sendable {
         /// The user's package.
-        public let package: URL
+        package let package: URL
         /// Where the host package lives.
-        public var directory: URL { package.appending(path: ".build/swiftbook/renderer") }
+        package var directory: URL { package.appending(path: ".build/swiftbook/renderer") }
         /// Where SwiftPM builds it: the host package's `.build`, unless given a scratch path.
-        public let buildDirectory: URL
+        package let buildDirectory: URL
         /// Arguments naming the scratch path, if there is one.
         let scratchArguments: [String]
         /// Arguments added to each `swift build`: the scratch path's, and any others, such as to
@@ -25,7 +25,7 @@
 
         /// A host for `package`. A build with other `buildArguments` takes a `scratchPath` of its
         /// own, so switching between them doesn't rebuild everything.
-        public init(package: URL, scratchPath: URL? = nil, buildArguments: [String] = []) {
+        package init(package: URL, scratchPath: URL? = nil, buildArguments: [String] = []) {
             self.package = package
             buildDirectory =
                 scratchPath
@@ -37,7 +37,7 @@
 
         /// Writes the host package if it changed and builds it, returning the renderer
         /// executable. `log` receives the build's output.
-        public func build(log: @Sendable (String) -> Void = { _ in }) throws -> URL {
+        package func build(log: @Sendable (String) -> Void = { _ in }) throws -> URL {
             try write()
             let arguments =
                 ["swift", "build", "--package-path", directory.path, "--product", Self.name]
@@ -108,7 +108,7 @@
         }
 
         /// A simulator platform the renderer app can be built for.
-        public enum SimulatorPlatform: String, Sendable, CaseIterable {
+        package enum SimulatorPlatform: String, Sendable, CaseIterable {
             case iOS, tvOS
 
             var triple: String {
@@ -151,9 +151,9 @@
         }
 
         /// A built renderer app.
-        public struct App: Sendable {
-            public let url: URL
-            public let bundleID: String
+        package struct App: Sendable {
+            package let url: URL
+            package let bundleID: String
         }
 
         /// Writes the host package if it changed and builds the renderer as an app for
@@ -162,7 +162,7 @@
         /// SwiftPM builds the executable, and SwiftBook wraps it in a minimal app: an
         /// `Info.plist` with a scene manifest, the package's resource bundles, and an ad hoc
         /// signature.
-        public func buildApp(
+        package func buildApp(
             for platform: SimulatorPlatform, log: @Sendable (String) -> Void = { _ in }
         ) throws -> App {
             try write()
@@ -256,7 +256,7 @@
 
         /// The compiler's errors in a failed build's output, or its end if there are none.
         /// Build logs bury them under long command lines.
-        public static func diagnostics(in output: String) -> String {
+        package static func diagnostics(in output: String) -> String {
             let errors = output.split(separator: "\n")
                 .filter { $0.contains("error:") && !$0.hasPrefix("error: Build failed") }
             var seen = Set<Substring>()

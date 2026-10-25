@@ -9,9 +9,9 @@ import SwiftUI
 #endif
 
 /// The package's ``SwiftBookConfiguration``, found in the running process like its previews.
-@MainActor public enum ProjectConfiguration {
+@MainActor package enum ProjectConfiguration {
     /// The declaring type, if the package declares one.
-    public static let declaration: (any SwiftBookConfiguration.Type)? = {
+    package static let declaration: (any SwiftBookConfiguration.Type)? = {
         let declarations = ConformanceScanner.scan(protocolNames: ["SwiftBookConfiguration"])
             // The cast, not the name, is authoritative: another module may declare a protocol
             // with the same name.
@@ -27,13 +27,13 @@ import SwiftUI
     }()
 
     /// The tint around every story, if the package sets one.
-    public static var tint: Color? { declaration?.tint }
+    package static var tint: Color? { declaration?.tint }
 
     /// The stories the package leaves out of snapshot tests, as `Module/Group/Name`.
-    public static var excluded: Set<String> { declaration?.excluded ?? [] }
+    package static var excluded: Set<String> { declaration?.excluded ?? [] }
 
     /// How long `story` must hold still before it's captured: zero unless the package sets one.
-    public static func hold(for story: StoryID) -> Duration {
+    package static func hold(for story: StoryID) -> Duration {
         declaration?.settling[story.description] ?? .zero
     }
 

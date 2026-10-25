@@ -22,7 +22,6 @@ let package = Package(
             name: "PreviewZooTests",
             dependencies: [
                 "PreviewZoo",
-                .product(name: "SwiftBookCore", package: "SwiftBook"),
                 .product(name: "SwiftBookTesting", package: "SwiftBook"),
             ],
             swiftSettings: strict),

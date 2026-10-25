@@ -3,8 +3,8 @@
     import Foundation
 
     /// The `swiftbook` command.
-    public struct SwiftBookCommand: ParsableCommand {
-        public static let configuration = CommandConfiguration(
+    package struct SwiftBookCommand: ParsableCommand {
+        package static let configuration = CommandConfiguration(
             commandName: "swiftbook",
             abstract: "Snapshot tests and a story viewer for SwiftUI previews.",
             discussion: """
@@ -24,11 +24,11 @@
                 SimulatorIdleCommand.self,
             ])
 
-        public init() {}
+        package init() {}
     }
 
     /// Exit statuses, so scripts can tell changed snapshots from failures of the tool or setup.
-    public enum Exit: Int32, Sendable {
+    package enum Exit: Int32, Sendable {
         case success = 0
         /// Snapshots changed or didn't match.
         case changed = 1

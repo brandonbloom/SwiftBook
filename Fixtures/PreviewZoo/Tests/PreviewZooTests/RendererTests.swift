@@ -1,6 +1,6 @@
 #if os(macOS)
     import Foundation
-    import SwiftBookCore
+    @testable import SwiftBookCore
     import Testing
 
     @MainActor @Suite struct RendererTests {

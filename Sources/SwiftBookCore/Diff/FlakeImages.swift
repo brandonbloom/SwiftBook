@@ -5,7 +5,7 @@ extension FlakeFinder.Flake {
     /// Where variant `index` (0 for the second variant, and so on) differs from the most common
     /// one: every differing pixel red on the faded render, inside a blue box. `nil` when they
     /// don't differ or their sizes do.
-    public func differenceImage(_ index: Int) throws -> Data? {
+    package func differenceImage(_ index: Int) throws -> Data? {
         let exact = exactDifferences[index]
         guard let image = exact.image, let bounds = exact.changedBounds else { return nil }
         var bitmap = try Bitmap(image)
@@ -17,7 +17,7 @@ extension FlakeFinder.Flake {
     /// The difference between the most common variant and variant `index`, enlarged: the most
     /// common one, the other, and the differing pixels, side by side. `nil` when they don't
     /// differ or their sizes do.
-    public func closeUp(_ index: Int) throws -> Data? {
+    package func closeUp(_ index: Int) throws -> Data? {
         let exact = exactDifferences[index]
         guard let diff = exact.image, let bounds = exact.changedBounds else { return nil }
         let first = try Bitmap(SnapshotStore.image(variants[0].png, at: subject))

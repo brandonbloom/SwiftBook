@@ -7,9 +7,9 @@
     /// Needs a real app process with a window scene: in a test bundle without a host app,
     /// `drawHierarchy` draws nothing. On iOS, the app's scene rotates to each story's
     /// orientation, so the app must allow every orientation.
-    @MainActor public enum UIKitRenderer {
+    @MainActor package enum UIKitRenderer {
         /// The device this process renders as.
-        public static var device: Device {
+        package static var device: Device {
             #if os(tvOS)
                 .tv
             #else
@@ -21,7 +21,7 @@
         ///
         /// Throws ``AdapterError`` if the story can't be read and ``RenderError`` if it never
         /// settles within `timeout` or has an unusable size.
-        public static func render(
+        package static func render(
             _ story: Story, in environment: RenderEnvironment, timeout: Duration = .seconds(2)
         ) async throws -> Snapshot {
             // One render at a time: each sets process-wide state (the time zone).
@@ -266,8 +266,8 @@
     #if os(iOS)
         /// The orientations the renderer app allows right now: only the one being rendered, so a
         /// requested rotation sticks.
-        @MainActor public enum RendererOrientation {
-            public static var allowed: UIInterfaceOrientationMask = .portrait
+        @MainActor package enum RendererOrientation {
+            package static var allowed: UIInterfaceOrientationMask = .portrait
         }
     #endif
 #endif

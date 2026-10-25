@@ -77,6 +77,7 @@ code compiles.
 
 - ``SwiftBookTests(variants:tolerance:excluding:)``
 - ``Variants``
+- ``ImageDiff/Tolerance``
 
 <!-- sources: README.md Sources/SwiftBookTesting -->
 <!-- checked: d2f96ed -->

@@ -2,8 +2,8 @@ import Foundation
 import ImageIO
 
 /// A reference that needs a person's review: recorded, re-recorded, failed, or missing.
-public struct ReviewEntry: Codable, Hashable, Sendable {
-    public enum Kind: String, Codable, Hashable, Sendable, CaseIterable {
+package struct ReviewEntry: Codable, Hashable, Sendable {
+    package enum Kind: String, Codable, Hashable, Sendable, CaseIterable {
         /// A reference recorded where there wasn't one.
         case new
         /// A reference re-recorded over one that differed.
@@ -17,29 +17,29 @@ public struct ReviewEntry: Codable, Hashable, Sendable {
     }
 
     /// An image to show, with what it is.
-    public struct Image: Codable, Hashable, Sendable {
+    package struct Image: Codable, Hashable, Sendable {
         /// Such as "reference", "actual", or "diff".
-        public var role: String
-        public var path: String
+        package var role: String
+        package var path: String
 
-        public init(role: String, path: String) {
+        package init(role: String, path: String) {
             self.role = role
             self.path = path
         }
     }
 
     /// The story, as `Module/Group/Name`.
-    public var story: String
+    package var story: String
     /// The variant's file name, such as `mac.light`.
-    public var variant: String
-    public var kind: Kind
+    package var variant: String
+    package var kind: Kind
     /// What the test reported.
-    public var message: String
-    public var images: [Image]
+    package var message: String
+    package var images: [Image]
     /// Where the images differ, if they were compared and did.
-    public var region: ImageDiff.PixelRect?
+    package var region: ImageDiff.PixelRect?
 
-    public init(
+    package init(
         story: String, variant: String, kind: Kind, message: String, images: [Image],
         region: ImageDiff.PixelRect? = nil
     ) {
@@ -58,11 +58,11 @@ public struct ReviewEntry: Codable, Hashable, Sendable {
 /// sidebar, comes first as one group: a representative in full, then the others' diff images in
 /// a grid. Everything else is grouped by module and group, with each story's variants side by
 /// side.
-public enum ReviewPage {
+package enum ReviewPage {
     /// Writes the page for `entries` to `url`. `subtitle` goes before the summary of entries.
     /// With `inlineImages`, the page holds its images itself, so it can be sent as one file;
     /// otherwise it links to them relative to `url`.
-    public static func write(
+    package static func write(
         _ entries: [ReviewEntry], to url: URL, subtitle: String? = nil, inlineImages: Bool = false
     ) throws {
         try FileManager.default.createDirectory(
@@ -76,7 +76,7 @@ public enum ReviewPage {
     }
 
     /// The entries that test runs saved under the artifacts root `base`.
-    public static func savedEntries(under base: URL) -> [ReviewEntry] {
+    package static func savedEntries(under base: URL) -> [ReviewEntry] {
         var entries: [ReviewEntry] = []
         for kind in ["failures", "recorded"] {
             let enumerator = FileManager.default.enumerator(

@@ -2,9 +2,9 @@
     import Foundation
 
     /// A simulated device, driven through `simctl`.
-    public struct Simulator: Sendable {
-        public let udid: String
-        public let name: String
+    package struct Simulator: Sendable {
+        package let udid: String
+        package let name: String
 
         /// The device type SwiftBook pins for each device class, so renders don't depend on
         /// which simulators someone happens to have.
@@ -33,7 +33,7 @@
         /// (27 or later), created if it doesn't exist yet and booted. `number` picks one from
         /// ``SimulatorPool``: the first is named for its device, and the others add `#2`, `#3`,
         /// and so on.
-        public static func dedicated(for device: Device, number: Int = 1, boot: Bool = true)
+        package static func dedicated(for device: Device, number: Int = 1, boot: Bool = true)
             throws -> Simulator
         {
             let type = try deviceType(for: device)
@@ -93,13 +93,13 @@
         }
 
         /// Boots the simulator if it isn't already, and waits until it's ready.
-        public func boot() throws {
+        package func boot() throws {
             // `bootstatus -b` boots if needed and waits for the device to finish booting.
             _ = try Self.simctl(["bootstatus", udid, "-b"])
         }
 
         /// Whether the simulator is booted.
-        public var isBooted: Bool {
+        package var isBooted: Bool {
             let devices =
                 (try? Self.simctlJSON(["list", "devices", "--json"]))?["devices"]
                 as? [String: [[String: Any]]] ?? [:]
@@ -109,25 +109,25 @@
         }
 
         /// Shuts the simulator down, if it's booted.
-        public func shutdown() {
+        package func shutdown() {
             _ = Shell.run(["xcrun", "simctl", "shutdown", udid])
         }
 
         /// Shuts the simulator down and erases its contents and settings.
-        public func erase() throws {
+        package func erase() throws {
             shutdown()
             _ = try Self.simctl(["erase", udid])
         }
 
         /// Installs the app at `app`, replacing any earlier copy.
-        public func install(_ app: URL) throws {
+        package func install(_ app: URL) throws {
             _ = try Self.simctl(["install", udid, app.path])
         }
 
         /// Launches the installed app with `bundleID`, ending any running copy first, and returns
         /// its process identifier. Its standard error goes to `errorLog`. `environment` is passed
         /// to the app.
-        public func launch(bundleID: String, environment: [String: String], errorLog: URL) throws
+        package func launch(bundleID: String, environment: [String: String], errorLog: URL) throws
             -> pid_t
         {
             // simctl passes variables prefixed with SIMCTL_CHILD_ to the app, unprefixed.

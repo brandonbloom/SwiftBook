@@ -3,27 +3,27 @@ import SwiftUI
 /// Everything about a rendering that would otherwise come from the machine doing it.
 ///
 /// Renders pin each of these, so a reference recorded on one Mac matches a render on another.
-public struct RenderEnvironment: Hashable, Sendable {
-    public enum Appearance: String, Hashable, Sendable, CaseIterable {
+package struct RenderEnvironment: Hashable, Sendable {
+    package enum Appearance: String, Hashable, Sendable, CaseIterable {
         case light, dark
     }
 
-    public var appearance: Appearance = .light
+    package var appearance: Appearance = .light
     /// Pixels per point.
-    public var scale: Double = 2
-    public var localeIdentifier = "en_US"
-    public var timeZoneIdentifier = "UTC"
-    public var dynamicTypeSize: DynamicTypeSize = .large
-    public var layoutDirection: LayoutDirection = .leftToRight
+    package var scale: Double = 2
+    package var localeIdentifier = "en_US"
+    package var timeZoneIdentifier = "UTC"
+    package var dynamicTypeSize: DynamicTypeSize = .large
+    package var layoutDirection: LayoutDirection = .leftToRight
     /// The canvas for stories with the device layout, in points.
-    public var deviceWidth: Double = 800
-    public var deviceHeight: Double = 600
+    package var deviceWidth: Double = 800
+    package var deviceHeight: Double = 600
 
-    public init() {}
+    package init() {}
 
     /// The defaults for `device`: its pinned model's scale and screen size, in points. The Mac
     /// has no screen of its own, so it gets a fixed canvas.
-    public static func standard(for device: Device) -> RenderEnvironment {
+    package static func standard(for device: Device) -> RenderEnvironment {
         var environment = RenderEnvironment()
         switch device {
         case .mac, .catalyst:
@@ -72,9 +72,9 @@ extension View {
 }
 
 /// A story couldn't be rendered.
-public struct RenderError: Error, CustomStringConvertible, Sendable {
-    public let story: StoryID
-    public let problem: String
+package struct RenderError: Error, CustomStringConvertible, Sendable {
+    package let story: StoryID
+    package let problem: String
 
-    public var description: String { "Couldn't render \(story): \(problem)" }
+    package var description: String { "Couldn't render \(story): \(problem)" }
 }

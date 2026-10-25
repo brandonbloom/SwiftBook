@@ -2,10 +2,10 @@
     import Foundation
 
     /// A renderer failed: it couldn't start, crashed, hung, or reported an error.
-    public struct RendererError: Error, CustomStringConvertible, Sendable {
-        public let description: String
+    package struct RendererError: Error, CustomStringConvertible, Sendable {
+        package let description: String
 
-        public init(description: String) {
+        package init(description: String) {
             self.description = description
         }
     }
@@ -15,11 +15,11 @@
     ///
     /// Requests are answered one at a time, in order. A request that outlives its timeout stops
     /// the renderer; a crashed or stopped renderer fails every later request.
-    public final class RendererProcess: @unchecked Sendable {
+    package final class RendererProcess: @unchecked Sendable {
         // Unchecked: `lock` guards the mutable state.
 
         /// What the renderer said when it started.
-        public let hello: RendererHello
+        package let hello: RendererHello
         private let child: Child
         private let input: FileHandle
         /// Whether `input` is a socket, which is also the renderer's output.
@@ -30,7 +30,7 @@
 
         /// Starts `executable` with `arguments` and waits for its hello. `environment` adds to
         /// this process's.
-        public convenience init(
+        package convenience init(
             executable: URL, arguments: [String] = [], environment: [String: String] = [:],
             timeout: Duration = .seconds(60)
         ) throws {
@@ -60,7 +60,7 @@
 
         /// Installs and launches the renderer app at `app` in `simulator`, and waits for it to
         /// connect and say hello. `environment` is passed to the app.
-        public convenience init(
+        package convenience init(
             app: URL, bundleID: String, in simulator: Simulator,
             environment: [String: String] = [:], timeout: Duration = .seconds(60)
         ) throws {
@@ -131,7 +131,7 @@
 
         /// Every story the renderer's code declares. With `check`, the renderer also builds each
         /// story's view and reports the ones that fail.
-        public func stories(check: Bool = false, timeout: Duration = .seconds(120)) throws
+        package func stories(check: Bool = false, timeout: Duration = .seconds(120)) throws
             -> [StoryInfo]
         {
             let response = try send(.init(id: 0, method: .list, check: check), timeout: timeout)
@@ -142,7 +142,7 @@
         }
 
         /// Renders `story` in `environment`, returning the snapshot as PNG with its metadata.
-        public func render(
+        package func render(
             _ story: StoryID, in environment: RenderEnvironment = RenderEnvironment(),
             timeout: Duration = .seconds(30)
         ) throws -> Data {
@@ -151,7 +151,7 @@
 
         /// Renders `story` in `environment`, returning the snapshot and where it has glass. With
         /// `recording`, the renderer records the code the render runs.
-        public func renderImage(
+        package func renderImage(
             _ story: StoryID, in environment: RenderEnvironment = RenderEnvironment(),
             recording: RenderRecording? = nil, timeout: Duration = .seconds(30)
         ) throws -> RenderedImage {
@@ -167,7 +167,7 @@
         }
 
         /// Shows `story` in `environment` in a window of its own, live and interactive.
-        public func open(
+        package func open(
             _ story: StoryID, in environment: RenderEnvironment = RenderEnvironment(),
             timeout: Duration = .seconds(30)
         ) throws {
@@ -177,12 +177,12 @@
         }
 
         /// The interactive windows still open.
-        public func windows(timeout: Duration = .seconds(10)) throws -> [RendererWindow] {
+        package func windows(timeout: Duration = .seconds(10)) throws -> [RendererWindow] {
             try send(.init(id: 0, method: .windows), timeout: timeout).windows ?? []
         }
 
         /// Asks the renderer to exit, and stops it if it doesn't.
-        public func shutdown(timeout: Duration = .seconds(5)) {
+        package func shutdown(timeout: Duration = .seconds(5)) {
             _ = try? send(.init(id: 0, method: .shutdown), timeout: timeout)
             // A renderer also exits at the end of its input. Only the writing half closes: a
             // socket's reader is still using the descriptor.
@@ -192,10 +192,10 @@
         }
 
         /// The renderer's process ID.
-        public var processIdentifier: pid_t { child.pid }
+        package var processIdentifier: pid_t { child.pid }
 
         /// Whether the renderer is still running.
-        public var isRunning: Bool { child.isRunning() }
+        package var isRunning: Bool { child.isRunning() }
 
         private func send(_ request: RendererRequest, timeout: Duration) throws -> RendererResponse
         {

@@ -7,9 +7,9 @@
     /// each would suspend the other's renderer mid-render, until it timed out. Each run leases a
     /// simulator of its own instead, by holding an exclusive lock on a file, and runs beyond the
     /// pool's size wait for one. A lock ends with its process, so a crashed run can't hold one.
-    public enum SimulatorPool {
+    package enum SimulatorPool {
         /// The variable that sets how many simulators each device class may have.
-        public static let sizeVariable = "SWIFTBOOK_SIMULATORS"
+        package static let sizeVariable = "SWIFTBOOK_SIMULATORS"
 
         /// The memory budgeted for each booted simulator. An iPhone simulator's processes
         /// measured 3.3 GB, an iPad's 3.0 GB, and an Apple TV's 2.0 GB, plus the Mac-side
@@ -19,7 +19,7 @@
         /// How many simulators each device class may have: `SWIFTBOOK_SIMULATORS`, or else as
         /// many as fit in half the Mac's memory, at most one for every two performance cores.
         /// Always at least one.
-        public static func size(
+        package static func size(
             environment: [String: String] = ProcessInfo.processInfo.environment,
             memory: UInt64 = ProcessInfo.processInfo.physicalMemory,
             performanceCores: Int = performanceCores()
@@ -32,7 +32,7 @@
         }
 
         /// The Mac's performance cores, or all its cores if it doesn't distinguish them.
-        public static func performanceCores() -> Int {
+        package static func performanceCores() -> Int {
             var cores: Int32 = 0
             var size = MemoryLayout<Int32>.size
             if sysctlbyname("hw.perflevel0.physicalcpu", &cores, &size, nil, 0) == 0, cores > 0 {
@@ -42,7 +42,7 @@
         }
 
         /// Where the pool's lock files live.
-        public static var lockDirectory: URL {
+        package static var lockDirectory: URL {
             FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
                 .appending(path: "SwiftBook/Simulators", directoryHint: .isDirectory)
         }
@@ -54,7 +54,7 @@
         /// It should arrange for ``shutDownWhenIdle(_:number:idle:in:)`` to run, in a process
         /// that outlives this one. A simulator whose system services are crash-looping is erased
         /// first, and `waiting` is told.
-        public static func lease(
+        package static func lease(
             for device: Device, size: Int = size(), waiting: (String) -> Void = { _ in },
             keepWarm: (@Sendable (Device, Int) -> Void)? = nil
         ) throws -> SimulatorLease {
@@ -92,7 +92,7 @@
         /// or `accept` declines it. `accept` learns whether the simulator is already booted, since
         /// booting and installing on a cold one costs more. A simulator whose system services are
         /// crash-looping is erased first, and `note` is told.
-        public static func tryLease(
+        package static func tryLease(
             for device: Device, size: Int = size(),
             keepWarm: (@Sendable (Device, Int) -> Void)? = nil,
             note: (String) -> Void = { _ in },
@@ -119,7 +119,7 @@
         /// How long an extra simulator stays booted after its last run, for the next one. Runs
         /// often overlap in bursts, and booting and installing on a cold simulator costs about
         /// 15 s.
-        public static let idleTime = Duration.seconds(300)
+        package static let idleTime = Duration.seconds(300)
 
         /// Records that `device`'s simulator `number` was just released.
         static func markReleased(_ device: Device, number: Int, in directory: URL = lockDirectory) {
@@ -132,7 +132,7 @@
         }
 
         /// When `device`'s simulator `number` was last erased for crash-looping, if it's recorded.
-        public static func lastErased(
+        package static func lastErased(
             _ device: Device, number: Int, in directory: URL = lockDirectory
         ) -> Date? {
             last("erased", device, number: number, in: directory)
@@ -159,7 +159,7 @@
 
         /// The pool's simulators, of those that exist, whose system services have been
         /// crash-looping since they were last erased, with those services.
-        public static func crashLooping(in directory: URL = lockDirectory) -> [(
+        package static func crashLooping(in directory: URL = lockDirectory) -> [(
             simulator: Simulator, services: [String]
         )] {
             Simulator.pool().compactMap { member in
@@ -190,7 +190,7 @@
         /// and not leased since. If another run holds it, this returns without waiting; that run's
         /// release arranges the next shutdown. Returns whether it shut the simulator down.
         @discardableResult
-        public static func shutDownWhenIdle(
+        package static func shutDownWhenIdle(
             _ device: Device, number: Int, idle: Duration = idleTime,
             in directory: URL = lockDirectory, shutdown: (() throws -> Void)? = nil
         ) throws -> Bool {
@@ -237,11 +237,11 @@
     }
 
     /// A simulator held for one run, until it's released or the run's process exits.
-    public final class SimulatorLease: Sendable {
-        public let simulator: Simulator
-        public let device: Device
+    package final class SimulatorLease: Sendable {
+        package let simulator: Simulator
+        package let device: Device
         /// Its place in the pool, from 1.
-        public let number: Int
+        package let number: Int
         private let lock: FileLock
         private let keepWarm: (@Sendable (Device, Int) -> Void)?
 
@@ -259,7 +259,7 @@
         /// Gives the simulator back. The first stays booted for the next run. An extra one shuts
         /// down, so it doesn't hold memory while idle, unless the lease keeps it warm: then it
         /// stays booted until it has been idle for ``SimulatorPool/idleTime``.
-        public func release() {
+        package func release() {
             guard !lock.isReleased else { return }
             if number > 1 {
                 if let keepWarm {

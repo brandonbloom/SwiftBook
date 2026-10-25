@@ -28,13 +28,13 @@ public struct ImageDiff: @unchecked Sendable {
     }
 
     /// A rectangle in pixels, such as a glass region of a capture.
-    public struct PixelRect: Codable, Hashable, Sendable {
-        public var x: Int
-        public var y: Int
-        public var width: Int
-        public var height: Int
+    package struct PixelRect: Codable, Hashable, Sendable {
+        package var x: Int
+        package var y: Int
+        package var width: Int
+        package var height: Int
 
-        public init(x: Int, y: Int, width: Int, height: Int) {
+        package init(x: Int, y: Int, width: Int, height: Int) {
             self.x = x
             self.y = y
             self.width = width
@@ -46,24 +46,24 @@ public struct ImageDiff: @unchecked Sendable {
         }
     }
 
-    public let expectedSize: CGSize
-    public let actualSize: CGSize
+    package let expectedSize: CGSize
+    package let actualSize: CGSize
     /// Pixels differing by more than the tolerance, excluding anti-aliasing.
-    public let changedPixels: Int
+    package let changedPixels: Int
     /// Differing pixels attributed to anti-aliasing and ignored.
-    public let antialiasedPixels: Int
+    package let antialiasedPixels: Int
     /// Differing pixels inside glass that averaging shows to be glass's run-to-run noise, and
     /// ignored. ``image`` still shows them as changed.
-    public var glassNoisePixels = 0
+    package var glassNoisePixels = 0
     /// The largest CIEDE2000 difference of any pixel, whether or not it counted as changed.
-    public let maxDeltaE: Double
+    package let maxDeltaE: Double
     /// The largest CIEDE2000 difference of a changed pixel.
-    public let maxChangedDeltaE: Double
+    package let maxChangedDeltaE: Double
     /// The smallest rectangle, in pixels, containing every changed pixel.
-    public let changedBounds: CGRect?
+    package let changedBounds: CGRect?
 
     /// ``changedBounds`` as a ``PixelRect``.
-    public var changedRegion: PixelRect? {
+    package var changedRegion: PixelRect? {
         changedBounds.map {
             PixelRect(
                 x: Int($0.minX), y: Int($0.minY), width: Int($0.width), height: Int($0.height))
@@ -71,39 +71,39 @@ public struct ImageDiff: @unchecked Sendable {
     }
     /// Expected faded to gray, with changed pixels red and anti-aliased pixels yellow. `nil` when
     /// the images are identical or their sizes differ.
-    public let image: CGImage?
-    public let tolerance: Tolerance
+    package let image: CGImage?
+    package let tolerance: Tolerance
 
-    public var sizesMatch: Bool { expectedSize == actualSize }
-    public var isIdentical: Bool { sizesMatch && maxDeltaE == 0 }
+    package var sizesMatch: Bool { expectedSize == actualSize }
+    package var isIdentical: Bool { sizesMatch && maxDeltaE == 0 }
 
     /// Changed pixels as a fraction of all pixels; 1 when the sizes differ.
-    public var changedPixelRatio: Double {
+    package var changedPixelRatio: Double {
         guard sizesMatch else { return 1 }
         let total = expectedSize.width * expectedSize.height
         return total == 0 ? 0 : Double(changedPixels) / total
     }
 
     /// Whether the actual image matches the expected one within the tolerance.
-    public var matches: Bool {
+    package var matches: Bool {
         sizesMatch
             && (changedPixelRatio <= tolerance.changedPixelRatio || isNoise)
     }
 
     /// Whether the only changes are a few faint pixels, within the tolerance's noise floor.
-    public var isNoise: Bool {
+    package var isNoise: Bool {
         sizesMatch && changedPixels <= tolerance.noisePixels
             && maxChangedDeltaE <= tolerance.noiseDeltaE
     }
 
     /// ``image`` as PNG data.
-    public func pngData() throws -> Data? {
+    package func pngData() throws -> Data? {
         try image.map { try PNG.encode($0, text: [:]) }
     }
 
     /// Compares two images pixel by pixel, perceptually. Inside `glass`, the actual image's Liquid
     /// Glass regions, pixels are also compared averaged (``Tolerance/glassDeltaE``).
-    public static func compare(
+    package static func compare(
         expected: CGImage, actual: CGImage, tolerance: Tolerance = Tolerance(),
         glass: [PixelRect] = []
     ) throws
