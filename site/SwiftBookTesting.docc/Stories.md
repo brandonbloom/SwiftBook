@@ -90,4 +90,4 @@ DeveloperToolsSupport versions, rather than rendering something wrong.
 - <doc:PreviewsThatSnapshotWell>
 
 <!-- sources: Sources/SwiftBookCore/Discovery Sources/SwiftBookCore/Adapter Sources/SwiftBookCLI/ListCommand.swift -->
-<!-- checked: d835c68 -->
+<!-- checked: 7f8c5da -->
