@@ -14,6 +14,7 @@ It checks:
 - The LFS rule for references, and references that are unpulled LFS pointers.
 - Screen Recording permission, for window-server capture.
 - Simulator runtimes for iPhone, iPad, and Apple TV.
+- SwiftBook's simulators, for system services that crashed over and over in the last hour.
 - That every story can be read. This builds the renderer; `--quick` skips it.
 
 It exits with status 2 if any check fails. `--json` writes the results for scripts.
@@ -29,6 +30,7 @@ $ swift run swiftbook doctor
 ✓ References: 48 in Snapshots.
 ✓ Capture: Screen Recording is allowed here, so macOS snapshots capture through the window server.
 ✓ Simulators: iOS and tvOS runtimes installed.
+✓ Simulator crashes: No system service crash-looped in SwiftBook's simulators in the last hour.
 ✓ Discovery: 6 stories discovered, and every one can be read.
 ```
 <!-- /transcript -->
