@@ -170,4 +170,4 @@ runs, and Mac stories render as a content view, without window chrome or toolbar
 - <doc:Troubleshooting>
 
 <!-- sources: Sources/SwiftBookCore/Rendering Sources/SwiftBookCore/Renderer Sources/SwiftBookCore/Adapter Sources/SwiftBookCore/Diff Sources/SwiftBookCore/Storage Sources/SwiftBookRenderer -->
-<!-- checked: d835c68 -->
+<!-- checked: 7f8c5da -->
