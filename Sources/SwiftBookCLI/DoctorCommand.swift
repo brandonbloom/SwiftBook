@@ -70,7 +70,7 @@
                         detail: "No Package.swift or .xcodeproj here or in a parent directory.",
                         fix: "Run swiftbook doctor in your package or project."))
             }
-            checks += [capture(), simulators()]
+            checks += [capture(), simulators(), simulatorCrashes()]
             if let project, discovery {
                 checks.append(Self.discovery(project))
             } else {
@@ -260,6 +260,27 @@
             }
             return Check(
                 name: "Simulators", status: .ok, detail: "iOS and tvOS runtimes installed.")
+        }
+
+        static func simulatorCrashes() -> Check {
+            let looping = SimulatorPool.crashLooping()
+            guard let first = looping.first else {
+                return Check(
+                    name: "Simulator crashes", status: .ok,
+                    detail:
+                        "No system service crash-looped in SwiftBook's simulators in the last hour."
+                )
+            }
+            let all = looping.map {
+                "\($0.simulator.name) (\($0.services.joined(separator: ", ")))"
+            }
+            return Check(
+                name: "Simulator crashes", status: .warning,
+                detail:
+                    "System services crashed over and over in the last hour in \(all.joined(separator: "; ")), each crash writing a report.",
+                fix:
+                    "The next run that uses it erases it first. To erase it now: xcrun simctl erase \(first.simulator.udid)"
+            )
         }
     }
 #endif

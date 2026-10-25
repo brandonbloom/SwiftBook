@@ -73,6 +73,25 @@
             return simulator
         }
 
+        /// SwiftBook's simulators that exist, with the device and pool number each is for, as
+        /// ``dedicated(for:number:boot:)`` names them.
+        static func pool() -> [(simulator: Simulator, device: Device, number: Int)] {
+            let devices =
+                (try? simctlJSON(["list", "devices", "--json"]))?["devices"]
+                as? [String: [[String: Any]]] ?? [:]
+            let types = [Device.iphone, .ipad, .tv].compactMap { device in
+                (try? deviceType(for: device)).map { (device, $0.name) }
+            }
+            return devices.values.joined().compactMap { entry in
+                guard let name = entry["name"] as? String, let udid = entry["udid"] as? String,
+                    let match = name.firstMatch(of: /^SwiftBook (.+?)(?: #(\d+))? \(/),
+                    let device = types.first(where: { $0.1 == match.1 })?.0
+                else { return nil }
+                let number = match.2.flatMap { Int($0) } ?? 1
+                return (Simulator(udid: udid, name: name), device, number)
+            }
+        }
+
         /// Boots the simulator if it isn't already, and waits until it's ready.
         public func boot() throws {
             // `bootstatus -b` boots if needed and waits for the device to finish booting.
@@ -92,6 +111,12 @@
         /// Shuts the simulator down, if it's booted.
         public func shutdown() {
             _ = Shell.run(["xcrun", "simctl", "shutdown", udid])
+        }
+
+        /// Shuts the simulator down and erases its contents and settings.
+        public func erase() throws {
+            shutdown()
+            _ = try Self.simctl(["erase", udid])
         }
 
         /// Installs the app at `app`, replacing any earlier copy.

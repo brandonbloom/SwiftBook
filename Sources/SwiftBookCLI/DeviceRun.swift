@@ -285,6 +285,7 @@
                 guard
                     let lease = try SimulatorPool.tryLease(
                         for: device, keepWarm: SimulatorIdleCommand.start,
+                        note: Renderers.progress,
                         accept: { warm in
                             Self.worthStarting(
                                 remaining: remaining, perItem: perItem, renderers: count,

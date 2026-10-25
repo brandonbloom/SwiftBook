@@ -58,6 +58,10 @@ Runs beyond the pool's size wait their turn, and say so; waiting never counts as
 - **Memory.** The first simulator stays booted. An extra one shuts down once it has been idle for
   5 minutes, so overlapping runs reuse it while it's warm.
 - **Leases end with their run**, even one that crashes.
+- **Crash loops are erased.** A simulator's system services can crash over and over, as
+  PosterBoard does when its data goes bad, each crash writing a report. A run erases a simulator
+  before using it if one service crashed 5 or more times in it in the last hour, and says so.
+  `swiftbook doctor` reports such simulators too.
 
 One run also spreads its snapshots across several simulators when they're free. It starts on
 one, then takes more without waiting for them, while enough snapshots remain to repay starting

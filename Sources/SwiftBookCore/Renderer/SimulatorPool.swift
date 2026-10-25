@@ -52,7 +52,8 @@
         ///
         /// `keepWarm` is called when an extra simulator is released, instead of shutting it down.
         /// It should arrange for ``shutDownWhenIdle(_:number:idle:in:)`` to run, in a process
-        /// that outlives this one.
+        /// that outlives this one. A simulator whose system services are crash-looping is erased
+        /// first, and `waiting` is told.
         public static func lease(
             for device: Device, size: Int = size(), waiting: (String) -> Void = { _ in },
             keepWarm: (@Sendable (Device, Int) -> Void)? = nil
@@ -61,7 +62,10 @@
             while true {
                 if let (number, lock) = try claim(device, size: size) {
                     do {
-                        let simulator = try Simulator.dedicated(for: device, number: number)
+                        let simulator = try Simulator.dedicated(
+                            for: device, number: number, boot: false)
+                        try eraseIfCrashLooping(simulator, device, number: number, note: waiting)
+                        try simulator.boot()
                         return SimulatorLease(
                             simulator: simulator, device: device, number: number, lock: lock,
                             keepWarm: keepWarm)
@@ -86,10 +90,12 @@
 
         /// Leases a free simulator for `device` without waiting, or returns `nil` if none is free
         /// or `accept` declines it. `accept` learns whether the simulator is already booted, since
-        /// booting and installing on a cold one costs more.
+        /// booting and installing on a cold one costs more. A simulator whose system services are
+        /// crash-looping is erased first, and `note` is told.
         public static func tryLease(
             for device: Device, size: Int = size(),
             keepWarm: (@Sendable (Device, Int) -> Void)? = nil,
+            note: (String) -> Void = { _ in },
             accept: (_ warm: Bool) -> Bool = { _ in true }
         ) throws -> SimulatorLease? {
             guard let (number, lock) = try claim(device, size: size) else { return nil }
@@ -99,6 +105,7 @@
                     lock.release()
                     return nil
                 }
+                try eraseIfCrashLooping(simulator, device, number: number, note: note)
                 try simulator.boot()
                 return SimulatorLease(
                     simulator: simulator, device: device, number: number, lock: lock,
@@ -116,14 +123,65 @@
 
         /// Records that `device`'s simulator `number` was just released.
         static func markReleased(_ device: Device, number: Int, in directory: URL = lockDirectory) {
-            try? Data(String(Date().timeIntervalSince1970).utf8).write(
-                to: directory.appending(path: "\(device)-\(number).released"))
+            mark("released", device, number: number, in: directory)
         }
 
         /// When `device`'s simulator `number` was last released, if it's recorded.
         static func lastReleased(_ device: Device, number: Int, in directory: URL) -> Date? {
+            last("released", device, number: number, in: directory)
+        }
+
+        /// When `device`'s simulator `number` was last erased for crash-looping, if it's recorded.
+        public static func lastErased(
+            _ device: Device, number: Int, in directory: URL = lockDirectory
+        ) -> Date? {
+            last("erased", device, number: number, in: directory)
+        }
+
+        /// Erases `simulator`, `device`'s number `number`, if a system service in it has been
+        /// crash-looping since it was last erased, telling `note` which.
+        static func eraseIfCrashLooping(
+            _ simulator: Simulator, _ device: Device, number: Int,
+            in directory: URL = lockDirectory, reports: URL = SimulatorCrashes.reports,
+            note: (String) -> Void
+        ) throws {
+            let loops = SimulatorCrashes.loops(
+                udid: simulator.udid,
+                since: lastErased(device, number: number, in: directory) ?? .distantPast,
+                in: reports)
+            guard !loops.isEmpty else { return }
+            note(
+                "Erasing \(simulator.name), where \(loops.joined(separator: ", ")) crashed over and over."
+            )
+            try simulator.erase()
+            mark("erased", device, number: number, in: directory)
+        }
+
+        /// The pool's simulators, of those that exist, whose system services have been
+        /// crash-looping since they were last erased, with those services.
+        public static func crashLooping(in directory: URL = lockDirectory) -> [(
+            simulator: Simulator, services: [String]
+        )] {
+            Simulator.pool().compactMap { member in
+                let services = SimulatorCrashes.loops(
+                    udid: member.simulator.udid,
+                    since: lastErased(member.device, number: member.number, in: directory)
+                        ?? .distantPast)
+                return services.isEmpty ? nil : (member.simulator, services)
+            }
+        }
+
+        private static func mark(_ event: String, _ device: Device, number: Int, in directory: URL)
+        {
+            try? Data(String(Date().timeIntervalSince1970).utf8).write(
+                to: directory.appending(path: "\(device)-\(number).\(event)"))
+        }
+
+        private static func last(_ event: String, _ device: Device, number: Int, in directory: URL)
+            -> Date?
+        {
             (try? String(
-                contentsOf: directory.appending(path: "\(device)-\(number).released"),
+                contentsOf: directory.appending(path: "\(device)-\(number).\(event)"),
                 encoding: .utf8))
                 .flatMap(TimeInterval.init).map(Date.init(timeIntervalSince1970:))
         }
